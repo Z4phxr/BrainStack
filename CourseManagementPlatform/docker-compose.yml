@@ -1,0 +1,66 @@
+services:
+  app:
+    build: .
+    container_name: exam_prep_app
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment:
+      DATABASE_URL: "${DATABASE_URL_DOCKER:-postgresql://postgres:postgres@postgres:5432/exam_prep_db?schema=public}"
+      PAYLOAD_DATABASE_URL: "${PAYLOAD_DATABASE_URL_DOCKER:-postgresql://postgres:postgres@postgres:5432/exam_prep_db?schema=public}"
+      # SECURITY: AUTH_SECRET and PAYLOAD_SECRET MUST be set in your environment.
+      # Generate with: openssl rand -base64 32
+      AUTH_SECRET: "${AUTH_SECRET:?AUTH_SECRET must be set (generate with: openssl rand -base64 32)}"
+      PAYLOAD_SECRET: "${PAYLOAD_SECRET:?PAYLOAD_SECRET must be set (generate with: openssl rand -base64 32)}"
+      NEXTAUTH_URL: "${NEXTAUTH_URL:-http://localhost:3000}"
+      AUTH_TRUST_HOST: "${AUTH_TRUST_HOST:-false}"
+      # SECURITY: SEED_ADMIN_PASSWORD MUST be set.
+      SEED_ADMIN_PASSWORD: "${SEED_ADMIN_PASSWORD:?SEED_ADMIN_PASSWORD must be set (generate with: openssl rand -base64 24)}"
+      SEED_ADMIN_EMAIL: "${SEED_ADMIN_EMAIL:-admin@example.com}"
+      NODE_ENV: "production"
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./public/media:/app/public/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: exam_prep_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: exam_prep_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: exam_prep_pgadmin
+    restart: unless-stopped
+    environment:
+      # SECURITY: Override these with strong credentials in your .env file.
+      # For local development we provide safe defaults so the compose file parses.
+      # DO NOT use these defaults in production. Set PGADMIN_EMAIL and PGADMIN_PASSWORD
+      # in your environment or via an .env file when running locally.
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_EMAIL:-admin@example.com}"
+      PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_PASSWORD:-changeme}"
+    ports:
+      # Bind to localhost only — do NOT expose pgAdmin to 0.0.0.0 in production.
+      - "127.0.0.1:5050:80"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:

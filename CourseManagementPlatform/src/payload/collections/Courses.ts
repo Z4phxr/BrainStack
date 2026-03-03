@@ -1,0 +1,108 @@
+import type { CollectionConfig } from 'payload'
+import { toSlug } from '../../../lib/utils'
+
+export const Courses: CollectionConfig = {
+  slug: 'courses',
+  admin: {
+    useAsTitle: 'title',
+    defaultColumns: ['title', 'subject', 'level', 'isPublished'],
+  },
+  access: {
+    read: ({ req: { user } }) => {
+      if (user?.role === 'ADMIN') return true
+      // Students can only read published courses
+      return {
+        isPublished: {
+          equals: true,
+        },
+      }
+    },
+    create: ({ req: { user } }) => user?.role === 'ADMIN',
+    update: ({ req: { user } }) => user?.role === 'ADMIN',
+    delete: ({ req: { user } }) => user?.role === 'ADMIN',
+  },
+  fields: [
+    {
+      name: 'title',
+      type: 'text',
+      required: true,
+      label: 'Course title',
+    },
+    {
+      name: 'slug',
+      type: 'text',
+      required: true,
+      unique: true,
+      label: 'Slug (URL)',
+      hooks: {
+        beforeValidate: [({ data, value }) => {
+          const title = typeof data?.title === 'string' ? data.title : ''
+          const raw = typeof value === 'string' && value.trim().length > 0 ? value : title
+          return raw ? toSlug(raw) : value
+        }],
+      },
+      validate: (val: unknown) => {
+        if (!val || typeof val !== 'string') return 'Slug is required'
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(val)) {
+          return 'Slug must be lowercase and contain only letters, numbers, and hyphens'
+        }
+        return true
+      },
+      admin: {
+        description: 'Unique identifier in the URL (e.g., intro-to-web-development)',
+      },
+    },
+    {
+      name: 'description',
+      type: 'richText',
+      label: 'Course description',
+    },
+    {
+      name: 'level',
+      type: 'select',
+      required: true,
+      defaultValue: 'BEGINNER',
+      options: [
+        {
+          label: 'Beginner',
+          value: 'BEGINNER',
+        },
+        {
+          label: 'Intermediate',
+          value: 'INTERMEDIATE',
+        },
+        {
+          label: 'Advanced',
+          value: 'ADVANCED',
+        },
+      ],
+      label: 'Level',
+    },
+    {
+      name: 'subject',
+      type: 'relationship',
+      relationTo: 'subjects',
+      required: true,
+      label: 'Subject',
+      admin: {
+        description: 'Select or create subjects from the dashboard',
+      },
+    },
+    // Removed `topics` field: subjects are managed separately via the Subjects collection
+    {
+      name: 'coverImage',
+      type: 'upload',
+      relationTo: 'media',
+      label: 'Course cover image',
+    },
+    {
+      name: 'isPublished',
+      type: 'checkbox',
+      defaultValue: false,
+      label: 'Published',
+      admin: {
+        description: 'Only published courses are visible to learners',
+      },
+    },
+  ],
+}

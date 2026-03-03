@@ -1,0 +1,56 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+
+# production build
+build/
+dist/
+
+# env files
+.env
+.env.local
+.env.*.local
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# os files
+.DS_Store
+Thumbs.db
+
+# ide
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# testing
+coverage/
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# prisma generated
+app/generated/prisma/
+
+# docs (kept locally, not committed)
+docs/
+
+# misc
+*.pem
+
+
+public
+data
+<<<<<<< HEAD
+scripts
+=======
+scripts
+>>>>>>> c2cedee8f434e35aceed763776f26c2b71e88d7c

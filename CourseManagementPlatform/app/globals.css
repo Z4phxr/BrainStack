@@ -1,0 +1,236 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.5 0.2 250); /* Niebieski */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.95 0.01 250);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.9 0.05 250); /* Jasny niebieski akcent */
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.5 0.2 250); /* Niebieski ring */
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.5 0.2 250);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.9 0.05 250);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.5 0.2 250);
+
+  /* Unified dark-mode palette variables (two tones) */
+  --ui-dark: oklch(0.205 0 0); /* darker tone for blocks / dashboard */
+  --ui-light: oklch(0.985 0 0); /* lighter tone used for block backgrounds */
+
+  /* Block/background aliases used across components */
+  --block-bg: var(--ui-light);
+  --block-contrast: var(--card);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+
+  /* Dark-mode unified tones */
+  --ui-dark: oklch(0.145 0 0); /* darker tone (used for cards/blocks in dark mode) */
+  --ui-light: oklch(0.205 0 0); /* slightly lighter tone for block backgrounds */
+
+  --block-bg: var(--ui-light);
+  --block-contrast: var(--card);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Utility block classes to unify block backgrounds across the app.
+   Use class "block-bg" on elements that should use the lighter block
+   background and "block-contrast" when they should use the darker block color.
+*/
+.block-bg {
+  background-color: var(--block-bg) !important;
+}
+.block-contrast {
+  background-color: var(--block-contrast) !important;
+}
+.dark .block-bg {
+  background-color: var(--block-bg) !important;
+}
+.dark .block-contrast {
+  background-color: var(--block-contrast) !important;
+}
+
+/* Override common utility background classes in dark mode so external
+   components (e.g. embedded admin UI) don't show bright white bars.
+   This maps Tailwind's bg-white/bg-gray-* to our unified two-tone colors
+   when the page is in dark mode. These are intentionally conservative
+   and only apply in the dark theme to avoid changing light mode visuals.
+*/
+.dark .bg-white,
+.dark .bg-gray-50,
+.dark .bg-gray-100,
+.dark .bg-gray-200 {
+  background-color: var(--block-contrast) !important;
+}
+
+.dark .bg-gray-800,
+.dark .bg-gray-900 {
+  background-color: var(--block-bg) !important;
+}
+
+/* Make thin separators use our border variable in dark mode */
+.dark .bg-gray-300,
+.dark .border-gray-300,
+.dark .border-gray-200 {
+  background-color: var(--border) !important;
+  border-color: var(--border) !important;
+}
+
+/* Admin & UI refinements */
+.admin-main { padding: 1rem; }
+.admin-form label + * { margin-top: 0.5rem; }
+
+/* Small tweaks for Payload media modal (best-effort selectors) */
+.uploadModalSelector .react-modal { padding: 1rem; }
+.payload-modal .payload-media-upload, .ReactModal__Content .upload-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+/* Improve contrast for dark mode where necessary */
+.dark .payload { color: var(--foreground); }
+
+/* Utility to force a true white background even in dark mode (use sparingly) */
+.always-white {
+  background-color: #ffffff !important;
+}
+.dark .always-white {
+  background-color: #ffffff !important;
+}
+
+/* Themed button: black button with white text in light mode; white button with black text in dark mode */
+.btn-themed {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+.btn-themed:hover { background-color: #111111 !important; }
+.dark .btn-themed {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+.dark .btn-themed:hover { background-color: #f3f3f3 !important; }
+
+/* Smooth theme transitions: animate colors and backgrounds for a clean switch */
+html, body, .block-bg, .block-contrast, .btn-themed, .always-white, input, textarea, select, label, .card, .card * {
+  transition: background-color 260ms ease, color 260ms ease, border-color 260ms ease, box-shadow 260ms ease;
+}
+
+/* Make placeholders transition (best-effort) */
+input::placeholder, textarea::placeholder {
+  transition: color 260ms ease;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  html, body, .block-bg, .block-contrast, .btn-themed, .always-white, input, textarea, select, label, .card, .card * {
+    transition: none !important;
+  }
+}

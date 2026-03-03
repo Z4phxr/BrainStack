@@ -1,0 +1,79 @@
+# Render Blueprint for Egzamin8 Staging
+# https://render.com/docs/blueprint-spec
+
+services:
+  # Web Service - Next.js Application
+  - type: web
+    name: egzamin8-staging
+    runtime: node
+    plan: free  # or starter for better performance
+    region: frankfurt  # or oregon
+    
+    # Build: npm ci auto-runs postinstall (prisma generate), then build Next.js
+    buildCommand: npm ci && npm run build
+    startCommand: bash scripts/start-staging.sh
+    
+    envVars:
+      - key: NODE_ENV
+        value: production
+      
+      - key: PORT
+        value: 10000
+      
+      - key: DATABASE_URL
+        fromDatabase:
+          name: egzamin8-db
+          property: connectionString
+      
+      # Generate with: openssl rand -base64 32
+      - key: AUTH_SECRET
+        generateValue: true
+      
+      # Generate with: openssl rand -base64 32
+      - key: PAYLOAD_SECRET
+        generateValue: true
+      
+      # CRITICAL: Update this to your actual Render URL
+      # Find it in: Render Dashboard → Your Service → Settings → URL
+      - key: NEXTAUTH_URL
+        value: https://your-service-name.onrender.com
+      
+      # Trust host for dynamic Render URLs (required for Auth.js)
+      - key: AUTH_TRUST_HOST
+        value: "true"
+      
+      - key: PAYLOAD_DATABASE_URL
+        fromDatabase:
+          name: egzamin8-db
+          property: connectionString
+    
+    healthCheckPath: /api/health
+    
+    autoDeploy: true  # Auto-deploy on git push
+
+# Database - PostgreSQL
+databases:
+  - name: egzamin8-db
+    databaseName: egzamin8_staging
+    plan: free  # 90 days trial, then paid
+    region: frankfurt  # match web service region
+    
+    # Database will be automatically created
+    # Connection string will be available as $DATABASE_URL
+
+# Notes:
+# 1. Free tier limitations:
+#    - Web service spins down after 15 minutes of inactivity
+#    - First request after spin-down will be slow (~30s)
+#    - Database is free for 90 days, then $7/month
+#
+# 2. Required manual setup in Render Dashboard:
+#    - Connect GitHub repository
+#    - Set custom NEXTAUTH_URL if using custom domain
+#    - Optionally set AUTH_SECRET and PAYLOAD_SECRET manually for security
+#
+# 3. Environment variables:
+#    - DATABASE_URL: Auto-populated from database
+#    - AUTH_SECRET: Auto-generated (or set manually)
+#    - PAYLOAD_SECRET: Auto-generated (or set manually)
+#    - NEXTAUTH_URL: Update with your actual Render URL

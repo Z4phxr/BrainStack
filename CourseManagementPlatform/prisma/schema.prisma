@@ -1,0 +1,273 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                String                  @id @default(cuid())
+  email             String                  @unique
+  name              String?
+  passwordHash      String?
+  role              Role                    @default(STUDENT)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  courseProgress    CourseProgress[]
+  flashcardSettings FlashcardSettings?
+  lessonProgress    LessonProgress[]
+  taskProgress      TaskProgress[]
+  flashcardProgress UserFlashcardProgress[]
+
+  @@index([email])
+  @@map("User")
+}
+
+model LessonProgress {
+  id           String         @id @default(cuid())
+  userId       String
+  lessonId     String
+  status       LessonStatus   @default(NOT_STARTED)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  lastViewedAt DateTime       @default(now())
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskProgress TaskProgress[]
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@index([status])
+  @@index([userId, status])
+  @@map("lesson_progress")
+}
+
+model TaskProgress {
+  id               String            @id @default(cuid())
+  userId           String
+  taskId           String
+  lessonProgressId String
+  status           TaskStatus        @default(NOT_ATTEMPTED)
+  submittedAnswer  String?
+  earnedPoints     Int               @default(0)
+  maxPoints        Int
+  isCorrect        Boolean?
+  attemptedAt      DateTime?
+  passedAt         DateTime?
+  difficultyRating Int?
+  lessonProgress   LessonProgress    @relation(fields: [lessonProgressId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskProgressTags TaskProgressTag[]
+
+  @@unique([userId, taskId])
+  @@index([userId])
+  @@index([taskId])
+  @@index([status])
+  @@index([isCorrect])
+  @@index([difficultyRating])
+  @@map("task_progress")
+}
+
+model CourseProgress {
+  id                 String   @id @default(cuid())
+  userId             String
+  courseId           String
+  totalLessons       Int      @default(0)
+  completedLessons   Int      @default(0)
+  progressPercentage Float    @default(0)
+  totalPoints        Int      @default(0)
+  earnedPoints       Int      @default(0)
+  enrolledAt         DateTime @default(now())
+  lastActivityAt     DateTime @default(now())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("course_progress")
+}
+
+/// A label that can be attached to many flashcards.
+model Tag {
+  id               String            @id @default(cuid())
+  name             String            @unique
+  slug             String            @unique
+  /// Whether this is a primary/main tag shown by default in the UI.
+  main             Boolean           @default(false)
+  taskProgressTags TaskProgressTag[]
+  flashcards       Flashcard[]       @relation("FlashcardTags")
+
+  @@map("tags")
+}
+
+/// A study flashcard with LaTeX-friendly text and optional media attachments.
+/// Per-user SRS scheduling is tracked in UserFlashcardProgress.
+model Flashcard {
+  id              String                  @id @default(cuid())
+  question        String
+  answer          String
+  /// ID of a Payload CMS media record (image).  Null means no image attached.
+  questionImageId String?
+  /// ID of a Payload CMS media record (image).  Null means no image attached.
+  answerImageId   String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  userProgress    UserFlashcardProgress[]
+  tags            Tag[]                   @relation("FlashcardTags")
+
+  @@index([createdAt])
+  @@map("flashcards")
+}
+
+/// Per-user SRS configuration. Created on first access with sensible defaults.
+model FlashcardSettings {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  /// Maximum new cards shown per day in SRS mode.
+  newCardsPerDay     Int      @default(20)
+  /// Maximum review cards per SRS session.
+  maxReviews         Int      @default(200)
+  /// Learning steps in minutes, space-separated. e.g. "1 10" means 1 min then 10 min.
+  learningSteps      String   @default("1 10")
+  /// Relearning steps in minutes (for failed REVIEW cards).
+  relearningSteps    String   @default("10")
+  /// Days until first REVIEW interval after graduating from learning.
+  graduatingInterval Int      @default(1)
+  /// Days for first REVIEW if graduated with Easy answer.
+  easyInterval       Int      @default(4)
+  /// Starting ease factor for new cards.
+  startingEase       Float    @default(2.5)
+  /// Interval in days at which a card is promoted to MASTERED state.
+  masteredThreshold  Int      @default(21)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("flashcard_settings")
+}
+
+/// Tracks the Anki SM-2 spaced-repetition state for a single (user, flashcard) pair.
+/// This replaces the global SRS fields that used to live directly on Flashcard,
+/// enabling multiple users to have independent study schedules for the same card.
+model UserFlashcardProgress {
+  id             String         @id @default(cuid())
+  userId         String
+  flashcardId    String
+  state          FlashcardState @default(NEW)
+  stepIndex      Int            @default(0)
+  lastReviewedAt DateTime?
+  nextReviewAt   DateTime?
+  repetition     Int            @default(0)
+  interval       Int            @default(0)
+  easeFactor     Float          @default(2.5)
+  lastResult     LastResult?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @default(now()) @updatedAt
+  flashcard      Flashcard      @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, flashcardId])
+  @@index([userId])
+  @@index([flashcardId])
+  @@index([nextReviewAt])
+  @@index([userId, state])
+  @@map("user_flashcard_progress")
+}
+
+/// Normalised join between a TaskProgress record and a canonical Tag.
+/// Replaces the deprecated `taskTags String[]` field on TaskProgress, giving
+/// proper referential integrity and enabling tag-based analytics queries.
+model TaskProgressTag {
+  id             String       @id @default(cuid())
+  taskProgressId String
+  tagId          String
+  tag            Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  taskProgress   TaskProgress @relation(fields: [taskProgressId], references: [id], onDelete: Cascade)
+
+  @@unique([taskProgressId, tagId])
+  @@index([taskProgressId])
+  @@index([tagId])
+  @@map("task_progress_tags")
+}
+
+/// Blocklist for revoked JWT session tokens.
+/// Entries are added on sign-out and periodically cleaned up after expiry.
+model RevokedToken {
+  jti       String   @id
+  expiresAt DateTime
+  revokedAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([expiresAt])
+  @@map("revoked_tokens")
+}
+
+/// Persistent rate-limit counters, shared across all application instances.
+/// Replaces the previous in-memory Map which reset on restart and did not
+/// scale horizontally behind a load-balancer.
+model RateLimit {
+  id      String   @id
+  count   Int      @default(1)
+  resetAt DateTime @db.Timestamptz(6)
+
+  @@index([resetAt])
+  @@map("rate_limits")
+}
+
+/// Records important platform actions for administrative auditing.
+model ActivityLog {
+  id           String   @id @default(cuid())
+  timestamp    DateTime @default(now()) @db.Timestamptz(6)
+  action       String
+  actorUserId  String?
+  actorEmail   String?
+  resourceType String?
+  resourceId   String?
+  metadata     Json?
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([timestamp(sort: Desc)])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([resourceType])
+  @@map("activity_logs")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum LessonStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum TaskStatus {
+  NOT_ATTEMPTED
+  ATTEMPTED
+  PASSED
+}
+
+/// Review-result choices for the SM-2 style spaced-repetition algorithm.
+enum LastResult {
+  AGAIN
+  HARD
+  GOOD
+  EASY
+}
+
+/// Anki-like learning state machine for each flashcard.
+enum FlashcardState {
+  /// Never been studied
+  NEW
+  /// Currently in learning steps (minutes-based)
+  LEARNING
+  /// In long-term spaced repetition (days-based)
+  REVIEW
+  /// Failed a REVIEW card — going through short steps again
+  RELEARNING
+  /// Interval exceeds the mastered threshold (still reviewed)
+  MASTERED
+}

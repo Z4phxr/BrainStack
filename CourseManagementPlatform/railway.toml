@@ -1,0 +1,23 @@
+# Railway deployment configuration
+# https://docs.railway.app/reference/config-as-code
+#
+# SETUP:
+# 1. In Railway dashboard, set the root directory of this service to "CourseManagementPlatform"
+# 2. Add a PostgreSQL service and link DATABASE_URL
+# 3. Set all required environment variables listed in .env.example
+#
+# The Dockerfile handles:
+#   - npm ci + prisma generate + next build  (builder stage)
+#   - prisma migrate deploy + payload:migrate + cms:seed + npm start  (via docker-entrypoint.sh)
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# docker-entrypoint.sh runs migrations then starts the production server
+startCommand = "sh /app/docker-entrypoint.sh"
+healthcheckPath = "/api/ping"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
