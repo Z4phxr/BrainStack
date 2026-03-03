@@ -85,11 +85,13 @@ COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/auth.ts ./auth.ts
 COPY --from=builder /app/middleware.ts ./middleware.ts
 COPY --from=builder /app/next.config.ts ./next.config.ts
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/tsconfig.scripts.json ./tsconfig.scripts.json
 
 # Copy entrypoint and make executable
 COPY docker-entrypoint.sh ./docker-entrypoint.sh

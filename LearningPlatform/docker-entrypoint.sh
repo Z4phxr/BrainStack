@@ -49,6 +49,15 @@ printf "[MIGRATE] Running Payload CMS migrations (creates block tables etc.)...\
 npm run payload:migrate && printf "[MIGRATE] Payload migrations done.\n" || \
   printf "[MIGRATE][WARNING] Payload migrate failed — tables may already exist or will be created on first request.\n"
 
+printf "[MIGRATE] Running custom SQL migrations from migrations/...\n"
+for sql_file in /app/migrations/*.sql; do
+  printf "[MIGRATE] Applying %s...\n" "$sql_file"
+  npx tsx --tsconfig tsconfig.scripts.json ./scripts/run-sql-file.ts "$sql_file" && \
+    printf "[MIGRATE] OK: %s\n" "$sql_file" || \
+    printf "[MIGRATE][WARNING] Failed (may already be applied): %s\n" "$sql_file"
+done
+printf "[MIGRATE] Custom SQL migrations done.\n"
+
 printf "[MIGRATE] Running CMS seed (creates admin user in both payload_users and public.User)...\n"
 npm run cms:seed && printf "[MIGRATE] CMS seed done.\n" || \
   printf "[MIGRATE][WARNING] CMS seed failed (admin user may already exist or Payload tables not ready).\n"
