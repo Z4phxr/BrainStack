@@ -27,7 +27,25 @@ export async function GET(request: Request, props: any) {
     // Prevent path traversal
     const name = decodeURIComponent(path.basename(raw))
 
-    // --- S3 path: generate a signed URL and redirect ---
+    // --- Local disk path takes priority ---
+    // Files uploaded before S3 was configured only exist on disk.
+    // Always serve from disk if present, regardless of S3 config.
+    const target = path.join(PUBLIC_MEDIA_DIR, name)
+    if (fs.existsSync(target)) {
+      const ext = path.extname(name)
+      const mime = mimeForExt(ext)
+      const buffer = fs.readFileSync(target)
+      return new NextResponse(buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': mime,
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'Content-Length': buffer.length.toString(),
+        },
+      })
+    }
+
+    // --- S3 path: file not on disk, try signed URL redirect ---
     if (isS3Configured()) {
       const signedUrl = await getSignedMediaUrl(name)
       if (signedUrl) {
@@ -40,30 +58,12 @@ export async function GET(request: Request, props: any) {
           },
         })
       }
-      // S3 configured but getSignedUrl failed — fall through to local disk
       console.warn(`[serve] S3 configured but failed to get signed URL for: ${name}`)
     }
 
-    // --- Local disk path (dev / fallback) ---
-    const target = path.join(PUBLIC_MEDIA_DIR, name)
-
-    if (!fs.existsSync(target)) {
-      console.error(`[serve] Media file not found: ${name} (S3 configured: ${isS3Configured()})`)
-      return NextResponse.json({ error: 'File not found' }, { status: 404 })
-    }
-
-    const ext = path.extname(name)
-    const mime = mimeForExt(ext)
-    const buffer = fs.readFileSync(target)
-
-    return new NextResponse(buffer, {
-      status: 200,
-      headers: {
-        'Content-Type': mime,
-        'Cache-Control': 'public, max-age=31536000, immutable',
-        'Content-Length': buffer.length.toString(),
-      },
-    })
+    // File not on disk and not in S3 (or S3 not configured)
+    console.error(`[serve] Media file not found: ${name} (S3 configured: ${isS3Configured()})`)
+    return NextResponse.json({ error: 'File not found' }, { status: 404 })
   } catch (err) {
     console.error('Serve media error:', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

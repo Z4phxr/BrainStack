@@ -86,6 +86,7 @@ export default auth((req) => {
   // so that layout.tsx can apply it to inline <script nonce={nonce}> tags.
   const requestHeaders = new Headers(req.headers)
   requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('x-pathname', nextUrl.pathname)
 
   return withCsp(
     NextResponse.next({ request: { headers: requestHeaders } })

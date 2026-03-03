@@ -98,7 +98,7 @@ function ImageField({ imageId, imageUrl, label, onClear, onOpen }: ImageFieldPro
   if (imageId && imageUrl) {
     return (
       <div className="relative inline-block">
-        <Image src={imageUrl} alt={label} width={200} height={120} className="rounded-md border object-cover" />
+        <Image src={imageUrl} alt={label} width={200} height={120} unoptimized className="rounded-md border object-cover" />
         <button
           type="button"
           onClick={onClear}
