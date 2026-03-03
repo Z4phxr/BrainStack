@@ -25,21 +25,21 @@
     "test:e2e:ui": "playwright test --ui",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "tsx --tsconfig tsconfig.scripts.json prisma/seed.ts",
     "db:studio": "prisma studio",
     "payload": "payload",
     "payload:migrate:create": "payload migrate:create",
-    "payload:migrate": "tsx scripts/payload-migrate.ts",
-    "payload:fix-media-ids": "tsx scripts/fix-media-id-columns.ts",
-    "cms:seed": "tsx src/payload/seed.ts",
+    "payload:migrate": "tsx --tsconfig tsconfig.scripts.json scripts/payload-migrate.ts",
+    "payload:fix-media-ids": "tsx --tsconfig tsconfig.scripts.json scripts/fix-media-id-columns.ts",
+    "cms:seed": "tsx --tsconfig tsconfig.scripts.json src/payload/seed.ts",
     "start:staging": "bash scripts/start-staging.sh",
     "preflight": "npm run preflight:check && npm run build",
-    "preflight:check": "tsx scripts/preflight-check.ts",
-    "verify:paths": "tsx scripts/verify-paths.ts",
-    "validate:payload-tables": "tsx scripts/validate-payload-tables.ts"
+    "preflight:check": "tsx --tsconfig tsconfig.scripts.json scripts/preflight-check.ts",
+    "verify:paths": "tsx --tsconfig tsconfig.scripts.json scripts/verify-paths.ts",
+    "validate:payload-tables": "tsx --tsconfig tsconfig.scripts.json scripts/validate-payload-tables.ts"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx --tsconfig tsconfig.scripts.json prisma/seed.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
