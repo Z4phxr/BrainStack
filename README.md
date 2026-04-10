@@ -26,6 +26,7 @@ A production-ready exam preparation and course management platform built on Next
 - [Security](#security)
 - [Documentation](#documentation)
 - [Getting Started](#getting-started)
+- [Content imports (bulk data)](#content-imports-bulk-data)
 - [Running Tests](#running-tests)
 - [Deployment](#deployment)
 - [Technology Stack](#technology-stack)
@@ -269,6 +270,28 @@ npm run dev
 
 ---
 
+## Content imports (bulk data)
+
+Besides the admin UI, you can load **tags, full courses (subject → modules → lessons → tasks), extra modules on an existing course, and flashcards** from data files under the app. Imports are **idempotent**: re-running updates existing records that match the same keys (slugs, order fields, and so on) instead of duplicating everything.
+
+**Requirements:** a running database, `DATABASE_URL` (or `PAYLOAD_DATABASE_URL`) and `PAYLOAD_SECRET` in `.env`, same as normal app usage.
+
+From the **app directory** (the folder that contains `package.json`, e.g. `LearningPlatform/LearningPlatform`):
+
+```bash
+npm run content:import:all
+```
+
+Stage-specific scripts exist as well (`content:import:tags`, `content:import:course`, `content:import:modules`, `content:import:flashcards`). Use `--dry-run` on a runner to print what would change without writing.
+
+**File format and shapes** (where to put new files, how each export must look) are documented here:
+
+**[LearningPlatform/scripts/imports/README.md](LearningPlatform/scripts/imports/README.md)**
+
+Docker: after the stack is up, `docker compose --env-file .env exec app npm run content:import:all` (rebuild or mount `scripts/imports` if you change data files; see `LearningPlatform/DOCKER.md`).
+
+---
+
 ## Running Tests
 
 ```bash
@@ -277,7 +300,7 @@ npm run test:coverage   # with coverage report
 npm run test:watch      # watch mode
 ```
 
-392 tests - unit, integration, and component - using Vitest and Testing Library.
+404 tests total (unit, integration, component) with Vitest and Testing Library. The default `npm run test:ci` / GitHub Actions job runs **392** of them; **12** Payload- or DB-heavy integration tests are skipped unless you run against a real database (see `SKIP_PAYLOAD_TESTS` / `SKIP_DB_SETUP` in the test files).
 
 ---
 

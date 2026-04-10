@@ -1,13 +1,99 @@
 ﻿import { NextResponse } from 'next/server'
+import { getPayload } from 'payload'
+import config from '@payload-config'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { logActivity, ActivityAction } from '@/lib/activity-log'
 
+const OA = { overrideAccess: true as const }
+
+type TaskTagRow = { tagId?: string; name?: string; slug?: string }
+
+function readTaskTags(task: unknown): TaskTagRow[] {
+  const raw = (task as { tags?: unknown }).tags
+  return Array.isArray(raw) ? (raw as TaskTagRow[]) : []
+}
+
 function slugify(text: string): string {
-  return text.toString().trim().toLowerCase()
-    .replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '')
+  return text
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+async function syncTagOnTasks(tagId: string, name: string, slug: string) {
+  const payload = await getPayload({ config })
+  const limit = 80
+  // Read all matching task IDs first (page++ safe — no mutations). Updates keep tagId in the
+  // filter, so a single "page 1 until empty" loop would never drain.
+  const taskIds: string[] = []
+  let readPage = 1
+  for (;;) {
+    const { docs, hasNextPage } = await payload.find({
+      collection: 'tasks',
+      where: { 'tags.tagId': { equals: tagId } },
+      limit,
+      page: readPage,
+      depth: 0,
+      ...OA,
+    })
+    for (const t of docs) taskIds.push(String(t.id))
+    if (!hasNextPage) break
+    readPage += 1
+  }
+  for (const id of taskIds) {
+    const task = await payload.findByID({
+      collection: 'tasks',
+      id,
+      depth: 0,
+      ...OA,
+    })
+    const tags = [...readTaskTags(task)]
+    const next = tags.map((t) =>
+      t?.tagId === tagId ? { ...t, name, slug } : t,
+    )
+    await payload.update({
+      collection: 'tasks',
+      id,
+      data: { tags: next },
+      ...OA,
+    })
+  }
+}
+
+async function removeTagFromTasks(tagId: string): Promise<number> {
+  const payload = await getPayload({ config })
+  let removed = 0
+  const limit = 80
+  for (;;) {
+    const { docs } = await payload.find({
+      collection: 'tasks',
+      where: { 'tags.tagId': { equals: tagId } },
+      limit,
+      page: 1,
+      depth: 0,
+      ...OA,
+    })
+    if (docs.length === 0) break
+    for (const task of docs) {
+      const tags = readTaskTags(task)
+      const next = tags.filter((t) => t?.tagId !== tagId)
+      removed += tags.length - next.length
+      await payload.update({
+        collection: 'tasks',
+        id: String(task.id),
+        data: { tags: next },
+        ...OA,
+      })
+    }
+  }
+  return removed
 }
 
 const updateTagSchema = z.object({
@@ -42,13 +128,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     })
     if (newName !== existing.name || newSlug !== existing.slug) {
       try {
-        await prisma.$executeRaw`UPDATE payload.tasks_tags SET name = ${newName}, slug = ${newSlug} WHERE tag_id = ${id}`
+        await syncTagOnTasks(id, newName, newSlug)
       } catch (syncErr) {
-        console.warn('[PUT /api/tags/[id]] Failed to sync payload.tasks_tags:', syncErr)
+        console.warn('[PUT /api/tags/[id]] Failed to sync tag on tasks:', syncErr)
       }
     }
     try { revalidateTag('api-tags-list') } catch (_) { /* best-effort */ }
-    logActivity({ action: ActivityAction.TAG_UPDATED, actorUserId: admin.id, actorEmail: admin.email, resourceType: 'tag', resourceId: id, metadata: { name: tag.name, slug: tag.slug } })
+    logActivity({
+      action: ActivityAction.TAG_UPDATED,
+      actorUserId: admin.id,
+      actorEmail: admin.email,
+      resourceType: 'tag',
+      resourceId: id,
+      metadata: { name: tag.name, slug: tag.slug },
+    })
     return NextResponse.json({ tag })
   } catch (error) {
     if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden'))
@@ -66,16 +159,18 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     if (!tag) return NextResponse.json({ error: 'Tag not found' }, { status: 404 })
     let deletedJoinRows = 0
     try {
-      const matches: Array<{ id: string }> = await prisma.$queryRaw`SELECT id FROM payload.tasks_tags WHERE tag_id = ${tag.id}` as any
-      if (Array.isArray(matches) && matches.length > 0) {
-        deletedJoinRows = matches.length
-        await prisma.$executeRaw`DELETE FROM payload.tasks_tags WHERE tag_id = ${tag.id}`
-      }
+      deletedJoinRows = await removeTagFromTasks(tag.id)
     } catch (err) {
-      console.warn('Failed to delete payload.tasks_tags entries for tag', tag.id, err)
+      console.warn('Failed to remove tag from tasks for tag', tag.id, err)
     }
     await prisma.tag.delete({ where: { id } })
-    logActivity({ action: ActivityAction.TAG_DELETED, actorUserId: admin.id, actorEmail: admin.email, resourceType: 'tag', resourceId: id })
+    logActivity({
+      action: ActivityAction.TAG_DELETED,
+      actorUserId: admin.id,
+      actorEmail: admin.email,
+      resourceType: 'tag',
+      resourceId: id,
+    })
     try { revalidateTag('api-tags-list') } catch (_) { /* best-effort */ }
     return NextResponse.json({ success: true, deletedJoinRows })
   } catch (error) {

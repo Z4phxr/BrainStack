@@ -55,7 +55,11 @@ function log(color: keyof typeof COLORS, message: string) {
  * - prisma.$queryRaw`...payload.*`
  * 
  * Allowed exceptions:
- * - scripts/check-payload-tables.ts (checks metadata via information_schema)
+ * - scripts/validate-payload-tables.ts (information_schema only)
+ * - scripts/check-db.ts, scripts/check-courses-empty.ts (staging diagnostics)
+ * - lib/payload-task-tag-counts.ts (single GROUP BY on payload.tasks_tags for admin UI)
+ * - scripts/cleanup-payload-orphans.ts (maintenance deletes via SQL discovery)
+ * - scripts/fix-drop-question-column.ts (one-off legacy column migration)
  * - scripts/drop-payload-schema.ts (development only)
  * - docs/* (documentation)
  */
@@ -78,7 +82,12 @@ function checkNoDirectSQLToPayload(): PreflightResult {
   ]
 
   const allowedFiles = [
-    'scripts/check-payload-tables.ts',     // Checks information_schema
+    'scripts/validate-payload-tables.ts',
+    'scripts/check-db.ts',
+    'scripts/check-courses-empty.ts',
+    'lib/payload-task-tag-counts.ts',
+    'scripts/cleanup-payload-orphans.ts',
+    'scripts/fix-drop-question-column.ts',
     'scripts/drop-payload-schema.ts',      // Dev-only utility
     'docs/PAYLOAD-API-USAGE.md',           // Documentation
     'scripts/preflight-check.ts',          // This file (contains patterns)

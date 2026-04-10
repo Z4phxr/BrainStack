@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Starting Egzamin8 on Render (Staging)"
+echo "🚀 Starting BrainStack on Render (Staging)"
 echo "========================================="
 
 # 0. Normalize database environment variables
@@ -70,28 +70,30 @@ fi
 echo ""
 echo "🌱 Step 3/4: Checking if database needs seeding..."
 
-if ! npx tsx scripts/check-seed.ts; then
-  echo "   → Seeding Prisma users..."
-  if npm run db:seed; then
-    echo "   ✅ Prisma users seeded"
+TSX='npx tsx --tsconfig tsconfig.scripts.json'
+
+if ! $TSX scripts/check-seed.ts; then
+  echo "   → Running CMS seed (NextAuth user + Payload admin)..."
+  if npm run cms:seed; then
+    echo "   ✅ CMS seed completed"
   else
-    echo "   ❌ Prisma seed failed"
+    echo "   ❌ CMS seed failed (check SEED_ADMIN_PASSWORD, PAYLOAD_SECRET, migrations)"
     exit 1
   fi
 else
-  echo "   ✅ Prisma users already exist"
+  echo "   ✅ public.User already has rows"
 fi
 
-if ! npx tsx scripts/check-courses-empty.ts; then
-  echo "   → Seeding Payload CMS courses..."
+if ! $TSX scripts/check-courses-empty.ts; then
+  echo "   → No courses in payload.courses — running CMS seed (bootstrap only)..."
   if npm run cms:seed; then
-    echo "   ✅ Payload CMS seeded"
+    echo "   ✅ CMS seed completed"
   else
-    echo "   ⚠️  Payload CMS seed failed (tables may not exist yet)"
-    echo "   This is OK - migrations will run on next deploy"
+    echo "   ⚠️  CMS seed failed (tables may not exist yet)"
+    echo "   This may be OK — migrations can run on next deploy"
   fi
 else
-  echo "   ✅ Payload CMS already has data"
+  echo "   ✅ At least one course exists in Payload"
 fi
 
 echo ""

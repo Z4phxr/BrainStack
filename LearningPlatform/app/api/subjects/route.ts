@@ -1,30 +1,27 @@
 import { NextResponse } from 'next/server'
+import { getPayload } from 'payload'
+import config from '@payload-config'
 import { toSlug } from '@/lib/utils'
 import { requireAdmin } from '@/lib/auth-helpers'
-import { prisma } from '@/lib/prisma'
 import { logActivity, ActivityAction } from '@/lib/activity-log'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-type SubjectRow = {
-  id: string
-  name: string
-  slug: string
-}
+const OA = { overrideAccess: true as const }
 
 // ─── GET /api/subjects ────────────────────────────────────────────────────────
 
 export async function GET() {
   try {
-    const rows = await prisma.$queryRaw<SubjectRow[]>`
-      SELECT id, name, slug
-      FROM "payload"."subjects"
-      ORDER BY name ASC
-    `
-    const subjects = rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      slug: r.slug ?? toSlug(r.name ?? ''),
+    const payload = await getPayload({ config })
+    const { docs } = await payload.find({
+      collection: 'subjects',
+      sort: 'name',
+      limit: 500,
+      ...OA,
+    })
+    const subjects = docs.map((doc) => ({
+      id: String(doc.id),
+      name: String(doc.name ?? ''),
+      slug: (doc.slug as string) ?? toSlug(String(doc.name ?? '')),
       tagSlugs: [] as string[],
     }))
     return NextResponse.json({ subjects })
@@ -47,23 +44,27 @@ export async function POST(req: Request) {
 
     const name = body.name.trim()
     const slug = body.slug ? toSlug(String(body.slug)) : toSlug(name)
-    const id = crypto.randomUUID()
 
-    await prisma.$executeRaw`
-      INSERT INTO "payload"."subjects" (id, name, slug, updated_at, created_at)
-      VALUES (${id}, ${name}, ${slug}, NOW(), NOW())
-    `
-
-    logActivity({
-      action:       ActivityAction.SUBJECT_CREATED,
-      actorUserId:  admin.id,
-      actorEmail:   admin.email,
-      resourceType: 'subject',
-      resourceId:   id,
-      metadata:     { name, slug },
+    const payload = await getPayload({ config })
+    const doc = await payload.create({
+      collection: 'subjects',
+      data: { name, slug },
+      ...OA,
     })
 
-    return NextResponse.json({ subject: { id, name, slug } }, { status: 201 })
+    logActivity({
+      action: ActivityAction.SUBJECT_CREATED,
+      actorUserId: admin.id,
+      actorEmail: admin.email,
+      resourceType: 'subject',
+      resourceId: String(doc.id),
+      metadata: { name, slug },
+    })
+
+    return NextResponse.json(
+      { subject: { id: String(doc.id), name: String(doc.name), slug: String(doc.slug) } },
+      { status: 201 },
+    )
   } catch (error) {
     console.error('[POST /api/subjects]', error)
     const msg = error instanceof Error ? error.message : 'Failed to create subject'
@@ -92,23 +93,25 @@ export async function PUT(req: Request) {
     const name = body.name.trim()
     const slug = body.slug ? toSlug(String(body.slug)) : toSlug(name)
 
-    const result = await prisma.$executeRaw`
-      UPDATE "payload"."subjects"
-      SET name = ${name}, slug = ${slug}, updated_at = NOW()
-      WHERE id = ${id}
-    `
-
-    if (result === 0) {
+    const payload = await getPayload({ config })
+    try {
+      await payload.update({
+        collection: 'subjects',
+        id,
+        data: { name, slug },
+        ...OA,
+      })
+    } catch {
       return NextResponse.json({ error: 'Subject not found' }, { status: 404 })
     }
 
     logActivity({
-      action:       ActivityAction.SUBJECT_UPDATED,
-      actorUserId:  admin.id,
-      actorEmail:   admin.email,
+      action: ActivityAction.SUBJECT_UPDATED,
+      actorUserId: admin.id,
+      actorEmail: admin.email,
       resourceType: 'subject',
-      resourceId:   id,
-      metadata:     { name, slug },
+      resourceId: id,
+      metadata: { name, slug },
     })
 
     return NextResponse.json({ subject: { id, name, slug } })
@@ -131,20 +134,23 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'Missing id' }, { status: 400 })
     }
 
-    const result = await prisma.$executeRaw`
-      DELETE FROM "payload"."subjects" WHERE id = ${id}
-    `
-
-    if (result === 0) {
+    const payload = await getPayload({ config })
+    try {
+      await payload.delete({
+        collection: 'subjects',
+        id,
+        ...OA,
+      })
+    } catch {
       return NextResponse.json({ error: 'Subject not found' }, { status: 404 })
     }
 
     logActivity({
-      action:       ActivityAction.SUBJECT_DELETED,
-      actorUserId:  admin.id,
-      actorEmail:   admin.email,
+      action: ActivityAction.SUBJECT_DELETED,
+      actorUserId: admin.id,
+      actorEmail: admin.email,
       resourceType: 'subject',
-      resourceId:   id,
+      resourceId: id,
     })
 
     return NextResponse.json({ success: true })

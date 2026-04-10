@@ -12,9 +12,9 @@ export default function HeroContent() {
 
   return (
     <div className={`text-center ${heroTextClass}`}>
-      <h1 className="mb-6 text-5xl font-bold">Launch your learning platform</h1>
+      <h1 className="mb-6 text-5xl font-bold">BrainStack</h1>
       <p className={`mb-8 text-xl ${subtitleClass}`}>
-        A flexible foundation for courses, lessons, and interactive learning content.
+        Platform for courses, lessons, and interactive learning content.
       </p>
       <div className="flex justify-center items-center gap-4">
         <Button asChild size="lg" className="btn-themed opacity-80">

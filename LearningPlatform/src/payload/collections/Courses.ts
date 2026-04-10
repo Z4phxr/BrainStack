@@ -1,11 +1,19 @@
 import type { CollectionConfig } from 'payload'
 import { toSlug } from '../../../lib/utils'
+import { deleteModulesAttachingToCourse } from '../lib/content-cascade-delete'
 
 export const Courses: CollectionConfig = {
   slug: 'courses',
   admin: {
     useAsTitle: 'title',
     defaultColumns: ['title', 'subject', 'level', 'isPublished'],
+  },
+  hooks: {
+    beforeDelete: [
+      async ({ id, req }) => {
+        await deleteModulesAttachingToCourse(req.payload, String(id), req)
+      },
+    ],
   },
   access: {
     read: ({ req: { user } }) => {

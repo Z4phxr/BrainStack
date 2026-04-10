@@ -13,7 +13,7 @@ export async function Navbar() {
     <nav className="border-b dark:border-gray-700 block-contrast">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link href="/dashboard" className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          Learning Platform
+          BrainStack
         </Link>
         
         <div className="flex items-center gap-4">
