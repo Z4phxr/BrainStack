@@ -1,44 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getPayload } from 'payload'
-import config from '@payload-config'
 import { prisma } from '@/lib/prisma'
+import { getTaskCountsByPrismaTagId } from '@/lib/payload-task-tag-counts'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { unstable_cache, revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { logActivity, ActivityAction } from '@/lib/activity-log'
-
-const OA = { overrideAccess: true as const }
-
-/** Count Prisma tag ids by scanning task documents (no raw SQL to payload.*). */
-async function taskCountsByTagId(): Promise<Map<string, number>> {
-  const payload = await getPayload({ config })
-  const counts = new Map<string, number>()
-  let page = 1
-  const limit = 200
-  for (;;) {
-    const { docs, hasNextPage } = await payload.find({
-      collection: 'tasks',
-      limit,
-      page,
-      depth: 0,
-      ...OA,
-    })
-    for (const task of docs) {
-      const rows = Array.isArray((task as { tags?: unknown }).tags)
-        ? ((task as { tags: { tagId?: string }[] }).tags ?? [])
-        : []
-      for (const row of rows) {
-        const tid = row?.tagId
-        if (typeof tid === 'string' && tid.length > 0) {
-          counts.set(tid, (counts.get(tid) ?? 0) + 1)
-        }
-      }
-    }
-    if (!hasNextPage) break
-    page += 1
-  }
-  return counts
-}
 
 const getCachedTags = unstable_cache(
   async () => {
@@ -53,7 +19,7 @@ const getCachedTags = unstable_cache(
       },
     })
 
-    const countsMap = await taskCountsByTagId()
+    const countsMap = await getTaskCountsByPrismaTagId()
 
     return tags.map((t) => ({
       ...t,

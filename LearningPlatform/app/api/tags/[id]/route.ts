@@ -22,54 +22,64 @@ function slugify(text: string): string {
 
 async function syncTagOnTasks(tagId: string, name: string, slug: string) {
   const payload = await getPayload({ config })
-  let page = 1
   const limit = 80
+  // Read all matching task IDs first (page++ safe — no mutations). Updates keep tagId in the
+  // filter, so a single "page 1 until empty" loop would never drain.
+  const taskIds: string[] = []
+  let readPage = 1
   for (;;) {
     const { docs, hasNextPage } = await payload.find({
       collection: 'tasks',
       where: { 'tags.tagId': { equals: tagId } },
       limit,
-      page,
+      page: readPage,
       depth: 0,
       ...OA,
     })
-    for (const task of docs) {
-      const tags = Array.isArray((task as { tags?: unknown }).tags)
-        ? ([...(task as { tags: { tagId?: string; name?: string; slug?: string }[] }).tags] as {
-            tagId?: string
-            name?: string
-            slug?: string
-          }[])
-        : []
-      const next = tags.map((t) =>
-        t?.tagId === tagId ? { ...t, name, slug } : t,
-      )
-      await payload.update({
-        collection: 'tasks',
-        id: String(task.id),
-        data: { tags: next },
-        ...OA,
-      })
-    }
+    for (const t of docs) taskIds.push(String(t.id))
     if (!hasNextPage) break
-    page += 1
+    readPage += 1
+  }
+  for (const id of taskIds) {
+    const task = await payload.findByID({
+      collection: 'tasks',
+      id,
+      depth: 0,
+      ...OA,
+    })
+    const tags = Array.isArray((task as { tags?: unknown }).tags)
+      ? ([...(task as { tags: { tagId?: string; name?: string; slug?: string }[] }).tags] as {
+          tagId?: string
+          name?: string
+          slug?: string
+        }[])
+      : []
+    const next = tags.map((t) =>
+      t?.tagId === tagId ? { ...t, name, slug } : t,
+    )
+    await payload.update({
+      collection: 'tasks',
+      id,
+      data: { tags: next },
+      ...OA,
+    })
   }
 }
 
 async function removeTagFromTasks(tagId: string): Promise<number> {
   const payload = await getPayload({ config })
   let removed = 0
-  let page = 1
   const limit = 80
   for (;;) {
-    const { docs, hasNextPage } = await payload.find({
+    const { docs } = await payload.find({
       collection: 'tasks',
       where: { 'tags.tagId': { equals: tagId } },
       limit,
-      page,
+      page: 1,
       depth: 0,
       ...OA,
     })
+    if (docs.length === 0) break
     for (const task of docs) {
       const tags = Array.isArray((task as { tags?: unknown }).tags)
         ? ([...(task as { tags: { tagId?: string }[] }).tags] as { tagId?: string }[])
@@ -83,8 +93,6 @@ async function removeTagFromTasks(tagId: string): Promise<number> {
         ...OA,
       })
     }
-    if (!hasNextPage) break
-    page += 1
   }
   return removed
 }
