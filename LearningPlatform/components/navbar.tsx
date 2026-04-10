@@ -11,8 +11,11 @@ export async function Navbar() {
 
   return (
     <nav className="border-b dark:border-gray-700 block-contrast">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/dashboard" className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+      <div className="container mx-auto flex min-h-16 items-center justify-between gap-4 px-4 py-2 sm:py-3">
+        <Link
+          href="/dashboard"
+          className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl"
+        >
           BrainStack
         </Link>
         

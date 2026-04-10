@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import Link from 'next/link'
 import { TheoryBlocksRenderer } from '@/components/student/theory-blocks-renderer'
+import { LessonLegacyContent } from '@/components/student/lesson-legacy-content'
 import { TaskCard } from '@/components/student/task-card'
 import { auth } from '@/auth'
 import { updateLesson } from '@/app/(admin)/admin/actions'
@@ -173,18 +174,15 @@ export default async function LessonPage({
       {/* Lesson Content */}
       {(lesson.theoryBlocks && lesson.theoryBlocks.length > 0) || lesson.content ? (
         <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="text-2xl text-foreground">Theory</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-8 pb-8">
             {lesson.theoryBlocks && lesson.theoryBlocks.length > 0 ? (
               <TheoryBlocksRenderer blocks={lesson.theoryBlocks as Array<Record<string, unknown>> | undefined} />
             ) : (
-                  <div className="prose max-w-none">
+              <div className="max-w-none">
                 {typeof lesson.content === 'string' ? (
-                  <p className="whitespace-pre-wrap">{lesson.content}</p>
+                  <LessonLegacyContent content={lesson.content} />
                 ) : (
-                      <div className="text-muted-foreground">
+                  <div className="text-muted-foreground">
                     <p>Lesson content...</p>
                   </div>
                 )}

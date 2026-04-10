@@ -5,6 +5,8 @@ import 'katex/dist/katex.min.css'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Info, AlertTriangle, Lightbulb } from 'lucide-react'
 import Image from 'next/image'
+import { cn } from '@/lib/utils'
+import { lessonTheorySizeClasses, useLessonTheoryTextSize } from '@/lib/lesson-theory-text-size'
 
 interface TextBlockData {
   blockType: 'text'
@@ -90,7 +92,19 @@ function renderLexicalContent(content: unknown): string {
   }
 }
 
-function MathBlockComponent({ latex, displayMode, note }: { latex: string; displayMode: boolean; note?: string }) {
+function MathBlockComponent({
+  latex,
+  displayMode,
+  note,
+  mathDisplayClass,
+  mathNoteClass,
+}: {
+  latex: string
+  displayMode: boolean
+  note?: string
+  mathDisplayClass: string
+  mathNoteClass: string
+}) {
   let html = ''
   try {
     html = katex.renderToString(latex, {
@@ -103,23 +117,30 @@ function MathBlockComponent({ latex, displayMode, note }: { latex: string; displ
   }
 
   return (
-    <div className={`my-4 ${displayMode ? 'text-center' : 'inline-block'}`}>
-      <div 
-        className={`${displayMode ? 'text-2xl p-4 bg-blue-50 dark:bg-gray-800 rounded-lg' : ''} dark:[&_.katex]:!text-gray-100`}
-        dangerouslySetInnerHTML={{ __html: html }} 
+    <div className={cn('my-4', displayMode ? 'text-center' : 'inline-block')}>
+      <div
+        className={cn(
+          displayMode && cn('p-4 bg-blue-50 dark:bg-gray-800 rounded-lg', mathDisplayClass),
+          !displayMode && 'dark:[&_.katex]:!text-gray-100',
+          displayMode && 'dark:[&_.katex]:!text-gray-100',
+        )}
+        dangerouslySetInnerHTML={{ __html: html }}
       />
-      {note && (
-        <p className="text-sm text-gray-600 dark:text-gray-400 italic mt-2">{note}</p>
-      )}
+      {note && <p className={mathNoteClass}>{note}</p>}
     </div>
   )
 }
 
-function CalloutBlockComponent({ variant, title, content }: CalloutBlockData) {
+function CalloutBlockComponent({
+  variant,
+  title,
+  content,
+  calloutClass,
+}: CalloutBlockData & { calloutClass: string }) {
   const icons = {
-    info: <Info className="h-5 w-5" />,
-    warning: <AlertTriangle className="h-5 w-5" />,
-    tip: <Lightbulb className="h-5 w-5" />,
+    info: <Info className="h-5 w-5 shrink-0" />,
+    warning: <AlertTriangle className="h-5 w-5 shrink-0" />,
+    tip: <Lightbulb className="h-5 w-5 shrink-0" />,
   }
 
   const variants = {
@@ -132,10 +153,10 @@ function CalloutBlockComponent({ variant, title, content }: CalloutBlockData) {
     <Alert className={`my-4 ${variants[variant]}`}>
       <div className="flex gap-2">
         {icons[variant]}
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           {title && <AlertTitle className="mb-2">{title}</AlertTitle>}
           <AlertDescription>
-            <div className="prose prose-sm max-w-none whitespace-pre-wrap">
+            <div className={cn('max-w-none whitespace-pre-wrap', calloutClass)}>
               {renderLexicalContent(content)}
             </div>
           </AlertDescription>
@@ -145,7 +166,13 @@ function CalloutBlockComponent({ variant, title, content }: CalloutBlockData) {
   )
 }
 
-function ImageBlockComponent({ image, caption, align, width }: ImageBlockData) {
+function ImageBlockComponent({
+  image,
+  caption,
+  align,
+  width,
+  captionClass,
+}: ImageBlockData & { captionClass: string }) {
   const imageUrl = typeof image === 'object' && image !== null && 'filename' in image
     ? `/api/media/serve/${encodeURIComponent(image.filename)}`
     : typeof image === 'string'
@@ -185,7 +212,7 @@ function ImageBlockComponent({ image, caption, align, width }: ImageBlockData) {
         />
       </div>
       {caption && (
-        <figcaption className="mt-2 text-sm text-center text-gray-600 italic">
+        <figcaption className={cn('mt-2 text-center text-gray-600 dark:text-gray-400 italic', captionClass)}>
           {caption}
         </figcaption>
       )}
@@ -193,17 +220,19 @@ function ImageBlockComponent({ image, caption, align, width }: ImageBlockData) {
   )
 }
 
-function TextBlockComponent({ content }: TextBlockData) {
-  return (
-    <div className="prose max-w-none my-4 whitespace-pre-wrap">
-      {renderLexicalContent(content)}
-    </div>
-  )
+function TextBlockComponent({ content, bodyClass }: TextBlockData & { bodyClass: string }) {
+  return <div className={cn('my-4 max-w-none whitespace-pre-wrap', bodyClass)}>{renderLexicalContent(content)}</div>
 }
 
 // ── Table block ────────────────────────────────────────────────────────────
 
-function TableBlockComponent({ caption, hasHeaders = true, headers = [], rows = [] }: TableBlockData) {
+function TableBlockComponent({
+  caption,
+  hasHeaders = true,
+  headers = [],
+  rows = [],
+  tableTextClass,
+}: TableBlockData & { tableTextClass: string }) {
   if (rows.length === 0 && headers.length === 0) return null
 
   const colCount = headers.length || (rows[0]?.length ?? 0)
@@ -217,14 +246,19 @@ function TableBlockComponent({ caption, hasHeaders = true, headers = [], rows = 
   return (
     <figure className="my-6">
       {caption && (
-        <figcaption className="mb-2 text-sm text-center font-medium text-muted-foreground italic">
+        <figcaption
+          className={cn(
+            'mb-2 text-center font-medium text-muted-foreground italic',
+            tableTextClass,
+          )}
+        >
           {caption}
         </figcaption>
       )}
 
       {/* Responsive scrollable wrapper */}
-      <div className="w-full overflow-x-auto rounded-lg border border-border shadow-sm">
-        <table className="w-full border-collapse text-sm">
+      <div className="w-full max-w-full overflow-x-auto rounded-lg border border-border shadow-sm">
+        <table className={cn('w-full min-w-0 border-collapse', tableTextClass)}>
           {hasHeaders && headers.length > 0 && (
             <thead>
               <tr className="bg-muted/70 dark:bg-muted/40">
@@ -283,7 +317,14 @@ function TableBlockComponent({ caption, hasHeaders = true, headers = [], rows = 
   )
 }
 
-function VideoBlockComponent({ videoUrl, provider, title, caption, aspectRatio }: VideoBlockData) {
+function VideoBlockComponent({
+  videoUrl,
+  provider,
+  title,
+  caption,
+  aspectRatio,
+  captionClass,
+}: VideoBlockData & { captionClass: string }) {
   const resolvedProvider = provider || 'YOUTUBE'
   // Convert URL to embed format
   const getEmbedUrl = (url: string, provider: string): string => {
@@ -354,7 +395,7 @@ function VideoBlockComponent({ videoUrl, provider, title, caption, aspectRatio }
         />
       </div>
       {caption && (
-        <figcaption className="mt-2 text-sm text-center text-gray-600 italic">
+        <figcaption className={cn('mt-2 text-center text-gray-600 dark:text-gray-400 italic', captionClass)}>
           {caption}
         </figcaption>
       )}
@@ -363,6 +404,9 @@ function VideoBlockComponent({ videoUrl, provider, title, caption, aspectRatio }
 }
 
 export function TheoryBlocksRenderer({ blocks }: TheoryBlocksRendererProps) {
+  const tier = useLessonTheoryTextSize()
+  const sc = lessonTheorySizeClasses(tier)
+
   if (!blocks || blocks.length === 0) {
     return (
       <div className="text-gray-500 italic py-4">
@@ -372,22 +416,35 @@ export function TheoryBlocksRenderer({ blocks }: TheoryBlocksRendererProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       {blocks.map((block, index) => {
         const typedBlock = block as TheoryBlock
         switch (typedBlock.blockType) {
           case 'text':
-            return <TextBlockComponent key={index} {...typedBlock} />
+            return <TextBlockComponent key={index} {...typedBlock} bodyClass={sc.body} />
           case 'image':
-            return <ImageBlockComponent key={index} {...typedBlock} />
+            return <ImageBlockComponent key={index} {...typedBlock} captionClass={sc.imageCaption} />
           case 'math':
-            return <MathBlockComponent key={index} {...typedBlock} />
+            return (
+              <MathBlockComponent
+                key={index}
+                {...typedBlock}
+                mathDisplayClass={sc.mathDisplay}
+                mathNoteClass={sc.mathNote}
+              />
+            )
           case 'callout':
-            return <CalloutBlockComponent key={index} {...typedBlock} />
+            return <CalloutBlockComponent key={index} {...typedBlock} calloutClass={sc.callout} />
           case 'video':
-            return <VideoBlockComponent key={index} {...typedBlock} />
+            return <VideoBlockComponent key={index} {...typedBlock} captionClass={sc.imageCaption} />
           case 'table':
-            return <TableBlockComponent key={index} {...(typedBlock as TableBlockData)} />
+            return (
+              <TableBlockComponent
+                key={index}
+                {...(typedBlock as TableBlockData)}
+                tableTextClass={sc.table}
+              />
+            )
           default:
             return null
         }

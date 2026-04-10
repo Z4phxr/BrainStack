@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { LessonReadingSizeSettings } from '@/components/settings/lesson-reading-size'
 
 const STORAGE_KEY = 'theme'
 
@@ -42,6 +43,8 @@ export default function AdminSettingsPage() {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Settings</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">Personalize your admin experience</p>
       </div>
+
+      <LessonReadingSizeSettings />
 
       <Card>
         <CardHeader>

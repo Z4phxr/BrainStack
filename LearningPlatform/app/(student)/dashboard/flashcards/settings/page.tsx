@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Input }  from '@/components/ui/input'
 import { Label }  from '@/components/ui/label'
 import { ArrowLeft, Loader2, Save, RotateCcw } from 'lucide-react'
+import { LessonReadingSizeSettings } from '@/components/settings/lesson-reading-size'
 
 // â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -215,6 +216,8 @@ export default function FlashcardSettingsPage() {
           Configure the spaced-repetition algorithm. Changes take effect immediately for new study sessions.
         </p>
       </div>
+
+      <LessonReadingSizeSettings />
 
       {/* â”€â”€ Loading â”€â”€ */}
       {loading && (
