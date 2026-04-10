@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import { TextBlock, ImageBlock, MathBlock, CalloutBlock, VideoBlock, TableBlock } from '../blocks'
 import { prisma } from '@/lib/prisma'
+import { deleteTasksAttachingToLesson } from '../lib/content-cascade-delete'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -9,6 +10,11 @@ export const Lessons: CollectionConfig = {
     defaultColumns: ['title', 'course', 'module', 'order', 'isPublished'],
   },
   hooks: {
+    beforeDelete: [
+      async ({ id, req }) => {
+        await deleteTasksAttachingToLesson(req.payload, String(id), req)
+      },
+    ],
     afterDelete: [
       async ({ id }) => {
         // Clean up LessonProgress records (TaskProgress is cascade-deleted by Prisma).

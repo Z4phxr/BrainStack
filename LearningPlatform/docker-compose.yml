@@ -1,7 +1,11 @@
+# Run from this directory (the folder that contains package.json):
+#   docker compose --env-file .env up --build
+# Required in .env or shell: AUTH_SECRET, PAYLOAD_SECRET, SEED_ADMIN_PASSWORD
+# (see DOCKER.md)
+
 services:
   app:
     build: .
-    container_name: exam_prep_app
     restart: unless-stopped
     stdin_open: true
     tty: true
@@ -13,10 +17,15 @@ services:
       AUTH_SECRET: "${AUTH_SECRET:?AUTH_SECRET must be set (generate with: openssl rand -base64 32)}"
       PAYLOAD_SECRET: "${PAYLOAD_SECRET:?PAYLOAD_SECRET must be set (generate with: openssl rand -base64 32)}"
       NEXTAUTH_URL: "${NEXTAUTH_URL:-http://localhost:3000}"
-      AUTH_TRUST_HOST: "${AUTH_TRUST_HOST:-false}"
-      # SECURITY: SEED_ADMIN_PASSWORD MUST be set.
+      # NextAuth in Docker / reverse proxies: trust Host header (safe for local compose).
+      AUTH_TRUST_HOST: "${AUTH_TRUST_HOST:-true}"
+      # SECURITY: SEED_ADMIN_PASSWORD MUST be set for first-time cms:seed inside the entrypoint.
       SEED_ADMIN_PASSWORD: "${SEED_ADMIN_PASSWORD:?SEED_ADMIN_PASSWORD must be set (generate with: openssl rand -base64 24)}"
       SEED_ADMIN_EMAIL: "${SEED_ADMIN_EMAIL:-admin@example.com}"
+      # After the first successful boot, set SKIP_CMS_SEED=1 in .env to skip admin seed on every restart.
+      SKIP_CMS_SEED: "${SKIP_CMS_SEED:-}"
+      # Set to 1 once to run content import (npm run content:import:all) before Next.js starts; then remove.
+      CONTENT_IMPORT: "${CONTENT_IMPORT:-}"
       NODE_ENV: "production"
       PORT: "3000"
     ports:
@@ -26,17 +35,27 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:'+(process.env.PORT||'3000')+'/api/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 180s
 
   postgres:
     image: postgres:16-alpine
-    container_name: exam_prep_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: exam_prep_db
     ports:
-      - "5432:5432"
+      # Use 5433 on host by default to avoid clashing with other local Postgres containers.
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -47,7 +66,6 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: exam_prep_pgadmin
     restart: unless-stopped
     environment:
       # SECURITY: Override these with strong credentials in your .env file.

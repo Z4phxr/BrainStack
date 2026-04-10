@@ -1,5 +1,5 @@
 {
-  "name": "exam-prep-app",
+  "name": "brainstack",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -36,7 +36,13 @@
     "preflight": "npm run preflight:check && npm run build",
     "preflight:check": "tsx --tsconfig tsconfig.scripts.json ./scripts/preflight-check.ts",
     "verify:paths": "tsx --tsconfig tsconfig.scripts.json ./scripts/verify-paths.ts",
-    "validate:payload-tables": "tsx --tsconfig tsconfig.scripts.json ./scripts/validate-payload-tables.ts"
+    "validate:payload-tables": "tsx --tsconfig tsconfig.scripts.json ./scripts/validate-payload-tables.ts",
+    "content:import:tags": "tsx --tsconfig tsconfig.scripts.json ./scripts/imports/runners/import-tags.js",
+    "content:import:course": "tsx --tsconfig tsconfig.scripts.json ./scripts/imports/runners/import-courses.js",
+    "content:import:modules": "tsx --tsconfig tsconfig.scripts.json ./scripts/imports/runners/import-modules.js",
+    "content:import:flashcards": "tsx --tsconfig tsconfig.scripts.json ./scripts/imports/runners/import-flashcards.js",
+    "content:import:all": "tsx --tsconfig tsconfig.scripts.json ./scripts/imports/runners/import-all.js",
+    "payload:cleanup-orphans": "tsx --tsconfig tsconfig.scripts.json ./scripts/cleanup-payload-orphans.ts"
   },
   "prisma": {
     "seed": "tsx --tsconfig tsconfig.scripts.json ./prisma/seed.ts"

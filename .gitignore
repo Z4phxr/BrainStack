@@ -3,3 +3,7 @@ node_modules/
 .env
 .env.local
 *.log
+
+# IDE (machine-specific; inner LearningPlatform/.gitignore alone does not cover repo root)
+.idea/
+.vscode/

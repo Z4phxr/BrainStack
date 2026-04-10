@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Educational Platform Starter",
-  description: "A neutral learning platform template for courses, lessons, and content management.",
+  title: "BrainStack",
+  description: "BrainStack: courses, lessons, and learning content management.",
   icons: {
     icon: '/favicon.ico',
   },
