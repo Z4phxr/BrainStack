@@ -58,26 +58,26 @@ export function RecommendedPracticeCard() {
           {/* Column 1 — CTA and mix */}
           <div className="flex w-full flex-col items-center justify-center gap-4 text-center">
             <div className="space-y-2">
-              <CardTitle className="flex flex-wrap items-center justify-center gap-2.5 text-xl font-bold tracking-tight md:text-2xl">
+              <CardTitle className="flex flex-wrap items-center justify-center gap-2.5 text-lg font-bold tracking-tight md:text-xl">
                 <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-sm"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-sm md:h-10 md:w-10"
                   aria-hidden
                 >
-                  <Zap className="h-5 w-5 text-white" />
+                  <Zap className="h-4 w-4 text-white md:h-5 md:w-5" />
                 </span>
                 <span className="flex flex-wrap items-center justify-center gap-2">
                   Recommended Practice
-                  <Badge variant="secondary" className="text-sm font-normal md:text-base">
+                  <Badge variant="secondary" className="text-xs font-normal md:text-sm">
                     Adaptive
                   </Badge>
                 </span>
               </CardTitle>
-              <CardDescription className="text-base leading-relaxed md:text-lg">
+              <CardDescription className="text-sm leading-relaxed md:text-base">
                 Practice tasks selected based on your performance.
               </CardDescription>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-gray-500 dark:text-gray-400 md:text-base">
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs text-gray-500 dark:text-gray-400 md:text-sm">
               <div className="flex items-center gap-1.5">
                 <BookOpen className="h-5 w-5 shrink-0" />
                 <span>~40% weak tags</span>
@@ -99,7 +99,7 @@ export function RecommendedPracticeCard() {
             </div>
 
             {error && (
-              <p className="text-base leading-relaxed text-red-600 dark:text-red-400 md:text-lg">{error}</p>
+              <p className="text-sm leading-relaxed text-red-600 dark:text-red-400 md:text-base">{error}</p>
             )}
 
             <Button
@@ -121,10 +121,10 @@ export function RecommendedPracticeCard() {
 
           {/* Column 2 — how it works */}
           <div className="flex w-full flex-col items-center justify-center gap-4 border-border border-t pt-8 text-center md:border-t-0 md:border-l md:pt-0 md:pl-10 lg:pl-12">
-            <h3 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
+            <h3 className="text-lg font-bold tracking-tight text-foreground md:text-xl">
               How does adaptive practice work?
             </h3>
-            <p className="max-w-xl text-base leading-relaxed text-gray-600 dark:text-gray-400 md:text-lg">
+            <p className="max-w-xl text-sm leading-relaxed text-gray-600 dark:text-gray-400 md:text-base">
               Our adaptive engine identifies the topics you struggle with most and builds a
               personalised session to help you improve faster.
             </p>

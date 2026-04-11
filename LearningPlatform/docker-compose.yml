@@ -26,8 +26,10 @@ services:
       SEED_ADMIN_EMAIL: "${SEED_ADMIN_EMAIL:-admin@example.com}"
       # After the first successful boot, set SKIP_CMS_SEED=1 in .env to skip admin seed on every restart.
       SKIP_CMS_SEED: "${SKIP_CMS_SEED:-}"
-      # Set to 1 once to run content import (npm run content:import:all) before Next.js starts; then remove.
+      # Set CONTENT_IMPORT=1 to run npm run content:import:all. Add CONTENT_IMPORT_DEFERRED=1 so Next
+      # starts first (avoids healthcheck failures when import is slow); then remove when done.
       CONTENT_IMPORT: "${CONTENT_IMPORT:-}"
+      CONTENT_IMPORT_DEFERRED: "${CONTENT_IMPORT_DEFERRED:-}"
       NODE_ENV: "production"
       PORT: "3000"
     ports:

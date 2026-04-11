@@ -35,7 +35,7 @@ export function CourseCarousel({
     <DashboardHorizontalScroll
       aria-label="Your courses"
       scrollArrows
-      itemClassName="w-[min(94vw,26rem)] sm:w-[28rem] md:w-[32rem]"
+      itemClassName="w-[min(92vw,22rem)] sm:w-[24rem] md:w-[26rem]"
     >
       {courses.map((course) => {
         const courseId = String(course.id)
@@ -65,10 +65,10 @@ export function CourseCarousel({
             )}
             <CardHeader className="flex-grow">
               <div className="mb-2 flex gap-2">
-                <Badge variant="secondary" className="text-base font-normal">
+                <Badge variant="secondary" className="text-sm font-normal">
                   {course.level}
                 </Badge>
-                <Badge variant="outline" className="text-base font-normal">
+                <Badge variant="outline" className="text-sm font-normal">
                   {typeof course.subject === 'string'
                     ? course.subject
                     : (course.subject as { name?: string } | null)?.name ?? ''}
@@ -86,7 +86,7 @@ export function CourseCarousel({
             <CardContent className="space-y-3">
               {hasStarted && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-lg md:text-xl">
+                  <div className="flex items-center justify-between text-base md:text-lg">
                     <span className="text-gray-600 dark:text-gray-300">
                       {completedLessons} of {totalLessons} lessons
                     </span>
@@ -101,10 +101,10 @@ export function CourseCarousel({
                 </div>
               )}
               {!hasStarted && (
-                <div className="py-2 text-center text-lg text-gray-500 md:text-xl">Not started yet</div>
+                <div className="py-2 text-center text-base text-gray-500 md:text-lg">Not started yet</div>
               )}
               <Link href={`/courses/${course.slug}`}>
-                <Button className="w-full bg-blue-600 text-base hover:bg-blue-700 md:text-lg" size="default">
+                <Button className="w-full bg-blue-600 text-sm hover:bg-blue-700 md:text-base" size="default">
                   {hasStarted ? 'Continue learning' : 'Start course'}
                 </Button>
               </Link>

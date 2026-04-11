@@ -139,7 +139,7 @@ export default async function LessonPage({
   const prevLesson = currentIndex > 0 ? orderedLessons[currentIndex - 1] : null
   const nextLesson = currentIndex >= 0 && currentIndex < orderedLessons.length - 1 ? orderedLessons[currentIndex + 1] : null
   return (
-    <div className="container mx-auto max-w-7xl px-5 py-8 sm:px-8">
+    <div className="container mx-auto max-w-4xl px-4 py-7 sm:px-6 sm:py-8">
       {/* Breadcrumb */}
       <div className="mb-6 text-sm text-muted-foreground">
             <Link href="/courses" className="hover:text-primary">Courses</Link>
@@ -179,7 +179,7 @@ export default async function LessonPage({
       {/* Lesson Content */}
       {(lesson.theoryBlocks && lesson.theoryBlocks.length > 0) || lesson.content ? (
         <Card className="mb-8 gap-0 py-0 shadow-sm">
-          <CardContent className="px-8 py-8 sm:px-10 sm:py-8 md:px-12">
+          <CardContent className="px-5 py-7 sm:px-7 sm:py-8 md:px-9">
             {lesson.theoryBlocks && lesson.theoryBlocks.length > 0 ? (
               <TheoryBlocksRenderer blocks={lesson.theoryBlocks as Array<Record<string, unknown>> | undefined} />
             ) : (
