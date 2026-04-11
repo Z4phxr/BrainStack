@@ -5,7 +5,6 @@ import { notFound } from 'next/navigation'
 export const dynamic = 'force-dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -25,6 +24,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
         equals: true,
       },
     },
+    depth: 1,
   })
 
   if (!courses || courses.length === 0) {
@@ -132,17 +132,18 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
                   ) : (
                     <div className="space-y-2">
                       {courseModule.lessons.map((lesson) => (
-                        <Link key={lesson.id} href={`/courses/${slug}/lessons/${lesson.id}`}>
-                          <div className="flex items-center justify-between p-3 rounded-lg transition-colors border border-transparent hover:shadow-sm block-bg">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/30 flex items-center justify-center text-primary dark:text-white font-semibold text-sm">
-                                {lesson.order}
-                              </div>
-                              <span className="font-medium text-foreground dark:text-gray-100">{lesson.title}</span>
+                        <Link
+                          key={lesson.id}
+                          href={`/courses/${slug}/lessons/${lesson.id}`}
+                          className="group block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        >
+                          <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/25 p-3 shadow-sm transition-[border-color,background-color,box-shadow] duration-200 group-hover:border-primary/35 group-hover:bg-muted/70 group-hover:shadow-md dark:border-white/10 dark:bg-white/[0.04] dark:shadow-none dark:group-hover:border-primary/45 dark:group-hover:bg-white/[0.09] dark:group-hover:shadow-lg dark:group-hover:shadow-black/25">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary transition-colors group-hover:bg-primary/15 dark:bg-primary/30 dark:text-white dark:group-hover:bg-primary/40">
+                              {lesson.order}
                             </div>
-                              <Button variant="ghost" size="sm" className="text-primary dark:text-gray-100">
-                              View →
-                            </Button>
+                            <span className="min-w-0 flex-1 font-medium text-foreground dark:text-gray-100">
+                              {lesson.title}
+                            </span>
                           </div>
                         </Link>
                       ))}

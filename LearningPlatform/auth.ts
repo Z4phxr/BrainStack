@@ -16,8 +16,9 @@ const loginSchema = z.object({
 });
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  // Trust host for Render deployment (dynamic URLs)
-  trustHost: process.env.AUTH_TRUST_HOST === 'true',
+  // Trust host: explicit flag (Docker/proxies) or local dev (any port, e.g. 3001).
+  trustHost:
+    process.env.AUTH_TRUST_HOST === 'true' || process.env.NODE_ENV === 'development',
   
   session: {
     strategy: 'jwt',
@@ -35,21 +36,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       authorize: async (credentials, request) => {
         try {
-          // Rate-limit login attempts: 5 per 5-minute window per IP
+          const { email: rawEmail, password } = loginSchema.parse(credentials);
+          const email = rawEmail.toLowerCase();
+
+          // Rate-limit: per IP when known; per email when IP is missing (Docker).
           if (request) {
             const rate = await checkRateLimit({
               request,
               key: 'login',
               limit: 5,
               windowMs: 300_000,
+              identityFallback: email,
             });
             if (!rate.allowed) {
               throw new Error('Too many login attempts. Please try again later.');
             }
           }
-
-          const { email: rawEmail, password } = loginSchema.parse(credentials);
-          const email = rawEmail.toLowerCase();
 
           const user = await prisma.user.findUnique({
             where: { email },

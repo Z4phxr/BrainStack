@@ -17,13 +17,15 @@ const DEFAULT_WINDOW_MS = 60_000
 function getClientIp(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for')
   if (forwarded) {
-    // Use the rightmost value — appended by the trusted reverse proxy
-    // (Railway / Render / Vercel).  The leftmost values are client-supplied
-    // and can be spoofed.
-    const parts = forwarded.split(',')
-    return parts[parts.length - 1]?.trim() || 'unknown'
+    // De-facto format: "client, proxy1, proxy2" (leftmost = originating client).
+    // Docker / direct Node often sends no XFF → we fall back below.
+    const parts = forwarded
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean)
+    return parts[0] || 'unknown'
   }
-  return request.headers.get('x-real-ip') || 'unknown'
+  return request.headers.get('x-real-ip')?.trim() || 'unknown'
 }
 
 export async function checkRateLimit(options: {
@@ -31,11 +33,21 @@ export async function checkRateLimit(options: {
   key: string
   limit: number
   windowMs?: number
+  /**
+   * When the client IP is missing (typical with Docker port publish), every request
+   * would otherwise share the same `unknown` bucket and lock everyone out after a
+   * few attempts. Pass a stable per-actor value (e.g. normalized email) for auth routes.
+   */
+  identityFallback?: string
 }): Promise<{ allowed: boolean; retryAfter: number }> {
-  const { request, key, limit, windowMs = DEFAULT_WINDOW_MS } = options
+  const { request, key, limit, windowMs = DEFAULT_WINDOW_MS, identityFallback } = options
   const now = new Date()
   const resetAt = new Date(now.getTime() + windowMs)
-  const ip = getClientIp(request)
+  let ip = getClientIp(request)
+  if (ip === 'unknown' && identityFallback) {
+    const safe = identityFallback.toLowerCase().trim().slice(0, 320)
+    ip = `fb:${safe}`
+  }
   const storeKey = `${key}:${ip}`
 
   try {

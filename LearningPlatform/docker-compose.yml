@@ -17,8 +17,10 @@ services:
       AUTH_SECRET: "${AUTH_SECRET:?AUTH_SECRET must be set (generate with: openssl rand -base64 32)}"
       PAYLOAD_SECRET: "${PAYLOAD_SECRET:?PAYLOAD_SECRET must be set (generate with: openssl rand -base64 32)}"
       NEXTAUTH_URL: "${NEXTAUTH_URL:-http://localhost:3000}"
-      # NextAuth in Docker / reverse proxies: trust Host header (safe for local compose).
-      AUTH_TRUST_HOST: "${AUTH_TRUST_HOST:-true}"
+      # Auth.js: container uses NODE_ENV=production, so host must be trusted for
+      # http://localhost:3000. Hardcode true — do not substitute from .env (a copy of
+      # .env.example often sets AUTH_TRUST_HOST=false for local npm dev, which breaks Compose).
+      AUTH_TRUST_HOST: "true"
       # SECURITY: SEED_ADMIN_PASSWORD MUST be set for first-time cms:seed inside the entrypoint.
       SEED_ADMIN_PASSWORD: "${SEED_ADMIN_PASSWORD:?SEED_ADMIN_PASSWORD must be set (generate with: openssl rand -base64 24)}"
       SEED_ADMIN_EMAIL: "${SEED_ADMIN_EMAIL:-admin@example.com}"

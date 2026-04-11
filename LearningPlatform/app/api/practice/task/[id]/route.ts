@@ -41,6 +41,7 @@ export async function GET(
       questionMedia:    task.questionMedia ?? null,
       choices:          task.choices ?? [],
       correctAnswer:    task.correctAnswer ?? null,
+      autoGrade:        task.type === 'OPEN_ENDED' ? Boolean((task as { autoGrade?: boolean }).autoGrade) : undefined,
       solution:         task.solution ?? null,
       solutionMedia:    task.solutionMedia ?? null,
       solutionVideoUrl: task.solutionVideoUrl ?? null,

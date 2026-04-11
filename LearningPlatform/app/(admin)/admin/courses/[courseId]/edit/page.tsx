@@ -12,6 +12,7 @@ interface CourseShape {
   level: string
   isPublished: boolean
   topics?: string[]
+  coverImage?: { id: string | number; filename: string; alt?: string | null } | string | number | null
 }
 
 export default async function CourseEditPage(props: any) {
@@ -47,6 +48,7 @@ export default async function CourseEditPage(props: any) {
     level: courseData.level,
     isPublished: Boolean(courseData.isPublished),
     topics: Array.isArray(courseData.topics) ? courseData.topics : [],
+    coverImage: courseData.coverImage as CourseShape['coverImage'],
   }
 
   const modules = Array.isArray(modulesData)

@@ -7,7 +7,7 @@ export const courseFormSchema = z.object({
   description: z.string().optional(),
   subject: z.union([z.string(), z.number()]).transform((val) => String(val)),
   level: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED']),
-  coverImage: z.string().optional(),
+  coverImage: z.union([z.string().min(1), z.literal('')]).optional(),
   // topics removed; subjects are managed via the Subjects collection
 })
 

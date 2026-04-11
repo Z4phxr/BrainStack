@@ -16,6 +16,7 @@ const getPublishedCourses = unstable_cache(
       collection: 'courses',
       where: { isPublished: { equals: true } },
       sort: '-createdAt',
+      depth: 1,
     })
     return docs
   },

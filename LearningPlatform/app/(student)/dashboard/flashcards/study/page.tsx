@@ -196,7 +196,7 @@ function StudyPage() {
       setError('Could not load study session. Please try again.')
       setPhase('empty')
     }
-  }, [mode, tagSlug])
+  }, [mode, tagSlug, subject])
 
   useEffect(() => { loadSession() }, [loadSession])
 
@@ -333,9 +333,8 @@ function StudyPage() {
   // â”€â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   return (
-    <div className="flex flex-col gap-0 -m-6">
-      {/* â”€â”€ Top bar â”€â”€ */}
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 dark:border-gray-800 dark:bg-gray-900">
+    <div className="flex min-h-0 w-full min-w-0 max-w-full flex-col overflow-x-hidden">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
         <div className="flex items-center gap-3">
           <Link
             href={backHref}
@@ -375,7 +374,7 @@ function StudyPage() {
       )}
 
       {/* â”€â”€ Main content â”€â”€ */}
-      <main className="flex flex-1 flex-col items-center justify-center px-4 py-10 bg-gray-50 dark:bg-gray-950 min-h-[calc(100vh-8rem)]">
+      <main className="flex min-h-0 w-full min-w-0 max-w-full flex-1 flex-col items-center justify-center overflow-x-hidden bg-gray-50 px-4 py-8 dark:bg-gray-950 sm:px-6 min-h-[calc(100dvh-5rem)]">
 
         {/* Loading */}
         {phase === 'loading' && (
@@ -447,11 +446,13 @@ function StudyPage() {
 
         {/* Study card (question or answer phase) */}
         {card && (phase === 'question' || phase === 'answer' || phase === 'submitting') && (
-          <div className="flex w-full max-w-2xl flex-col gap-6">
+          <div className="flex w-full max-w-2xl min-w-0 flex-col gap-6">
 
             {/* Progress counter */}
-            <div className="flex items-center justify-between text-xs text-gray-400 dark:text-gray-600">
-              <span>{currentIdx + 1} / {queue.length} remaining</span>
+            <div className="flex min-h-6 flex-wrap items-center justify-between gap-2 text-sm tabular-nums leading-normal text-gray-500 dark:text-gray-400">
+              <span className="shrink-0">
+                {currentIdx + 1} / {queue.length} remaining
+              </span>
               <div className="flex items-center gap-1.5">
                 {(() => {
                   const sl = stateLabel(card.state)
@@ -475,7 +476,7 @@ function StudyPage() {
               disabled={phase === 'submitting'}
               onClick={() => phase === 'question' && setPhase('answer')}
               className={cn(
-                'group relative min-h-[280px] w-full cursor-pointer overflow-hidden rounded-2xl border',
+                'group relative min-h-[280px] w-full min-w-0 max-w-full cursor-pointer overflow-x-auto overflow-y-visible rounded-2xl border',
                 'bg-white text-left shadow-md transition-all duration-200',
                 'dark:bg-gray-900 dark:border-gray-700',
                 phase === 'question'
@@ -486,18 +487,19 @@ function StudyPage() {
               aria-label={phase === 'question' ? 'Click to reveal answer' : 'Answer revealed'}
             >
               {/* Question side (always visible) */}
-              <div className="flex flex-col gap-4 p-8">
+              <div className="flex min-w-0 flex-col gap-4 p-5 sm:p-8">
                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600">
                   Question
                 </p>
                 {questionHtml ? (
                   <div
-                    className="prose prose-sm max-w-none font-mono text-lg leading-relaxed text-gray-800 dark:prose-invert dark:text-gray-100"
-                     
+                    className="prose prose-sm max-w-full min-w-0 font-mono text-lg leading-relaxed text-gray-800 dark:prose-invert dark:text-gray-100 [&_.katex-display]:max-w-full"
                     dangerouslySetInnerHTML={{ __html: questionHtml }}
                   />
                 ) : (
-                  <p className="font-mono text-lg text-gray-800 dark:text-gray-100">{card.question}</p>
+                  <p className="min-w-0 max-w-full break-words font-mono text-lg text-gray-800 dark:text-gray-100">
+                    {card.question}
+                  </p>
                 )}
                 {questionImgUrl && (
                   /* eslint-disable-next-line @next/next/no-img-element */
@@ -511,18 +513,19 @@ function StudyPage() {
 
               {/* Answer side (revealed after flip) */}
               {phase !== 'question' && (
-                <div className="border-t border-gray-100 bg-gray-50/50 p-8 dark:border-gray-800 dark:bg-gray-800/30">
+                <div className="min-w-0 border-t border-gray-100 bg-gray-50/50 p-5 sm:p-8 dark:border-gray-800 dark:bg-gray-800/30">
                   <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600">
                     Answer
                   </p>
                   {answerHtml ? (
                     <div
-                      className="prose prose-sm max-w-none font-mono text-base leading-relaxed text-gray-700 dark:prose-invert dark:text-gray-200"
-                       
+                      className="prose prose-sm max-w-full min-w-0 font-mono text-base leading-relaxed text-gray-700 dark:prose-invert dark:text-gray-200 [&_.katex-display]:max-w-full"
                       dangerouslySetInnerHTML={{ __html: answerHtml }}
                     />
                   ) : (
-                    <p className="font-mono text-base text-gray-700 dark:text-gray-200">{card.answer}</p>
+                    <p className="min-w-0 max-w-full break-words font-mono text-base text-gray-700 dark:text-gray-200">
+                      {card.answer}
+                    </p>
                   )}
                   {answerImgUrl && (
                     /* eslint-disable-next-line @next/next/no-img-element */
@@ -545,7 +548,7 @@ function StudyPage() {
 
             {/* Answer buttons */}
             {(phase === 'answer' || phase === 'submitting') && (
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                 {ANSWER_BUTTONS.map((btn) => (
                   <button
                     key={btn.answer}
@@ -582,11 +585,9 @@ function StudyPage() {
         )}
       </main>
 
-      {/* â”€â”€ KaTeX CSS â”€â”€ */}
-      { }
       <style>{`
         .katex { font-size: 1.1em; }
-        .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.25rem 0; }
+        .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; padding: 0.25rem 0; }
       `}</style>
     </div>
   )

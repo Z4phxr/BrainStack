@@ -9,12 +9,14 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import Link from 'next/link'
 import { TheoryBlocksRenderer } from '@/components/student/theory-blocks-renderer'
+import { LessonLegacyContent } from '@/components/student/lesson-legacy-content'
 import { TaskCard } from '@/components/student/task-card'
 import { auth } from '@/auth'
 import { updateLesson } from '@/app/(admin)/admin/actions'
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { markLessonComplete } from '@/app/actions/progress'
+import { lessonWithPopulatedTheoryImages } from '@/lib/populate-lesson-theory-images'
 
 export default async function LessonPage({
   params,
@@ -46,10 +48,14 @@ export default async function LessonPage({
   }
 
   // ─── Batch 1: auth + lesson in parallel ─────────────────────────────────────
-  const [session, lesson] = await Promise.all([
+  const [session, lessonRaw] = await Promise.all([
     auth(),
-    payload.findByID({ collection: 'lessons', id: lessonId }).catch(() => null),
+    payload.findByID({ collection: 'lessons', id: lessonId, depth: 2 }).catch(() => null),
   ])
+
+  const lesson = lessonRaw
+    ? await lessonWithPopulatedTheoryImages(lessonRaw, payload)
+    : null
 
   const isAdmin = session?.user?.role === 'ADMIN'
 
@@ -133,7 +139,7 @@ export default async function LessonPage({
   const prevLesson = currentIndex > 0 ? orderedLessons[currentIndex - 1] : null
   const nextLesson = currentIndex >= 0 && currentIndex < orderedLessons.length - 1 ? orderedLessons[currentIndex + 1] : null
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
+    <div className="container mx-auto max-w-7xl px-5 py-8 sm:px-8">
       {/* Breadcrumb */}
       <div className="mb-6 text-sm text-muted-foreground">
             <Link href="/courses" className="hover:text-primary">Courses</Link>
@@ -172,23 +178,12 @@ export default async function LessonPage({
 
       {/* Lesson Content */}
       {(lesson.theoryBlocks && lesson.theoryBlocks.length > 0) || lesson.content ? (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="text-2xl text-foreground">Theory</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <Card className="mb-8 gap-0 py-0 shadow-sm">
+          <CardContent className="px-8 py-8 sm:px-10 sm:py-8 md:px-12">
             {lesson.theoryBlocks && lesson.theoryBlocks.length > 0 ? (
               <TheoryBlocksRenderer blocks={lesson.theoryBlocks as Array<Record<string, unknown>> | undefined} />
             ) : (
-                  <div className="prose max-w-none">
-                {typeof lesson.content === 'string' ? (
-                  <p className="whitespace-pre-wrap">{lesson.content}</p>
-                ) : (
-                      <div className="text-muted-foreground">
-                    <p>Lesson content...</p>
-                  </div>
-                )}
-              </div>
+              <LessonLegacyContent content={lesson.content} />
             )}
           </CardContent>
         </Card>

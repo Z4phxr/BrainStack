@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Trash2, ChevronUp, ChevronDown, Type, Image as ImageIcon, Calculator, AlertCircle, Video, Table2, Plus, X, Minus } from 'lucide-react'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import { MediaPicker } from './media-picker'
 import Image from 'next/image'
+import { AutoGrowTextarea } from '@/components/admin/auto-grow-textarea'
 
 interface TextBlock {
   type: 'text'
@@ -487,10 +487,10 @@ export function TheoryBlocksEditor({ initialBlocks = [], onChange }: TheoryBlock
 
       {blocks.map((block, index) => (
         <div key={block.id} ref={(el) => { blockRefs.current[block.id] = el }}>
-          <Card>
-          <CardHeader className="pb-1">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">
+          <Card className="gap-1 py-4 shadow-sm">
+          <CardHeader className="space-y-0 pb-2 pt-2">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-sm font-medium leading-tight">
                 {block.type === 'text' && '📝 Text block'}
                 {block.type === 'image' && '🖼️ Image block'}
                 {block.type === 'math' && '🧮 Math formula'}
@@ -526,16 +526,16 @@ export function TheoryBlocksEditor({ initialBlocks = [], onChange }: TheoryBlock
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3 pt-0">
             {block.type === 'text' && (
-              <div>
-                <Label>Content</Label>
-                <Textarea
+              <div className="space-y-1">
+                <Label className="text-sm">Content</Label>
+                <AutoGrowTextarea
                   value={block.content}
                   onChange={(e) => updateBlock(block.id, { content: e.target.value })}
-                  placeholder="Enter text block content..."
-                  rows={5}
-                  className="mt-1"
+                  placeholder="Enter text block content (Markdown-style line breaks OK)…"
+                  minRows={6}
+                  className="mt-0 font-mono text-sm leading-relaxed"
                 />
               </div>
             )}
@@ -645,17 +645,17 @@ export function TheoryBlocksEditor({ initialBlocks = [], onChange }: TheoryBlock
 
             {block.type === 'math' && (
               <>
-                <div>
-                  <Label>LaTeX formula</Label>
-                  <Textarea
+                <div className="space-y-1">
+                  <Label className="text-sm">LaTeX formula</Label>
+                  <AutoGrowTextarea
                     value={block.latex}
                     onChange={(e) => {
                       updateBlock(block.id, { latex: e.target.value })
                       renderMathPreview(e.target.value, block.displayMode, block.id)
                     }}
                     placeholder="x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"
-                    rows={3}
-                    className="mt-1 font-mono text-sm"
+                    minRows={3}
+                    className="mt-0 font-mono text-sm"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Enter the formula without $ or $$
@@ -721,14 +721,14 @@ export function TheoryBlocksEditor({ initialBlocks = [], onChange }: TheoryBlock
                     className="mt-1"
                   />
                 </div>
-                <div>
-                  <Label>Content</Label>
-                  <Textarea
+                <div className="space-y-1">
+                  <Label className="text-sm">Content</Label>
+                  <AutoGrowTextarea
                     value={block.content}
                     onChange={(e) => updateBlock(block.id, { content: e.target.value })}
-                    placeholder="Callout content..."
-                    rows={3}
-                    className="mt-1"
+                    placeholder="Callout content…"
+                    minRows={4}
+                    className="mt-0 text-sm leading-relaxed"
                   />
                 </div>
               </>
@@ -795,17 +795,6 @@ export function TheoryBlocksEditor({ initialBlocks = [], onChange }: TheoryBlock
 
             {block.type === 'table' && (
               <>
-                {/* Caption */}
-                <div>
-                  <Label>Caption (optional)</Label>
-                  <Input
-                    value={block.caption}
-                    onChange={(e) => updateBlock(block.id, { caption: e.target.value } as Partial<TableBlock>)}
-                    placeholder="e.g. Algorithm complexity comparison"
-                    className="mt-1"
-                  />
-                </div>
-
                 {/* Has headers toggle */}
                 <div className="flex items-center gap-2">
                   <input
@@ -817,15 +806,15 @@ export function TheoryBlocksEditor({ initialBlocks = [], onChange }: TheoryBlock
                     }
                     className="h-4 w-4 rounded border-gray-300"
                   />
-                  <Label htmlFor={`headers-${block.id}`} className="cursor-pointer">
+                  <Label htmlFor={`headers-${block.id}`} className="cursor-pointer text-sm">
                     Column headers (first row as header)
                   </Label>
                 </div>
 
                 {/* Table grid editor */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Table data</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-sm">Table data</Label>
                     <span className="text-xs text-muted-foreground">
                       {block.rows.length} row{block.rows.length !== 1 ? 's' : ''} ×{' '}
                       {block.headers.length} col{block.headers.length !== 1 ? 's' : ''}
@@ -905,12 +894,12 @@ export function TheoryBlocksEditor({ initialBlocks = [], onChange }: TheoryBlock
                                 key={colIdx}
                                 className="border-r border-border p-1 align-top last:border-r-0"
                               >
-                                <textarea
+                                <AutoGrowTextarea
                                   value={cell}
                                   onChange={(e) => tableUpdateCell(block.id, rowIdx, colIdx, e.target.value)}
                                   placeholder="Cell…"
-                                  rows={2}
-                                  className="w-full min-w-[90px] resize-y bg-transparent border border-border rounded px-2 py-1 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                                  minRows={2}
+                                  className="w-full min-w-[100px] bg-transparent text-sm placeholder:text-muted-foreground focus-visible:ring-1"
                                 />
                               </td>
                             ))}
@@ -954,10 +943,20 @@ export function TheoryBlocksEditor({ initialBlocks = [], onChange }: TheoryBlock
                     </table>
                   </div>
 
-                  {/* Preview hint */}
                   <p className="text-xs text-muted-foreground">
-                    Cells support multi-line text. Drag the textarea corner to resize.
+                    Cells grow with content; long text wraps automatically.
                   </p>
+                </div>
+
+                {/* Caption — below grid so it sits near the foot of the block */}
+                <div className="space-y-1 pt-1">
+                  <Label className="text-sm">Caption (optional)</Label>
+                  <Input
+                    value={block.caption}
+                    onChange={(e) => updateBlock(block.id, { caption: e.target.value } as Partial<TableBlock>)}
+                    placeholder="e.g. Algorithm complexity comparison"
+                    className="mt-0"
+                  />
                 </div>
               </>
             )}

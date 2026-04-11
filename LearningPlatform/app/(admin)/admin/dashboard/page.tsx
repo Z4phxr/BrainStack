@@ -56,8 +56,8 @@ export default async function AdminDashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage courses and content</p>
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
+          <p className="text-lg text-gray-600 dark:text-gray-400">Manage courses and content</p>
         </div>
         <div className="flex items-center space-x-2">
           <AddCourseButton />
@@ -68,48 +68,48 @@ export default async function AdminDashboardPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">All courses</CardTitle>
-            <BookOpen className="h-4 w-4 text-blue-600" />
+            <CardTitle className="text-base font-medium">All courses</CardTitle>
+            <BookOpen className="h-5 w-5 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalCourses}</div>
+            <div className="text-3xl font-bold">{stats.totalCourses}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Published</CardTitle>
-            <GraduationCap className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-base font-medium">Published</CardTitle>
+            <GraduationCap className="h-5 w-5 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.publishedCourses}</div>
+            <div className="text-3xl font-bold">{stats.publishedCourses}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Drafts</CardTitle>
-            <Users className="h-4 w-4 text-gray-600" />
+            <CardTitle className="text-base font-medium">Drafts</CardTitle>
+            <Users className="h-5 w-5 text-gray-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.draftCourses}</div>
+            <div className="text-3xl font-bold">{stats.draftCourses}</div>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Courses</CardTitle>
+          <CardTitle className="text-2xl">Courses</CardTitle>
         </CardHeader>
         <CardContent>
           {error ? (
-            <div className="text-center py-8">
-              <p className="text-red-600 mb-4">{error}</p>
+            <div className="py-8 text-center">
+              <p className="mb-4 text-base text-red-600">{error}</p>
               <ReloadButton />
             </div>
           ) : courses.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">No courses yet.</p>
+            <div className="py-8 text-center">
+              <p className="mb-4 text-base text-gray-500">No courses yet.</p>
             </div>
           ) : (
             <CoursesList courses={courses} />

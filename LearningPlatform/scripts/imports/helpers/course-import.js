@@ -1,7 +1,13 @@
+const fs = require('fs')
+const path = require('path')
 const { textToLexical } = require('./utils')
 const { getTaskTagObjectsBySlug } = require('./tags')
 
 const ALLOWED_CALLOUT_VARIANTS = new Set(['info', 'warning', 'tip'])
+
+/** AI/import scripts: use this string for `image` — resolved to bundled SVG media on import. See `scripts/imports/AI_THEORY_BLOCKS.md`. */
+const IMPORT_PLACEHOLDER_IMAGE_TOKEN = '__IMPORT_PLACEHOLDER_IMAGE__'
+const PLACEHOLDER_MEDIA_FILENAME = 'lesson-theory-placeholder.svg'
 
 /** Import scripts run without an admin session; bypass collection access so find/create/update work. */
 const OA = { overrideAccess: true }
@@ -28,8 +34,200 @@ function toTheoryBlocks(theoryBlocks) {
       return normalizedBlock
     }
 
+    if (block.blockType === 'video') {
+      return {
+        ...block,
+        videoUrl: String(block.videoUrl ?? ''),
+        aspectRatio: block.aspectRatio === '4:3' ? '4:3' : '16:9',
+      }
+    }
+
     return block
   })
+}
+
+async function ensureLessonPlaceholderMedia(payload) {
+  const existing = await findSingle(payload, 'media', {
+    filename: { equals: PLACEHOLDER_MEDIA_FILENAME },
+  })
+  if (existing) {
+    return existing
+  }
+
+  const assetPath = path.join(__dirname, '../assets', PLACEHOLDER_MEDIA_FILENAME)
+  const publicMediaDir = path.join(process.cwd(), 'public', 'media')
+  const destPath = path.join(publicMediaDir, PLACEHOLDER_MEDIA_FILENAME)
+
+  if (!fs.existsSync(assetPath)) {
+    throw new Error(
+      `[ERROR] Placeholder asset missing: ${assetPath}. Expected bundled ${PLACEHOLDER_MEDIA_FILENAME}`,
+    )
+  }
+
+  if (!fs.existsSync(publicMediaDir)) {
+    fs.mkdirSync(publicMediaDir, { recursive: true })
+  }
+
+  fs.copyFileSync(assetPath, destPath)
+
+  const buf = fs.readFileSync(destPath)
+  const publicUrl = `/api/media/serve/${encodeURIComponent(PLACEHOLDER_MEDIA_FILENAME)}`
+
+  const created = await payload.create({
+    collection: 'media',
+    data: {
+      filename: PLACEHOLDER_MEDIA_FILENAME,
+      mimeType: 'image/svg+xml',
+      filesize: buf.length,
+      alt: 'Lesson theory placeholder (course imports) — replace in Admin → Media if desired',
+      url: publicUrl,
+    },
+    ...OA,
+  })
+
+  console.log(
+    `[INFO] Registered placeholder media for theory image blocks: id=${created.id} file=${PLACEHOLDER_MEDIA_FILENAME}`,
+  )
+  return created
+}
+
+const IMPORT_ASSET_IMAGE_RE = /\.(png|jpe?g|gif|webp|svg)$/i
+
+/**
+ * Copy `scripts/imports/assets/<filename>` → public/media, create a Media row (by filename).
+ * Use for course covers or any import-time image referenced by basename.
+ */
+async function ensureMediaFromImportAsset(payload, filename) {
+  const safeName = path.basename(String(filename))
+  if (!IMPORT_ASSET_IMAGE_RE.test(safeName)) {
+    throw new Error(
+      `[ERROR] Invalid import asset name "${filename}" — use a basename under scripts/imports/assets/ with extension .png, .jpg, .jpeg, .webp, .gif, or .svg`,
+    )
+  }
+
+  const existing = await findSingle(payload, 'media', {
+    filename: { equals: safeName },
+  })
+  if (existing) {
+    return existing
+  }
+
+  const assetPath = path.join(__dirname, '../assets', safeName)
+  const publicMediaDir = path.join(process.cwd(), 'public', 'media')
+  const destPath = path.join(publicMediaDir, safeName)
+
+  if (!fs.existsSync(assetPath)) {
+    throw new Error(
+      `[ERROR] Import asset missing: ${assetPath}. Add the file to scripts/imports/assets/ (same folder as ${PLACEHOLDER_MEDIA_FILENAME}).`,
+    )
+  }
+
+  if (!fs.existsSync(publicMediaDir)) {
+    fs.mkdirSync(publicMediaDir, { recursive: true })
+  }
+
+  fs.copyFileSync(assetPath, destPath)
+
+  const buf = fs.readFileSync(destPath)
+  const ext = path.extname(safeName).toLowerCase()
+  const mime =
+    ext === '.svg'
+      ? 'image/svg+xml'
+      : ext === '.png'
+        ? 'image/png'
+        : ext === '.webp'
+          ? 'image/webp'
+          : ext === '.gif'
+            ? 'image/gif'
+            : 'image/jpeg'
+  const publicUrl = `/api/media/serve/${encodeURIComponent(safeName)}`
+
+  const created = await payload.create({
+    collection: 'media',
+    data: {
+      filename: safeName,
+      mimeType: mime,
+      filesize: buf.length,
+      alt: safeName,
+      url: publicUrl,
+    },
+    ...OA,
+  })
+
+  console.log(`[INFO] Registered import media: id=${created.id} file=${safeName}`)
+  return created
+}
+
+/**
+ * Course `coverImage` in import JS:
+ * - omit / undefined → do not change cover on import (no automatic placeholder)
+ * - `null` → clear cover
+ * - `__IMPORT_PLACEHOLDER_IMAGE__` / `__PLACEHOLDER__` → bundled lesson-theory-placeholder.svg (explicit only)
+ * - `"my-cover.jpg"` → file in scripts/imports/assets/
+ * - numeric id → existing Media row
+ */
+async function resolveCourseCoverForImport(payload, raw, { dryRun }) {
+  if (dryRun) {
+    return undefined
+  }
+  if (raw === null) {
+    return null
+  }
+  if (raw === undefined) {
+    return undefined
+  }
+  if (raw === IMPORT_PLACEHOLDER_IMAGE_TOKEN || raw === '__PLACEHOLDER__') {
+    const doc = await ensureLessonPlaceholderMedia(payload)
+    return doc.id
+  }
+  if (typeof raw === 'number' || (typeof raw === 'string' && /^\d+$/.test(String(raw).trim()))) {
+    return Number(raw)
+  }
+  if (typeof raw === 'string') {
+    const doc = await ensureMediaFromImportAsset(payload, raw)
+    return doc.id
+  }
+  return undefined
+}
+
+/**
+ * Replace import tokens in theory blocks with real Media IDs before save.
+ * @param {unknown[]|undefined} theoryBlocks
+ */
+async function resolveTheoryBlockMediaRefs(payload, theoryBlocks, { dryRun }) {
+  if (!Array.isArray(theoryBlocks) || theoryBlocks.length === 0) {
+    return theoryBlocks
+  }
+  if (dryRun) {
+    return theoryBlocks
+  }
+
+  let placeholderId = null
+  const getPlaceholderId = async () => {
+    if (placeholderId != null) {
+      return placeholderId
+    }
+    const doc = await ensureLessonPlaceholderMedia(payload)
+    placeholderId = String(doc.id)
+    return placeholderId
+  }
+
+  const out = []
+  for (const block of theoryBlocks) {
+    if (!block || typeof block !== 'object') {
+      out.push(block)
+      continue
+    }
+    const next = { ...block }
+    if (block.blockType === 'image') {
+      const img = block.image
+      if (img === IMPORT_PLACEHOLDER_IMAGE_TOKEN || img === '__PLACEHOLDER__') {
+        next.image = await getPlaceholderId()
+      }
+    }
+    out.push(next)
+  }
+  return out
 }
 
 function toTaskData(task, lessonId, tags) {
@@ -144,26 +342,28 @@ async function createOrGetSubject(payload, subjectData, { dryRun }) {
 }
 
 async function findOrCreateCourse(payload, courseData, subjectId, { dryRun }) {
+  const coverImage = await resolveCourseCoverForImport(payload, courseData.coverImage, { dryRun })
+
+  const baseData = {
+    title: courseData.title,
+    slug: courseData.slug,
+    description: textToLexical(courseData.description ?? ''),
+    level: courseData.level || 'BEGINNER',
+    subject: subjectId,
+    isPublished: courseData.isPublished !== false,
+  }
+
+  const coursePayload =
+    dryRun || coverImage === undefined
+      ? baseData
+      : { ...baseData, coverImage }
+
   const result = await syncCreateOrUpdate(
     payload,
     'courses',
     { slug: { equals: courseData.slug } },
-    {
-      title: courseData.title,
-      slug: courseData.slug,
-      description: textToLexical(courseData.description ?? ''),
-      level: courseData.level || 'BEGINNER',
-      subject: subjectId,
-      isPublished: courseData.isPublished !== false,
-    },
-    {
-      title: courseData.title,
-      slug: courseData.slug,
-      description: textToLexical(courseData.description ?? ''),
-      level: courseData.level || 'BEGINNER',
-      subject: subjectId,
-      isPublished: courseData.isPublished !== false,
-    },
+    coursePayload,
+    coursePayload,
     { dryRun },
   )
 
@@ -216,6 +416,11 @@ async function findOrCreateModule(payload, courseId, moduleData, { dryRun }) {
 }
 
 async function findOrCreateLesson(payload, courseId, moduleId, lessonData, { dryRun }) {
+  const resolvedBlocks = await resolveTheoryBlockMediaRefs(payload, lessonData.theoryBlocks, {
+    dryRun,
+  })
+  const theoryBlocks = toTheoryBlocks(resolvedBlocks)
+
   return syncCreateOrUpdate(
     payload,
     'lessons',
@@ -232,7 +437,7 @@ async function findOrCreateLesson(payload, courseId, moduleId, lessonData, { dry
       module: moduleId,
       order: lessonData.order,
       isPublished: lessonData.isPublished !== false,
-      theoryBlocks: toTheoryBlocks(lessonData.theoryBlocks),
+      theoryBlocks,
     },
     {
       title: lessonData.title,
@@ -240,7 +445,7 @@ async function findOrCreateLesson(payload, courseId, moduleId, lessonData, { dry
       module: moduleId,
       order: lessonData.order,
       isPublished: lessonData.isPublished !== false,
-      theoryBlocks: toTheoryBlocks(lessonData.theoryBlocks),
+      theoryBlocks,
     },
     { dryRun },
   )
@@ -449,4 +654,7 @@ module.exports = {
   importCourseStructure,
   importModulesIntoCourse,
   findSingle,
+  ensureMediaFromImportAsset,
+  IMPORT_PLACEHOLDER_IMAGE_TOKEN,
+  PLACEHOLDER_MEDIA_FILENAME,
 }

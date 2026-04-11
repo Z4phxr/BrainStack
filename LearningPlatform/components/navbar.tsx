@@ -11,25 +11,28 @@ export async function Navbar() {
 
   return (
     <nav className="border-b dark:border-gray-700 block-contrast">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/dashboard" className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+      <div className="container mx-auto flex min-h-[4.25rem] items-center justify-between gap-4 px-4 py-3 sm:min-h-[4.5rem] sm:py-4">
+        <Link
+          href="/dashboard"
+          className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl"
+        >
           BrainStack
         </Link>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           <ThemeToggle />
           {session ? (
             <>
-              <div className="flex items-center gap-2">
-                <div className="h-7 w-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-semibold text-gray-800 dark:text-gray-100">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-200 text-base font-semibold text-gray-800 dark:bg-gray-700 dark:text-gray-100">
                   {initial}
                 </div>
-                <span className="text-sm text-gray-700 dark:text-gray-100">
+                <span className="max-w-[10rem] truncate text-base text-gray-700 dark:text-gray-100 sm:max-w-none">
                   {displayName ?? 'Account'}
                 </span>
               </div>
               {session.user?.role === 'ADMIN' && (
-                <Button asChild variant="outline" size="sm">
+                <Button asChild variant="outline" size="default" className="text-base">
                   <Link href="/admin/dashboard">Admin dashboard</Link>
                 </Button>
               )}
@@ -39,17 +42,17 @@ export async function Navbar() {
                   await signOut({ redirectTo: '/' });
                 }}
               >
-                <Button type="submit" variant="outline" size="sm">
+                <Button type="submit" variant="outline" size="default" className="text-base">
                   Sign out
                 </Button>
               </form>
             </>
           ) : (
             <>
-              <Button asChild size="sm">
+              <Button asChild size="default" className="text-base">
                 <Link href="/register">Get started</Link>
               </Button>
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant="outline" size="default" className="text-base">
                 <Link href="/login">Sign in</Link>
               </Button>
             </>

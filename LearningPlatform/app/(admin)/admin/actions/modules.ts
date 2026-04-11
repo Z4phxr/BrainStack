@@ -10,6 +10,10 @@ import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import { logActivity, ActivityAction } from '@/lib/activity-log'
 
+/** Payload default `find` limit is small (~10); course edit must load full trees. */
+const ADMIN_COURSE_MODULES_LIMIT = 500
+const ADMIN_COURSE_LESSONS_LIMIT = 2000
+
 export async function getModuleById(id: string) {
   await requireAdmin()
   const payload = await getPayload({ config })
@@ -30,6 +34,8 @@ export async function getModulesByCourse(courseId: string) {
     collection: 'modules',
     where: { course: { equals: courseId } },
     sort: 'order',
+    limit: ADMIN_COURSE_MODULES_LIMIT,
+    depth: 0,
   })
 
   const moduleIds = modules.map(m => String(m.id))
@@ -42,6 +48,8 @@ export async function getModulesByCourse(courseId: string) {
     collection: 'lessons',
     where: { module: { in: moduleIds } },
     sort: 'order',
+    limit: ADMIN_COURSE_LESSONS_LIMIT,
+    depth: 0,
   })
 
   // Attach lessons to their respective modules

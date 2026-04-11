@@ -80,7 +80,7 @@ export function AdminSidebar() {
     <div className={cn('h-screen border-r block-contrast dark:border-gray-700 transition-all flex flex-col', collapsed ? 'w-16' : 'w-64')}>
       <div className="flex h-16 items-center border-b dark:border-gray-700 px-3 justify-between">
         <Link href="/admin/dashboard" className={cn('flex items-center gap-2', collapsed ? 'mx-auto' : '')}>
-          <span className="text-blue-600 dark:text-blue-400 font-bold text-lg">{!collapsed && 'Admin Panel'}</span>
+          <span className="text-blue-600 dark:text-blue-400 text-xl font-bold">{!collapsed && 'Admin Panel'}</span>
         </Link>
         <button
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -101,13 +101,13 @@ export function AdminSidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium transition-colors',
                 isActive
                   ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300'
                   : 'text-gray-700 hover:shadow-sm dark:text-gray-300'
               )}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-5 w-5 shrink-0" />
               <span className={cn(collapsed ? 'hidden' : '')}>{item.title}</span>
             </Link>
           )

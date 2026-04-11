@@ -10,6 +10,8 @@ export const ActivityAction = {
   COURSE_UPDATED:      'COURSE_UPDATED',
   COURSE_PUBLISHED:    'COURSE_PUBLISHED',
   COURSE_UNPUBLISHED:  'COURSE_UNPUBLISHED',
+  /** Course + every module, lesson, and task in the tree set to published */
+  COURSE_TREE_PUBLISHED: 'COURSE_TREE_PUBLISHED',
   COURSE_DELETED:      'COURSE_DELETED',
   MODULE_CREATED:      'MODULE_CREATED',
   MODULE_UPDATED:      'MODULE_UPDATED',

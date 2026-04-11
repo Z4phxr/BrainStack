@@ -9,13 +9,13 @@
  *   1. On mount, fetch a practice session from /api/practice/session.
  *   2. Load full task data for the current task from /api/practice/task/[id].
  *   3. User selects / types an answer and submits.
- *   4. Answer is evaluated client-side and the result is shown.
+ *   4. Answer is scored client-side with the same rules as lesson submissions
+ *      (lib/evaluate-task-answer.ts), including open-ended + autoGrade=false → manual review.
  *   5. "Next" advances to the following task.
  *   6. After all tasks, a summary screen is shown.
  *
- * Answer evaluation is intentionally local (no server persistence) so practice
- * sessions are a lightweight, repeatable experience that do not affect lesson
- * progress.  Real lesson-progress recording happens only inside lesson pages.
+ * Scores are not persisted — practice is repeatable and does not write TaskProgress.
+ * Lesson pages use submitTaskAnswer() for real progress.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -24,9 +24,10 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle, XCircle, Loader2, ArrowRight, RotateCcw, Home } from 'lucide-react'
+import { CheckCircle, XCircle, Loader2, ArrowRight, RotateCcw, Home, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { extractText } from '@/lib/lexical'
+import { evaluateTaskAnswer } from '@/lib/evaluate-task-answer'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,8 @@ interface FullTask {
   questionMedia:    unknown | null
   choices:          Array<{ text: string; id?: string }>
   correctAnswer:    string | null
+  /** Only for OPEN_ENDED — when false, answers are not auto-scored (same as lessons). */
+  autoGrade?:       boolean
   solution:         unknown | null
   solutionMedia:    unknown | null
   solutionVideoUrl: string | null
@@ -51,16 +54,10 @@ interface FullTask {
   tags:             string[]
 }
 
+/** isCorrect null = open-ended without auto-grade (manual review); excluded from right/wrong score. */
 interface AnswerResult {
-  isCorrect: boolean
+  isCorrect: boolean | null
   correct:   string
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function evaluateAnswer(task: FullTask, answer: string): boolean {
-  if (!task.correctAnswer) return false
-  return answer.trim().toLowerCase() === task.correctAnswer.trim().toLowerCase()
 }
 
 // ─── Rich-text renderer (minimal) ────────────────────────────────────────────
@@ -84,13 +81,28 @@ function PracticeTaskCard({ task, index, total, onComplete }: PracticeTaskCardPr
   const [selected, setSelected]   = useState<string>('')
   const [submitted, setSubmitted] = useState(false)
   const [result, setResult]       = useState<AnswerResult | null>(null)
+  const [difficultyRating, setDifficultyRating] = useState<number | null>(null)
 
   function handleSubmit() {
-    if (!selected || submitted) return
-    const isCorrect = evaluateAnswer(task, selected)
-    const res: AnswerResult = { isCorrect, correct: task.correctAnswer ?? '' }
+    if (!selected.trim() || submitted) return
+    const answer = task.type === 'OPEN_ENDED' ? selected.trim() : selected
+    const { isCorrect, autoGraded } = evaluateTaskAnswer(
+      {
+        type: task.type,
+        correctAnswer: task.correctAnswer,
+        autoGrade: task.autoGrade,
+      },
+      answer,
+    )
+    const res: AnswerResult = {
+      isCorrect: autoGraded ? isCorrect : null,
+      correct: task.correctAnswer ?? '',
+    }
     setResult(res)
     setSubmitted(true)
+    if (task.type === 'OPEN_ENDED') {
+      setDifficultyRating(null)
+    }
   }
 
   return (
@@ -146,9 +158,10 @@ function PracticeTaskCard({ task, index, total, onComplete }: PracticeTaskCardPr
 
             {task.type === 'TRUE_FALSE' && (
               <div className="flex gap-3">
-                {['True', 'False'].map((opt) => (
+                {(['true', 'false'] as const).map((opt) => (
                   <button
                     key={opt}
+                    type="button"
                     onClick={() => setSelected(opt)}
                     className={cn(
                       'flex-1 px-4 py-3 rounded-lg border text-sm font-medium transition-colors',
@@ -157,7 +170,7 @@ function PracticeTaskCard({ task, index, total, onComplete }: PracticeTaskCardPr
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300',
                     )}
                   >
-                    {opt}
+                    {opt === 'true' ? 'True' : 'False'}
                   </button>
                 ))}
               </div>
@@ -184,45 +197,103 @@ function PracticeTaskCard({ task, index, total, onComplete }: PracticeTaskCardPr
           </>
         ) : (
           <div className="space-y-4">
-            {/* Result banner */}
-            <div
-              className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-lg',
-                result?.isCorrect
-                  ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                  : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800',
-              )}
-            >
-              {result?.isCorrect ? (
-                <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
-              ) : (
-                <XCircle className="w-5 h-5 text-red-600 shrink-0" />
-              )}
-              <div>
-                <p className={cn('font-semibold text-sm', result?.isCorrect ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300')}>
-                  {result?.isCorrect ? 'Correct!' : 'Incorrect'}
-                </p>
-                {!result?.isCorrect && result?.correct && (
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                    Correct answer: <span className="font-medium">{result.correct}</span>
+            {/* Result banner — matches lesson task-card: no red/green verdict for manual open-ended */}
+            {result?.isCorrect === null ? (
+              <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/40">
+                <Eye className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                    Answer recorded — not auto-graded
                   </p>
-                )}
+                  <p className="mt-1 text-xs text-amber-800/90 dark:text-amber-300/90">
+                    This question needs manual review. Compare your response with the sample answer and explanation below.
+                    How difficult was it for you?
+                  </p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-4 py-3',
+                  result?.isCorrect
+                    ? 'border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
+                    : 'border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20',
+                )}
+              >
+                {result?.isCorrect ? (
+                  <CheckCircle className="h-5 w-5 shrink-0 text-green-600" />
+                ) : (
+                  <XCircle className="h-5 w-5 shrink-0 text-red-600" />
+                )}
+                <div>
+                  <p
+                    className={cn(
+                      'text-sm font-semibold',
+                      result?.isCorrect
+                        ? 'text-green-700 dark:text-green-300'
+                        : 'text-red-700 dark:text-red-300',
+                    )}
+                  >
+                    {result?.isCorrect ? 'Correct!' : 'Incorrect'}
+                  </p>
+                  {result?.isCorrect === false && result.correct && task.type !== 'OPEN_ENDED' && (
+                    <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                      Correct answer: <span className="font-medium">{result.correct}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
-            {/* Solution */}
+            {/* Sample answer (open-ended) */}
+            {task.type === 'OPEN_ENDED' && task.correctAnswer && (
+              <div className="space-y-1 rounded-r-lg border-l-4 border-blue-400 bg-blue-50 p-4 dark:bg-blue-900/20">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                  Sample answer
+                </p>
+                <p className="whitespace-pre-wrap text-sm text-blue-900 dark:text-blue-100">{task.correctAnswer}</p>
+              </div>
+            )}
+
+            {/* Solution / explanation */}
             {!!task.solution && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 p-4 rounded-r-lg space-y-1">
-                <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Explanation</p>
+              <div className="space-y-1 rounded-r-lg border-l-4 border-blue-400 bg-blue-50 p-4 dark:bg-blue-900/20">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                  Explanation
+                </p>
                 <RichText content={task.solution} />
+              </div>
+            )}
+
+            {/* Difficulty (open-ended only — practice does not persist; same prompt as lessons) */}
+            {task.type === 'OPEN_ENDED' && difficultyRating == null && (
+              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-900/40">
+                <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  How difficult was this task?
+                </h4>
+                <p className="mb-3 text-xs text-gray-600 dark:text-gray-400">
+                  Optional — helps tune recommendations. (Not saved in practice mode.)
+                </p>
+                <div className="grid grid-cols-5 gap-2">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setDifficultyRating(n)}
+                      className="rounded-lg border border-gray-300 py-2 text-sm font-medium transition-colors hover:border-indigo-400 hover:bg-indigo-50 dark:border-gray-600 dark:hover:border-indigo-500 dark:hover:bg-indigo-950/50"
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
             <Button
               onClick={() => onComplete(result!)}
-              className="bg-indigo-600 hover:bg-indigo-700 gap-2"
+              className="gap-2 bg-indigo-600 hover:bg-indigo-700"
             >
-              Next Task <ArrowRight className="w-4 h-4" />
+              Next Task <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         )}
@@ -239,9 +310,11 @@ interface SummaryProps {
 }
 
 function Summary({ results, onRestart }: SummaryProps) {
-  const correct = results.filter((r) => r.isCorrect).length
-  const total   = results.length
-  const pct     = Math.round((correct / total) * 100)
+  const correct = results.filter((r) => r.isCorrect === true).length
+  const wrong = results.filter((r) => r.isCorrect === false).length
+  const manual = results.filter((r) => r.isCorrect === null).length
+  const scored = correct + wrong
+  const pct = scored > 0 ? Math.round((correct / scored) * 100) : 0
 
   return (
     <Card className="w-full max-w-lg mx-auto text-center">
@@ -249,9 +322,32 @@ function Summary({ results, onRestart }: SummaryProps) {
         <CardTitle className="text-2xl">Session Complete!</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="text-6xl font-bold text-indigo-600">{pct}%</div>
+        {scored > 0 ? (
+          <div className="text-6xl font-bold text-indigo-600">{pct}%</div>
+        ) : (
+          <div className="text-2xl font-semibold text-gray-600 dark:text-gray-400">—</div>
+        )}
         <p className="text-gray-600 dark:text-gray-400">
-          You answered <span className="font-semibold">{correct}</span> of <span className="font-semibold">{total}</span> tasks correctly.
+          {scored > 0 ? (
+            <>
+              <span className="font-semibold">{correct}</span> correct ·{' '}
+              <span className="font-semibold">{wrong}</span> incorrect
+              {scored > 0 && (
+                <span className="text-gray-500 dark:text-gray-500"> (auto-graded tasks only)</span>
+              )}
+            </>
+          ) : (
+            <>No auto-graded tasks in this session.</>
+          )}
+          {manual > 0 && (
+            <>
+              <br />
+              <span className="mt-2 inline-block text-sm">
+                <span className="font-semibold">{manual}</span> open-ended{' '}
+                {manual === 1 ? 'task' : 'tasks'} without auto-grade (review only).
+              </span>
+            </>
+          )}
         </p>
 
         {/* Per-task breakdown */}
@@ -260,8 +356,10 @@ function Summary({ results, onRestart }: SummaryProps) {
             <div
               key={i}
               className={cn(
-                'w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold',
-                r.isCorrect ? 'bg-green-500' : 'bg-red-400',
+                'flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white',
+                r.isCorrect === true && 'bg-green-500',
+                r.isCorrect === false && 'bg-red-400',
+                r.isCorrect === null && 'bg-gray-400',
               )}
             >
               {i + 1}

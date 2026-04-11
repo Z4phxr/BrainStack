@@ -8,7 +8,7 @@
  *  - Returns { allowed: true } when count <= limit
  *  - Returns { allowed: false } when count > limit
  *  - Returns { allowed: true } as a fail-open when the database is unavailable
- *  - Extracts the IP from x-forwarded-for (rightmost non-empty part)
+ *  - Extracts the IP from x-forwarded-for (leftmost = originating client)
  *  - Falls back to x-real-ip when x-forwarded-for is absent
  *  - Falls back to "unknown" when no IP headers exist
  *  - Includes a non-negative retryAfter value in the response
@@ -131,15 +131,14 @@ describe('checkRateLimit', () => {
   // ── IP extraction ──────────────────────────────────────────────────────────
 
   describe('IP extraction', () => {
-    it('uses the rightmost IP from x-forwarded-for (trusted proxy position)', async () => {
+    it('uses the leftmost IP from x-forwarded-for (originating client)', async () => {
       mockDbCount(1)
       const req = makeRequest({ forwardedFor: '1.1.1.1, 2.2.2.2, 3.3.3.3' })
       await checkRateLimit({ request: req, key: 'test', limit: 10 })
 
-      // The storeKey passed to the DB should contain the rightmost IP: 3.3.3.3
       const callArgs = vi.mocked(mockPrisma.$queryRaw).mock.calls[0] ?? []
       const allArgs = [...callArgs].map(String)
-      expect(allArgs.some(s => s.includes('3.3.3.3'))).toBe(true)
+      expect(allArgs.some(s => s.includes('1.1.1.1'))).toBe(true)
     })
 
     it('falls back to x-real-ip when x-forwarded-for is absent', async () => {
@@ -160,6 +159,21 @@ describe('checkRateLimit', () => {
       const callArgs = vi.mocked(mockPrisma.$queryRaw).mock.calls[0] ?? []
       const allArgs = [...callArgs].map(String)
       expect(allArgs.some(s => s.includes('unknown'))).toBe(true)
+    })
+
+    it('scopes unknown IP with identityFallback in the store key', async () => {
+      mockDbCount(1)
+      const req = makeRequest()
+      await checkRateLimit({
+        request: req,
+        key: 'login',
+        limit: 5,
+        identityFallback: 'User@Example.com',
+      })
+
+      const callArgs = vi.mocked(mockPrisma.$queryRaw).mock.calls[0] ?? []
+      const allArgs = [...callArgs].map(String)
+      expect(allArgs.some(s => s.includes('fb:user@example.com'))).toBe(true)
     })
 
     it('uses "unknown" when x-forwarded-for is an empty string', async () => {

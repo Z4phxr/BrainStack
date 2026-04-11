@@ -63,17 +63,29 @@ export default function ThemeToggle() {
   // Before hydration: render an invisible placeholder with the same size so
   // layout doesn't shift. Both server and client agree on this output.
   if (isDark === null) {
-    return <Button variant="ghost" size="icon" aria-label="Toggle theme" disabled className="opacity-0" />
+    return (
+      <Button
+        variant="ghost"
+        size="icon-lg"
+        aria-label="Toggle theme"
+        disabled
+        className="opacity-0"
+      />
+    )
   }
 
   return (
     <Button
       variant="ghost"
-      size="icon"
+      size="icon-lg"
       onClick={toggleAndReload}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
-      {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-black dark:text-white" />}
+      {isDark ? (
+        <Sun className="h-5 w-5" />
+      ) : (
+        <Moon className="h-5 w-5 text-black dark:text-white" />
+      )}
     </Button>
   )
 }

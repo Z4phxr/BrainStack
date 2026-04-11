@@ -11,11 +11,6 @@ const loginSchema = z.object({
 })
 
 export async function POST(request: Request) {
-  const rate = await checkRateLimit({ request, key: 'login', limit: 5 })
-  if (!rate.allowed) {
-    return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 })
-  }
-
   let body: unknown
   try {
     body = await request.json()
@@ -29,10 +24,21 @@ export async function POST(request: Request) {
   }
 
   const { email, password } = parsed.data
+  const normalizedEmail = email.toLowerCase()
+
+  const rate = await checkRateLimit({
+    request,
+    key: 'login',
+    limit: 5,
+    identityFallback: normalizedEmail,
+  })
+  if (!rate.allowed) {
+    return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 })
+  }
 
   try {
     const result = await signIn('credentials', {
-      email,
+      email: normalizedEmail,
       password,
       redirect: false,
     })
@@ -41,7 +47,6 @@ export async function POST(request: Request) {
       return result
     }
 
-    const normalizedEmail = email.toLowerCase()
     prisma.user
       .findUnique({ where: { email: normalizedEmail }, select: { id: true } })
       .then((u) =>

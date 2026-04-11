@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+  <rect width="960" height="540" fill="#e2e8f0"/>
+  <rect x="40" y="40" width="880" height="460" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+  <text x="480" y="260" text-anchor="middle" fill="#475569" font-family="system-ui,Segoe UI,sans-serif" font-size="28" font-weight="600">
+    Image placeholder
+  </text>
+  <text x="480" y="310" text-anchor="middle" fill="#64748b" font-family="system-ui,Segoe UI,sans-serif" font-size="16">
+    Replace in Admin ’ Media or swap the block image
+  </text>
+</svg>

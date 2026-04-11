@@ -46,7 +46,6 @@ docs/
 # misc
 *.pem
 
-data
 
 # uploaded/generated media (not committed)
 public/media

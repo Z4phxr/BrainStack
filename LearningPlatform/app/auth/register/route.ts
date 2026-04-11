@@ -22,11 +22,6 @@ function isStrongPassword(password: string): boolean {
 }
 
 export async function POST(request: Request) {
-  const rate = await checkRateLimit({ request, key: 'register', limit: 10 })
-  if (!rate.allowed) {
-    return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 })
-  }
-
   let body: unknown
   try {
     body = await request.json()
@@ -37,6 +32,16 @@ export async function POST(request: Request) {
   const parsed = registerSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid registration data' }, { status: 400 })
+  }
+
+  const rate = await checkRateLimit({
+    request,
+    key: 'register',
+    limit: 10,
+    identityFallback: parsed.data.email.toLowerCase(),
+  })
+  if (!rate.allowed) {
+    return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 })
   }
 
   const { email, password, name } = parsed.data

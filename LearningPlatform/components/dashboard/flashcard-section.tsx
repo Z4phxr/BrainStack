@@ -12,7 +12,9 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { DashboardHorizontalScroll } from '@/components/dashboard/dashboard-horizontal-scroll'
 import { Brain, Zap, Loader2, BookOpen, Settings } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,9 +72,9 @@ function StatPill({
   color: string
 }) {
   return (
-    <div className={`flex flex-col items-center justify-center rounded-md px-3 py-2 text-sm font-medium ${color}`}>
-      <span className="text-lg font-bold">{count}</span>
-      <span className="mt-1 text-xs opacity-80">{label}</span>
+    <div className={`flex flex-col items-center justify-center rounded-md px-3 py-2 text-lg font-medium md:text-xl ${color}`}>
+      <span className="text-2xl font-bold md:text-3xl">{count}</span>
+      <span className="mt-1 text-base opacity-80 md:text-lg">{label}</span>
     </div>
   )
 }
@@ -96,7 +98,9 @@ function FlashcardBlock({
     <Card className="hover:shadow-lg transition-shadow flex flex-col h-full">
       <CardContent className="flex h-full flex-col items-center justify-between gap-4 p-4">
         <div className="text-center w-full">
-          <p className="font-semibold text-gray-800 dark:text-gray-100">{title}</p>
+          <p className="text-xl font-semibold tracking-tight text-gray-800 dark:text-gray-100 md:text-2xl">
+            {title}
+          </p>
         </div>
 
         <div className="w-full flex items-center justify-between gap-2">
@@ -125,20 +129,91 @@ function FlashcardBlock({
 
         <div className="w-full flex gap-2 justify-center">
           <Link href={studyHref}>
-            <Button size="sm" className="w-36" disabled={!canStudy}>
-              <Brain className="mr-1.5 h-3.5 w-3.5" />
+            <Button size="default" className="w-40 text-base md:text-lg" disabled={!canStudy}>
+              <Brain className="mr-1.5 h-5 w-5" />
               Study Now
             </Button>
           </Link>
           <Link href={freeHref}>
-            <Button size="sm" variant="outline" className="w-36" disabled={stats.total === 0}>
-              <Zap className="mr-1.5 h-3.5 w-3.5" />
+            <Button size="default" variant="outline" className="w-40 text-base md:text-lg" disabled={stats.total === 0}>
+              <Zap className="mr-1.5 h-5 w-5" />
               Free Learn
             </Button>
           </Link>
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+// ─── Carousel of flashcard blocks ────────────────────────────────────────────
+
+function FlashcardBlocksCarousel({
+  flashcards,
+  subjects,
+  tags,
+}: {
+  flashcards: Flashcard[]
+  subjects: Subject[]
+  tags: Tag[]
+}) {
+  const items: ReactNode[] = [
+    <FlashcardBlock
+      key="all"
+      title="All Flashcards"
+      stats={computeStats(flashcards)}
+      studyHref="/dashboard/flashcards/study?mode=srs"
+      freeHref="/dashboard/flashcards/study?mode=free"
+    />,
+  ]
+
+  if (subjects.length > 0) {
+    for (const subject of subjects) {
+      const tagCards = flashcards.filter((c) =>
+        c.tags.some((t) => (subject.tagSlugs ?? []).includes(t.slug)),
+      )
+      if (tagCards.length === 0) continue
+      items.push(
+        <FlashcardBlock
+          key={subject.slug}
+          title={subject.name}
+          stats={computeStats(tagCards)}
+          studyHref={`/dashboard/flashcards/study?mode=srs&subject=${encodeURIComponent(subject.slug)}`}
+          freeHref={`/dashboard/flashcards/study?mode=free&subject=${encodeURIComponent(subject.slug)}`}
+        />,
+      )
+    }
+  } else {
+    for (const tag of tags) {
+      const tagCards = flashcards.filter((c) => c.tags.some((t) => t.slug === tag.slug))
+      if (tagCards.length === 0) continue
+      items.push(
+        <FlashcardBlock
+          key={tag.id}
+          title={tag.name}
+          stats={computeStats(tagCards)}
+          studyHref={`/dashboard/flashcards/study?mode=srs&tagSlug=${encodeURIComponent(tag.slug)}`}
+          freeHref={`/dashboard/flashcards/study?mode=free&tagSlug=${encodeURIComponent(tag.slug)}`}
+        />,
+      )
+    }
+  }
+
+  if (items.length === 1) {
+    return (
+      <div className="flex w-full justify-center px-1">
+        <div className="w-full max-w-lg">{items[0]}</div>
+      </div>
+    )
+  }
+
+  return (
+    <DashboardHorizontalScroll
+      aria-label="Flashcard decks"
+      itemClassName="w-[min(92vw,22rem)] sm:w-[22rem]"
+    >
+      {items}
+    </DashboardHorizontalScroll>
   )
 }
 
@@ -194,94 +269,62 @@ export function FlashcardDashboardSection() {
   }, [])
 
   return (
-    <section className="space-y-4">
+    <section className="w-full space-y-4">
       {/* ── Section header ── */}
-      <div className="max-w-6xl mx-auto flex items-center">
+      <div className="flex w-full items-center">
         <div className="flex-1 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Your Flashcards</h2>
-          <p className="mt-0.5 text-sm text-gray-500">Study with spaced repetition or browse freely.</p>
+          <h2 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-5xl">
+            Your Flashcards
+          </h2>
+          <p className="mt-2 text-lg leading-relaxed text-gray-600 dark:text-gray-400 md:text-xl">
+            Study with spaced repetition or browse freely.
+          </p>
         </div>
         {/* Settings button moved below the flashcards and centered */}
       </div>
 
       {/* ── Loading ── */}
       {loading && (
-        <div className="flex items-center gap-2 text-sm text-gray-400">
-          <Loader2 className="h-4 w-4 animate-spin" />
+        <div className="flex items-center gap-2 text-lg text-gray-400 md:text-xl">
+          <Loader2 className="h-6 w-6 animate-spin" />
           Loading flashcards…
         </div>
       )}
 
       {/* ── Error ── */}
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-lg leading-relaxed text-red-500 md:text-xl">{error}</p>
       )}
 
       {/* ── Empty state ── */}
       {!loading && !error && flashcards.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-10 text-center">
-          <BookOpen className="mb-3 h-8 w-8 text-gray-300" />
-          <p className="text-sm text-gray-500">No flashcards available yet.</p>
-          <p className="mt-1 text-xs text-gray-400">
+          <BookOpen className="mb-3 h-12 w-12 text-gray-300" />
+          <p className="text-lg leading-relaxed text-gray-500 md:text-xl">No flashcards available yet.</p>
+          <p className="mt-2 text-base leading-relaxed text-gray-400 md:text-lg">
             Your instructor will add flashcards to your study deck.
           </p>
         </div>
       )}
 
-      {/* ── Blocks grid ── */}
+      {/* ── Deck blocks (horizontal scroll) ── */}
       {!loading && !error && flashcards.length > 0 && (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
-          {/* All flashcards block */}
-          <FlashcardBlock
-            title="All Flashcards"
-            stats={computeStats(flashcards)}
-            studyHref="/dashboard/flashcards/study?mode=srs"
-            freeHref="/dashboard/flashcards/study?mode=free"
-          />
-
-          {/* Per-subject blocks (if taxonomy provided) */}
-          {subjects.length > 0 ? (
-            subjects.map((subject) => {
-              const tagCards = flashcards.filter((c) =>
-                c.tags.some((t) => (subject.tagSlugs ?? []).includes(t.slug))
-              )
-              if (tagCards.length === 0) return null
-              return (
-                <FlashcardBlock
-                  key={subject.slug}
-                  title={subject.name}
-                  stats={computeStats(tagCards)}
-                  studyHref={`/dashboard/flashcards/study?mode=srs&subject=${encodeURIComponent(subject.slug)}`}
-                  freeHref={`/dashboard/flashcards/study?mode=free&subject=${encodeURIComponent(subject.slug)}`}
-                />
-              )
-            })
-          ) : (
-            /* Fallback: per-tag blocks (legacy behavior) */
-            tags.map((tag) => {
-              const tagCards = flashcards.filter((c) =>
-                c.tags.some((t) => t.slug === tag.slug)
-              )
-              if (tagCards.length === 0) return null
-              return (
-                <FlashcardBlock
-                  key={tag.id}
-                  title={tag.name}
-                  stats={computeStats(tagCards)}
-                  studyHref={`/dashboard/flashcards/study?mode=srs&tagSlug=${encodeURIComponent(tag.slug)}`}
-                  freeHref={`/dashboard/flashcards/study?mode=free&tagSlug=${encodeURIComponent(tag.slug)}`}
-                />
-              )
-            })
-          )}
-        </div>
+        <FlashcardBlocksCarousel
+          flashcards={flashcards}
+          subjects={subjects}
+          tags={tags}
+        />
       )}
 
       {/* Centered SRS Settings button under flashcards */}
-      <div className="max-w-6xl mx-auto mt-4 flex justify-center">
+      <div className="mt-4 flex w-full justify-center">
         <Link href="/dashboard/flashcards/settings">
-          <Button variant="ghost" size="sm" className="text-gray-500 hover:text-white hover:bg-gray-800/10">
-            <Settings className="mr-1.5 h-4 w-4" />
+          <Button
+            variant="ghost"
+            size="default"
+            className="text-base text-gray-600 hover:bg-gray-800/10 dark:text-gray-400 md:text-lg"
+          >
+            <Settings className="mr-1.5 h-5 w-5" />
             SRS Settings
           </Button>
         </Link>

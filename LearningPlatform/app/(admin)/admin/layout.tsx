@@ -28,7 +28,7 @@ export default async function AdminLayout({
       <AdminSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <AdminTopbar user={session.user} />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 text-base leading-relaxed">
           {children}
         </main>
       </div>

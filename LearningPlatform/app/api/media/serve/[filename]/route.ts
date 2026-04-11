@@ -12,6 +12,7 @@ const mimeForExt = (ext: string) => {
     case '.jpeg': return 'image/jpeg'
     case '.webp': return 'image/webp'
     case '.gif': return 'image/gif'
+    case '.svg': return 'image/svg+xml'
     case '.mp4': return 'video/mp4'
     case '.webm': return 'video/webm'
     case '.pdf': return 'application/pdf'
