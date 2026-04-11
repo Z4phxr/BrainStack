@@ -300,7 +300,7 @@ npm run test:coverage   # with coverage report
 npm run test:watch      # watch mode
 ```
 
-392 tests - unit, integration, and component - using Vitest and Testing Library.
+404 tests total (unit, integration, component) with Vitest and Testing Library. The default `npm run test:ci` / GitHub Actions job runs **392** of them; **12** Payload- or DB-heavy integration tests are skipped unless you run against a real database (see `SKIP_PAYLOAD_TESTS` / `SKIP_DB_SETUP` in the test files).
 
 ---
 

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getPayload } from 'payload'
-import config from '@payload-config'
 import { prisma } from '@/lib/prisma'
+import { getTaskCountsByPrismaTagId } from '@/lib/payload-task-tag-counts'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { unstable_cache, revalidateTag } from 'next/cache'
 import { z } from 'zod'
@@ -52,7 +51,7 @@ const getCachedTags = unstable_cache(
       },
     })
 
-    const countsMap = await taskCountsByTagId()
+    const countsMap = await getTaskCountsByPrismaTagId()
 
     return tags.map((t) => ({
       ...t,

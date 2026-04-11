@@ -231,7 +231,6 @@ async function resolveTheoryBlockMediaRefs(payload, theoryBlocks, { dryRun }) {
 }
 
 function toTaskData(task, lessonId, tags) {
-  const tagSlugs = Array.isArray(task.tagSlugs) ? task.tagSlugs : []
   const payloadTask = {
     lesson: [lessonId],
     type: task.type,

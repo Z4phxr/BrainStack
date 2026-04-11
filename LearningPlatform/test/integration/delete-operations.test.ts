@@ -621,24 +621,16 @@ describe.skipIf(shouldSkipPayloadTests)('Delete Operations - Full Cascade', () =
     })
     expect(tasks.length).toBe(2)
 
-    // Delete in correct order (tasks -> lessons -> modules -> course)
-    for (const task of tasks) {
-      await payload.delete({ collection: 'tasks', id: String(task.id) })
-    }
-
-    for (const lesson of lessons) {
-      await prisma.lessonProgress.deleteMany({ where: { lessonId: String(lesson.id) } })
-      await payload.delete({ collection: 'lessons', id: String(lesson.id) })
-    }
-
-    await payload.delete({ collection: 'modules', id: moduleId })
-
-    await prisma.courseProgress.deleteMany({ where: { courseId } })
+    // Deleting the course alone must cascade (beforeDelete hooks → modules → lessons → tasks)
     await payload.delete({ collection: 'courses', id: courseId })
 
-    // Verify everything deleted
-    await expect(
-      payload.findByID({ collection: 'courses', id: courseId })
-    ).rejects.toThrow()
+    await expect(payload.findByID({ collection: 'courses', id: courseId })).rejects.toThrow()
+    await expect(payload.findByID({ collection: 'modules', id: moduleId })).rejects.toThrow()
+    await expect(payload.findByID({ collection: 'lessons', id: lesson1Id })).rejects.toThrow()
+    await expect(payload.findByID({ collection: 'lessons', id: lesson2Id })).rejects.toThrow()
+    await expect(payload.findByID({ collection: 'tasks', id: String(task1.id) })).rejects.toThrow()
+    await expect(payload.findByID({ collection: 'tasks', id: String(task2.id) })).rejects.toThrow()
+
+    await payload.delete({ collection: 'subjects', id: String(testSubject.id) })
   })
 })

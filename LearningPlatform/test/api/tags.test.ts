@@ -4,8 +4,8 @@
  * Covers:
  * - GET    /api/tags              (list all tags, admin only)
  * - POST   /api/tags              (create tag, admin only)
- * - PUT    /api/tags/[id]         (rename tag + sync payload.tasks_tags)
- * - DELETE /api/tags/[id]         (delete tag + clean payload.tasks_tags orphans)
+ * - PUT    /api/tags/[id]         (rename tag + sync embedded tags on Payload tasks)
+ * - DELETE /api/tags/[id]         (remove tag from tasks via Payload, then Prisma delete)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -16,8 +16,13 @@ import { createMockPrisma } from '../mocks'
 const mockPrisma = createMockPrisma()
 
 vi.mock('@/lib/prisma', () => ({ prisma: mockPrisma }))
-vi.mock('@/auth',       () => ({ auth: vi.fn() }))
-vi.mock('next/cache',   () => ({
+vi.mock('@/auth', () => ({ auth: vi.fn() }))
+vi.mock('payload', () => ({ getPayload: vi.fn() }))
+vi.mock('@payload-config', () => ({ default: {} }))
+vi.mock('@/lib/payload-task-tag-counts', () => ({
+  getTaskCountsByPrismaTagId: vi.fn(),
+}))
+vi.mock('next/cache', () => ({
   unstable_cache: (_fn: any) => _fn,
   revalidateTag: vi.fn(),
 }))
@@ -27,7 +32,12 @@ vi.mock('next/cache',   () => ({
 const { GET: listGet, POST: listPost } = await import('@/app/api/tags/route')
 const { PUT: tagPut, DELETE: tagDelete } = await import('@/app/api/tags/[id]/route')
 const { auth } = await import('@/auth')
+const { getPayload } = await import('payload')
+const { getTaskCountsByPrismaTagId } = await import('@/lib/payload-task-tag-counts')
+
 const mockedAuth = vi.mocked(auth)
+const mockedGetPayload = vi.mocked(getPayload)
+const mockedTaskCounts = vi.mocked(getTaskCountsByPrismaTagId)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,7 +60,7 @@ function makeRequest(method: string, url: string, body?: object): Request {
 }
 
 function routeCtx(id: string) {
-  return { params: { id } }
+  return { params: Promise.resolve({ id }) }
 }
 
 const MOCK_TAG = {
@@ -68,12 +78,18 @@ describe('GET /api/tags', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     adminSession()
+    mockedTaskCounts.mockResolvedValue(
+      new Map([
+        ['tag-1', 2],
+        ['tag-2', 1],
+      ]),
+    )
   })
 
   it('returns 200 with tags array for admin', async () => {
     vi.mocked(mockPrisma.tag.findMany).mockResolvedValue([
-      { id: 'tag-1', name: 'Calculus', slug: 'calculus', _count: { flashcards: 5 } },
-      { id: 'tag-2', name: 'Algebra', slug: 'algebra', _count: { flashcards: 3 } },
+      { id: 'tag-1', name: 'Calculus', slug: 'calculus', main: false, _count: { flashcards: 5 } },
+      { id: 'tag-2', name: 'Algebra', slug: 'algebra', main: false, _count: { flashcards: 3 } },
     ] as any)
 
     const res = await listGet()
@@ -82,6 +98,8 @@ describe('GET /api/tags', () => {
     expect(res.status).toBe(200)
     expect(data.tags).toHaveLength(2)
     expect(data.tags[0].name).toBe('Calculus')
+    expect(data.tags[0]._count.tasks).toBe(2)
+    expect(data.tags[1]._count.tasks).toBe(1)
   })
 
   it('returns 401 for unauthenticated callers', async () => {
@@ -157,6 +175,11 @@ describe('PUT /api/tags/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     adminSession()
+    mockedGetPayload.mockResolvedValue({
+      find: vi.fn().mockResolvedValue({ docs: [], hasNextPage: false }),
+      findByID: vi.fn(),
+      update: vi.fn().mockResolvedValue({}),
+    } as any)
   })
 
   it('renames the tag (name + auto-slug) and returns 200', async () => {
@@ -176,24 +199,39 @@ describe('PUT /api/tags/[id]', () => {
     expect(data.tag.name).toBe('Advanced Calculus')
   })
 
-  it('syncs payload.tasks_tags after rename', async () => {
+  it('syncs embedded tags on Payload tasks after rename', async () => {
     vi.mocked(mockPrisma.tag.findUnique).mockResolvedValue(MOCK_TAG as any)
     vi.mocked(mockPrisma.tag.findFirst).mockResolvedValue(null)
     vi.mocked(mockPrisma.tag.update).mockResolvedValue({
       ...MOCK_TAG, name: 'Advanced Calculus', slug: 'advanced-calculus',
     } as any)
-    vi.mocked(mockPrisma.$executeRaw).mockResolvedValue(3 as any)   // 3 rows updated
+
+    const find = vi.fn().mockResolvedValue({
+      docs: [
+        {
+          id: 'task-1',
+          tags: [{ tagId: 'tag-1', name: 'Calculus', slug: 'calculus' }],
+        },
+      ],
+      hasNextPage: false,
+    })
+    const findByID = vi.fn().mockResolvedValue({
+      id: 'task-1',
+      tags: [{ tagId: 'tag-1', name: 'Calculus', slug: 'calculus' }],
+    })
+    const update = vi.fn().mockResolvedValue({})
+    mockedGetPayload.mockResolvedValue({ find, findByID, update } as any)
 
     await tagPut(
       makeRequest('PUT', 'http://localhost/api/tags/tag-1', { name: 'Advanced Calculus' }),
       routeCtx('tag-1'),
     )
 
-    // $executeRaw should have been called once to sync payload.tasks_tags
-    expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1)
+    expect(find).toHaveBeenCalled()
+    expect(update).toHaveBeenCalled()
   })
 
-  it('does NOT call $executeRaw when name is unchanged', async () => {
+  it('does not call Payload to sync tasks when name and slug are unchanged', async () => {
     vi.mocked(mockPrisma.tag.findUnique).mockResolvedValue(MOCK_TAG as any)
     vi.mocked(mockPrisma.tag.update).mockResolvedValue({
       ...MOCK_TAG, main: true,
@@ -204,8 +242,7 @@ describe('PUT /api/tags/[id]', () => {
       routeCtx('tag-1'),
     )
 
-    // No rename → no sync
-    expect(mockPrisma.$executeRaw).not.toHaveBeenCalled()
+    expect(mockedGetPayload).not.toHaveBeenCalled()
   })
 
   it('returns 404 when tag does not exist', async () => {
@@ -246,6 +283,12 @@ describe('PUT /api/tags/[id]', () => {
       ...MOCK_TAG, name: 'Calculus II', slug: 'calc-2',
     } as any)
 
+    mockedGetPayload.mockResolvedValue({
+      find: vi.fn().mockResolvedValue({ docs: [], hasNextPage: false }),
+      findByID: vi.fn(),
+      update: vi.fn().mockResolvedValue({}),
+    } as any)
+
     await tagPut(
       makeRequest('PUT', 'http://localhost/api/tags/tag-1', { name: 'Calculus II', slug: 'calc-2' }),
       routeCtx('tag-1'),
@@ -265,12 +308,15 @@ describe('DELETE /api/tags/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     adminSession()
+    mockedGetPayload.mockResolvedValue({
+      find: vi.fn().mockResolvedValue({ docs: [], hasNextPage: false }),
+      update: vi.fn(),
+    } as any)
   })
 
   it('deletes tag and returns { success: true }', async () => {
     vi.mocked(mockPrisma.tag.findUnique).mockResolvedValue(MOCK_TAG as any)
     vi.mocked(mockPrisma.tag.delete).mockResolvedValue(MOCK_TAG as any)
-    vi.mocked(mockPrisma.$executeRaw).mockResolvedValue(0 as any)
 
     const res = await tagDelete(
       makeRequest('DELETE', 'http://localhost/api/tags/tag-1'),
@@ -282,28 +328,33 @@ describe('DELETE /api/tags/[id]', () => {
     expect(data.success).toBe(true)
   })
 
-  it('cleans up payload.tasks_tags orphans before deletion', async () => {
+  it('removes tag from Payload tasks before Prisma delete', async () => {
     vi.mocked(mockPrisma.tag.findUnique).mockResolvedValue(MOCK_TAG as any)
     vi.mocked(mockPrisma.tag.delete).mockResolvedValue(MOCK_TAG as any)
-    // $queryRaw must return rows so the conditional $executeRaw branch is entered
-    vi.mocked(mockPrisma.$queryRaw).mockResolvedValueOnce([{ id: 'join-row-1' }, { id: 'join-row-2' }])
-    vi.mocked(mockPrisma.$executeRaw).mockResolvedValue(2 as any)   // 2 orphan rows deleted
+
+    const find = vi
+      .fn()
+      .mockResolvedValueOnce({
+        docs: [{ id: 'task-1', tags: [{ tagId: 'tag-1' }] }],
+        hasNextPage: false,
+      })
+      .mockResolvedValueOnce({ docs: [], hasNextPage: false })
+    const update = vi.fn().mockResolvedValue({})
+    mockedGetPayload.mockResolvedValue({ find, update } as any)
 
     await tagDelete(
       makeRequest('DELETE', 'http://localhost/api/tags/tag-1'),
       routeCtx('tag-1'),
     )
 
-    // $executeRaw should have cleaned payload.tasks_tags
-    expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1)
-    // Then the canonical tag should be deleted
+    expect(update).toHaveBeenCalled()
     expect(mockPrisma.tag.delete).toHaveBeenCalledWith({ where: { id: 'tag-1' } })
   })
 
-  it('still deletes the tag even if payload.tasks_tags cleanup fails', async () => {
+  it('still deletes the tag even if Payload task cleanup fails', async () => {
     vi.mocked(mockPrisma.tag.findUnique).mockResolvedValue(MOCK_TAG as any)
     vi.mocked(mockPrisma.tag.delete).mockResolvedValue(MOCK_TAG as any)
-    vi.mocked(mockPrisma.$executeRaw).mockRejectedValue(new Error('Schema error'))
+    mockedGetPayload.mockRejectedValue(new Error('Payload init failed'))
 
     const res = await tagDelete(
       makeRequest('DELETE', 'http://localhost/api/tags/tag-1'),
