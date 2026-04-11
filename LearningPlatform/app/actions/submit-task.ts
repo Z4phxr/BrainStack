@@ -9,6 +9,7 @@ import { checkLessonCompletion } from './lesson-progress'
 import { recalculateCourseProgress } from './course-progress'
 import { requirePayloadDocument } from '@/lib/payload-validate'
 import { invalidateUserTagStatsCache } from '@/lib/analytics'
+import { evaluateTaskAnswer as scoreTaskAnswer } from '@/lib/evaluate-task-answer'
 
 // Module-level cache for payload lookups (enabled only in test env)
 // Enable the short-lived module cache only when explicitly requested to avoid
@@ -98,9 +99,15 @@ export async function submitTaskAnswer(
     update: { lastViewedAt: new Date() },
   })
 
-  const isCorrect = evaluateAnswer(task, answer)
+  const { isCorrect, autoGraded } = scoreTaskAnswer(
+    {
+      type: task.type,
+      correctAnswer: task.correctAnswer,
+      autoGrade: task.autoGrade,
+    },
+    answer,
+  )
   const earnedPoints = isCorrect ? task.points : 0
-  const autoGraded = task.type === 'OPEN_ENDED' ? !!task.autoGrade : true
 
   const validatedRating = difficultyRating && difficultyRating >= 1 && difficultyRating <= 5
     ? difficultyRating
@@ -163,35 +170,4 @@ export async function submitTaskAnswer(
   revalidatePath('/dashboard')
 
   return { taskProgress, isCorrect, earnedPoints, autoGraded }
-}
-
-/**
- * Evaluate a task answer, returning true/false/null.
- * - MULTIPLE_CHOICE / TRUE_FALSE: exact string match against correctAnswer.
- * - OPEN_ENDED (autoGrade=true): normalised text comparison.
- * - OPEN_ENDED (autoGrade=false): returns false (manual grading).
- */
-function evaluateAnswer(task: any, answer: string): boolean | null {
-  if (task.type === 'MULTIPLE_CHOICE' || task.type === 'TRUE_FALSE') {
-    return answer === task.correctAnswer
-  }
-
-  if (task.type === 'OPEN_ENDED') {
-    if (!task.autoGrade) return false
-
-    const normalize = (s: string) =>
-      (s || '')
-        .toString()
-        .normalize('NFKD')
-        .replace(/[^A-Za-z0-9]+/g, ' ')
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, ' ')
-
-    const userAnswer = normalize(answer)
-    const correctAnswer = normalize(task.correctAnswer ?? '')
-    return userAnswer === correctAnswer
-  }
-
-  return false
 }
