@@ -74,16 +74,62 @@ else
     printf "[MIGRATE][WARNING] CMS seed failed (admin user may already exist or Payload tables not ready).\n"
 fi
 
+# Content import: default runs BEFORE the server (blocks HTTP — Railway /api/ping fails until done).
+# Set CONTENT_IMPORT_DEFERRED=1 to start Next first, wait for local /api/ping, then import (healthcheck-safe).
+RUN_IMPORT_BEFORE=0
+RUN_IMPORT_DEFERRED=0
 if [ "${CONTENT_IMPORT:-}" = "1" ] || [ "${CONTENT_IMPORT:-}" = "true" ]; then
-  printf "[IMPORT] CONTENT_IMPORT is set — running npm run content:import:all...\n"
+  if [ "${CONTENT_IMPORT_DEFERRED:-}" = "1" ] || [ "${CONTENT_IMPORT_DEFERRED:-}" = "true" ]; then
+    RUN_IMPORT_DEFERRED=1
+  else
+    RUN_IMPORT_BEFORE=1
+  fi
+fi
+
+if [ "$RUN_IMPORT_BEFORE" = "1" ]; then
+  printf "[IMPORT] CONTENT_IMPORT is set — running npm run content:import:all (blocking; server not up yet)...\n"
   npm run content:import:all && printf "[IMPORT] Content import finished.\n" || \
     printf "[IMPORT][WARNING] Content import failed or was partial — check logs above.\n"
 fi
 
 # ---------------------------------------------------------------------------
-# Start the server.
+# Start the server (and optionally deferred content import).
 # ---------------------------------------------------------------------------
 printf "[INFO] Starting Next.js server...\n"
+
+if [ "$RUN_IMPORT_DEFERRED" = "1" ]; then
+  printf "[IMPORT] CONTENT_IMPORT_DEFERRED=1 — server starts first; import runs after /api/ping is ready.\n"
+  if [ "${NODE_ENV:-production}" = "production" ]; then
+    npm run start &
+  else
+    npm run dev &
+  fi
+  SERVER_PID=$!
+  trap 'printf "[INFO] Signal received — stopping server (pid %s)...\n" "$SERVER_PID"; kill "$SERVER_PID" 2>/dev/null; exit 143' TERM INT
+
+  printf "[IMPORT] Waiting for local /api/ping on port %s...\n" "${PORT:-3000}"
+  ATTEMPTS=0
+  while [ "$ATTEMPTS" -lt 180 ]; do
+    if node -e "fetch('http://127.0.0.1:'+(process.env.PORT||'3000')+'/api/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>/dev/null; then
+      printf "[IMPORT] Server responded OK — starting content:import:all...\n"
+      break
+    fi
+    ATTEMPTS=$((ATTEMPTS + 1))
+    sleep 2
+  done
+  if [ "$ATTEMPTS" -ge 180 ]; then
+    printf "[IMPORT][ERROR] Server did not respond to /api/ping in time — exiting.\n"
+    kill "$SERVER_PID" 2>/dev/null
+    exit 1
+  fi
+
+  npm run content:import:all && printf "[IMPORT] Content import finished.\n" || \
+    printf "[IMPORT][WARNING] Content import failed or was partial — check logs above.\n"
+
+  wait "$SERVER_PID"
+  exit $?
+fi
+
 if [ "${NODE_ENV:-production}" = "production" ]; then
   exec npm run start
 else

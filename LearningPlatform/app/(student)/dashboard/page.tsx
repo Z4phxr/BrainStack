@@ -82,46 +82,46 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto px-6 py-8 md:px-8">
+    <div className="container mx-auto px-5 py-7 md:px-6 md:py-8">
       {/* One column width for every section (matches “Your courses”). */}
-      <div className="mx-auto w-full max-w-6xl space-y-10">
+      <div className="mx-auto w-full max-w-5xl space-y-8">
       <div className="text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-5xl">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">
           Welcome, {session?.user?.name || session?.user?.email}!
         </h1>
-        <p className="mt-3 text-lg leading-relaxed text-gray-600 dark:text-gray-400 md:text-xl">
+        <p className="mt-2 text-base leading-relaxed text-gray-600 dark:text-gray-400 md:text-lg">
           Ready for your next learning session?
         </p>
       </div>
 
       {/* Global Stats */}
-      <div className="grid w-full gap-6 md:grid-cols-3">
+      <div className="grid w-full gap-5 md:grid-cols-3 md:gap-6">
         <Card>
           <CardHeader className="pb-3 text-center">
-            <CardDescription className="text-lg leading-relaxed text-muted-foreground md:text-xl">
+            <CardDescription className="text-base leading-relaxed text-muted-foreground md:text-lg">
               Completed lessons
             </CardDescription>
-            <CardTitle className="mt-2 text-4xl font-bold text-purple-600 md:text-5xl">
+            <CardTitle className="mt-2 text-3xl font-bold text-purple-600 md:text-4xl">
               {userStats.completedLessons}
             </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-3 text-center">
-            <CardDescription className="text-lg leading-relaxed text-muted-foreground md:text-xl">
+            <CardDescription className="text-base leading-relaxed text-muted-foreground md:text-lg">
               Total points earned
             </CardDescription>
-            <CardTitle className="mt-2 text-4xl font-bold text-green-600 md:text-5xl">
+            <CardTitle className="mt-2 text-3xl font-bold text-green-600 md:text-4xl">
               {userStats.totalPoints}
             </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-3 text-center">
-            <CardDescription className="text-lg leading-relaxed text-muted-foreground md:text-xl">
+            <CardDescription className="text-base leading-relaxed text-muted-foreground md:text-lg">
               Active courses
             </CardDescription>
-            <CardTitle className="mt-2 text-4xl font-bold text-blue-600 md:text-5xl">
+            <CardTitle className="mt-2 text-3xl font-bold text-blue-600 md:text-4xl">
               {userStats.activeCourses}
             </CardTitle>
           </CardHeader>
@@ -135,8 +135,8 @@ export default async function DashboardPage() {
 
       {/* Courses — same horizontal bounds as stats / recommended practice (no extra nested container). */}
       <div className="w-full">
-        <div className="mb-5 text-center md:mb-6">
-          <h2 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-5xl">
+        <div className="mb-4 text-center md:mb-5">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">
             Your courses
           </h2>
         </div>
@@ -144,7 +144,7 @@ export default async function DashboardPage() {
         {error ? (
           <Card>
             <CardContent className="pt-6">
-              <p className="mb-4 text-center text-lg leading-relaxed text-red-600 dark:text-red-400 md:text-xl">
+              <p className="mb-4 text-center text-base leading-relaxed text-red-600 dark:text-red-400 md:text-lg">
                 {error}
               </p>
               <div className="flex justify-center">
@@ -155,7 +155,7 @@ export default async function DashboardPage() {
         ) : courses.length === 0 ? (
           <Card>
             <CardContent className="pt-6">
-              <p className="text-center text-lg leading-relaxed text-gray-500 dark:text-gray-400 md:text-xl">
+              <p className="text-center text-base leading-relaxed text-gray-500 dark:text-gray-400 md:text-lg">
                 No courses available yet. Check back soon.
               </p>
             </CardContent>

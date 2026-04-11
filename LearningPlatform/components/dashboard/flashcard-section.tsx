@@ -72,9 +72,9 @@ function StatPill({
   color: string
 }) {
   return (
-    <div className={`flex flex-col items-center justify-center rounded-md px-3 py-2 text-lg font-medium md:text-xl ${color}`}>
-      <span className="text-2xl font-bold md:text-3xl">{count}</span>
-      <span className="mt-1 text-base opacity-80 md:text-lg">{label}</span>
+    <div className={`flex flex-col items-center justify-center rounded-md px-3 py-2 text-base font-medium md:text-lg ${color}`}>
+      <span className="text-xl font-bold md:text-2xl">{count}</span>
+      <span className="mt-1 text-sm opacity-80 md:text-base">{label}</span>
     </div>
   )
 }
@@ -98,7 +98,7 @@ function FlashcardBlock({
     <Card className="hover:shadow-lg transition-shadow flex flex-col h-full">
       <CardContent className="flex h-full flex-col items-center justify-between gap-4 p-4">
         <div className="text-center w-full">
-          <p className="text-xl font-semibold tracking-tight text-gray-800 dark:text-gray-100 md:text-2xl">
+          <p className="text-lg font-semibold tracking-tight text-gray-800 dark:text-gray-100 md:text-xl">
             {title}
           </p>
         </div>
@@ -129,13 +129,13 @@ function FlashcardBlock({
 
         <div className="w-full flex gap-2 justify-center">
           <Link href={studyHref}>
-            <Button size="default" className="w-40 text-base md:text-lg" disabled={!canStudy}>
+            <Button size="default" className="w-40 text-sm md:text-base" disabled={!canStudy}>
               <Brain className="mr-1.5 h-5 w-5" />
               Study Now
             </Button>
           </Link>
           <Link href={freeHref}>
-            <Button size="default" variant="outline" className="w-40 text-base md:text-lg" disabled={stats.total === 0}>
+            <Button size="default" variant="outline" className="w-40 text-sm md:text-base" disabled={stats.total === 0}>
               <Zap className="mr-1.5 h-5 w-5" />
               Free Learn
             </Button>
@@ -202,7 +202,7 @@ function FlashcardBlocksCarousel({
   if (items.length === 1) {
     return (
       <div className="flex w-full justify-center px-1">
-        <div className="w-full max-w-lg">{items[0]}</div>
+        <div className="w-full max-w-md">{items[0]}</div>
       </div>
     )
   }
@@ -210,7 +210,7 @@ function FlashcardBlocksCarousel({
   return (
     <DashboardHorizontalScroll
       aria-label="Flashcard decks"
-      itemClassName="w-[min(92vw,22rem)] sm:w-[22rem]"
+      itemClassName="w-[min(90vw,20rem)] sm:w-[20rem]"
     >
       {items}
     </DashboardHorizontalScroll>
@@ -273,10 +273,10 @@ export function FlashcardDashboardSection() {
       {/* ── Section header ── */}
       <div className="flex w-full items-center">
         <div className="flex-1 text-center">
-          <h2 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-5xl">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">
             Your Flashcards
           </h2>
-          <p className="mt-2 text-lg leading-relaxed text-gray-600 dark:text-gray-400 md:text-xl">
+          <p className="mt-2 text-base leading-relaxed text-gray-600 dark:text-gray-400 md:text-lg">
             Study with spaced repetition or browse freely.
           </p>
         </div>
@@ -285,7 +285,7 @@ export function FlashcardDashboardSection() {
 
       {/* ── Loading ── */}
       {loading && (
-        <div className="flex items-center gap-2 text-lg text-gray-400 md:text-xl">
+        <div className="flex items-center gap-2 text-base text-gray-400 md:text-lg">
           <Loader2 className="h-6 w-6 animate-spin" />
           Loading flashcards…
         </div>
@@ -293,15 +293,15 @@ export function FlashcardDashboardSection() {
 
       {/* ── Error ── */}
       {error && (
-        <p className="text-lg leading-relaxed text-red-500 md:text-xl">{error}</p>
+        <p className="text-base leading-relaxed text-red-500 md:text-lg">{error}</p>
       )}
 
       {/* ── Empty state ── */}
       {!loading && !error && flashcards.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-10 text-center">
           <BookOpen className="mb-3 h-12 w-12 text-gray-300" />
-          <p className="text-lg leading-relaxed text-gray-500 md:text-xl">No flashcards available yet.</p>
-          <p className="mt-2 text-base leading-relaxed text-gray-400 md:text-lg">
+          <p className="text-base leading-relaxed text-gray-500 md:text-lg">No flashcards available yet.</p>
+          <p className="mt-2 text-sm leading-relaxed text-gray-400 md:text-base">
             Your instructor will add flashcards to your study deck.
           </p>
         </div>
@@ -322,7 +322,7 @@ export function FlashcardDashboardSection() {
           <Button
             variant="ghost"
             size="default"
-            className="text-base text-gray-600 hover:bg-gray-800/10 dark:text-gray-400 md:text-lg"
+            className="text-sm text-gray-600 hover:bg-gray-800/10 dark:text-gray-400 md:text-base"
           >
             <Settings className="mr-1.5 h-5 w-5" />
             SRS Settings
