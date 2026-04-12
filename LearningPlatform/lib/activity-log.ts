@@ -38,6 +38,10 @@ export const ActivityAction = {
   MEDIA_UPLOADED:      'MEDIA_UPLOADED',
   MEDIA_DELETED:       'MEDIA_DELETED',
   USER_LOGIN_FAILED:   'USER_LOGIN_FAILED',
+  /** Pro user invoked the lesson AI assistant (metadata: lessonId, courseSlug only). */
+  USER_PRO_LESSON_ASSISTANT: 'USER_PRO_LESSON_ASSISTANT',
+  /** Admin changed a user's Pro flag (metadata: targetUserId, isPro). */
+  ADMIN_USER_PRO_UPDATED: 'ADMIN_USER_PRO_UPDATED',
 } as const
 
 export type ActivityActionType = (typeof ActivityAction)[keyof typeof ActivityAction]

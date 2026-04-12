@@ -12,7 +12,8 @@ declare module 'next-auth' {
 
   interface User {
     role: Role;
-    isPro: boolean;
+    /** Present for credential sign-in; omit for other providers. */
+    isPro?: boolean;
   }
 }
 
@@ -20,6 +21,7 @@ declare module 'next-auth/jwt' {
   interface JWT {
     id: string;
     role: Role;
-    isPro: boolean;
+    /** Refreshed with `role` from DB; may be absent on legacy tokens until refresh. */
+    isPro?: boolean;
   }
 }

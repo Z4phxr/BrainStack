@@ -32,6 +32,10 @@ services:
       CONTENT_IMPORT_DEFERRED: "${CONTENT_IMPORT_DEFERRED:-}"
       NODE_ENV: "production"
       PORT: "3000"
+      # Optional: Pro lesson assistant (Claude). Set in .env; omit to disable (API returns 503).
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      ANTHROPIC_MODEL: "${ANTHROPIC_MODEL:-}"
+      ANTHROPIC_SONNET_MODEL: "${ANTHROPIC_SONNET_MODEL:-}"
     ports:
       - "3000:3000"
     volumes:
