@@ -155,7 +155,8 @@ module.exports = {
             {
               type: 'OPEN_ENDED',
               order: 9,
-              prompt: 'Rekruter pyta: "Masz wybrać strukturę danych do implementacji systemu 'Undo/Redo' w edytorze tekstu. Co wybierzesz i dlaczego? Jak obsłużysz oba kierunki (cofnij i ponow)?"',
+              prompt:
+                'Rekruter pyta: "Masz wybrać strukturę danych do implementacji systemu Undo/Redo w edytorze tekstu. Co wybierzesz i dlaczego? Jak obsłużysz oba kierunki (cofnij i ponow)?"',
               tagSlugs: ['stack', 'quiz', 'mock-interview'],
               solution: 'Wybor: dwa Stacki - undoStack i redoStack. Logika: Kazda akcja uzytkownika (wpisanie, usuniecie) wklada stan (lub operacje delta) na undoStack. Undo: pop z undoStack (cofnij akcje) i push na redoStack (mozna ponowic). Redo: pop z redoStack i push na undoStack. Nowa akcja po Undo: wyczysc redoStack (nie mozna ponowic po nowej akcji). Dlaczego Stack? LIFO - ostatnia akcja jest pierwsza do cofniecia. Dlaczego dwa Stacki? Jeden do cofania, drugi do ponawiania - oba O(1) push/pop. Alternatywa: Doubly Linked List z wskaznikiem "current" - ale dwa Stacki sa prostsze i bardziej intuicyjne do wytlumaczenia na rozmowie.',
               points: 2,
@@ -266,7 +267,7 @@ module.exports = {
             {
               type: 'TRUE_FALSE',
               order: 6,
-              prompt: 'Rekruter: "Nie istnieje algorytm sortowania oparty na porownaniach, ktory w worst case dzialaXby szybciej niz O(n log n)."',
+              prompt: 'Rekruter: "Nie istnieje algorytm sortowania oparty na porownaniach, ktory w worst case dzialalby szybciej niz O(n log n)."',
               tagSlugs: ['sortowanie', 'big-o', 'quiz', 'mock-interview', 'advanced'],
               correctAnswer: 'true',
               solution: 'Prawda. Jest to udowodniony matematycznie lower bound dla algorytmow porownawczych. Dowod przez drzewko decyzyjne: n elementow ma n! permutacji (lisci w drzewie). Minimalna glebokosc drzewa binarnego z n! listami to ceil(log2(n!)) ≈ n log n (wzor Stirlinga). Dlatego Merge Sort i Heap Sort sa optymalne. Szybsze sortowanie jest mozliwe TYLKO przy dodatkowych zalozeniach o danych (Counting Sort, Radix Sort - nieporownawcze).',

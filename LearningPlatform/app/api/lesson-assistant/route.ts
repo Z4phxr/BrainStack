@@ -117,7 +117,7 @@ export async function POST(req: Request) {
     }
     userMsg +=
       `--- Question ---\n${question.trim()}\n\n` +
-      `(Help the learner understand what they are asking about. You may briefly extend beyond the lesson text with standard explanations at this course level when it clarifies the topic.)`
+      `(Answer directly; use lesson context when it helps. Tangential or unrelated questions are fine—still answer helpfully.)`
 
     const client = new Anthropic({ apiKey })
     let resp
@@ -133,10 +133,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Assistant temporarily unavailable' }, { status: 502 })
     }
 
-    const textBlock = resp.content.find((b) => b.type === 'text') as
-      | { type: 'text'; text: string }
-      | undefined
-    const answer = textBlock?.text?.trim() ?? ''
+    const answer = resp.content
+      .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+      .map((b) => b.text)
+      .join('\n')
+      .trim()
 
     logActivity({
       action: ActivityAction.USER_PRO_LESSON_ASSISTANT,
