@@ -341,7 +341,23 @@ async function createOrGetSubject(payload, subjectData, { dryRun }) {
   return result.doc
 }
 
-async function findOrCreateCourse(payload, courseData, subjectId, { dryRun }) {
+async function findOrCreateCourse(payload, courseData, subjectId, { dryRun, skipUpdateIfExists = false }) {
+  if (skipUpdateIfExists) {
+    const existingCourse = await findSingle(payload, 'courses', { slug: { equals: courseData.slug } })
+    if (existingCourse) {
+      if (dryRun) {
+        console.log(
+          `[DRY-RUN] [SKIP] Course "${courseData.slug}" already exists — would not update course or module tree.`,
+        )
+      } else {
+        console.log(
+          `[SKIP] Course "${courseData.slug}" already exists — leaving course and tree unchanged (CONTENT_IMPORT_SKIP_EXISTING_COURSES).`,
+        )
+      }
+      return { doc: existingCourse, created: false, updated: false }
+    }
+  }
+
   const coverImage = await resolveCourseCoverForImport(payload, courseData.coverImage, { dryRun })
 
   const baseData = {
@@ -369,7 +385,7 @@ async function findOrCreateCourse(payload, courseData, subjectId, { dryRun }) {
 
   if (result.created) {
     console.log(`[CREATE] Course: ${courseData.slug}`)
-  } else {
+  } else if (result.updated) {
     console.log(`[UPDATE] Course: ${courseData.slug}`)
   }
 
@@ -606,7 +622,7 @@ async function appendModulesToExistingCourse({ payload, prisma, courseSlug, modu
   }
 }
 
-async function importCourseStructure({ payload, prisma, structure, dryRun }) {
+async function importCourseStructure({ payload, prisma, structure, dryRun, skipExistingCourses = false }) {
   console.log(`[INFO] Importing full course: ${structure.course?.slug || 'unknown'}`)
 
   const subject = await createOrGetSubject(payload, structure.subject, { dryRun })
@@ -620,7 +636,10 @@ async function importCourseStructure({ payload, prisma, structure, dryRun }) {
     }
   }
 
-  const courseOutcome = await findOrCreateCourse(payload, structure.course, subject.id, { dryRun })
+  const courseOutcome = await findOrCreateCourse(payload, structure.course, subject.id, {
+    dryRun,
+    skipUpdateIfExists: skipExistingCourses,
+  })
   const course = courseOutcome.doc
 
   if (!course?.id) {
@@ -633,13 +652,25 @@ async function importCourseStructure({ payload, prisma, structure, dryRun }) {
     }
   }
 
-  const stats = await importModulesIntoCourse({
-    payload,
-    prisma,
-    course,
-    modules: structure.modules,
-    dryRun,
-  })
+  const shouldSyncTree = !skipExistingCourses || courseOutcome.created
+  let stats = emptyStats()
+  if (shouldSyncTree) {
+    stats = await importModulesIntoCourse({
+      payload,
+      prisma,
+      course,
+      modules: structure.modules,
+      dryRun,
+    })
+  } else if (dryRun) {
+    console.log(
+      `[DRY-RUN] [SKIP] Would not sync modules/lessons/tasks for "${structure.course.slug}" (course already exists).`,
+    )
+  } else {
+    console.log(
+      `[SKIP] Not syncing modules/lessons/tasks for "${structure.course.slug}" (course already existed).`,
+    )
+  }
 
   return {
     course,

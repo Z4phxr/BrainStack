@@ -13,6 +13,7 @@
 # CONTENT_IMPORT: if set, imports run during deploy. Default runs BEFORE npm start — the app does
 # not listen until import finishes, so Railway healthchecks on /api/ping can fail if import > ~5min.
 # Fix: set CONTENT_IMPORT_DEFERRED=1 (keep CONTENT_IMPORT=1) so the server starts first, then import runs.
+# To avoid overwriting CMS-edited courses on every deploy: CONTENT_IMPORT_SKIP_EXISTING_COURSES=1 (see .env.example).
 
 [build]
 builder = "DOCKERFILE"

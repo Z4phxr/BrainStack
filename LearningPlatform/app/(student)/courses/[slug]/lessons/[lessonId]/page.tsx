@@ -17,6 +17,7 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { markLessonComplete } from '@/app/actions/progress'
 import { lessonWithPopulatedTheoryImages } from '@/lib/populate-lesson-theory-images'
+import { LessonAssistantShell, THEORY_ROOT_ID } from '@/components/student/lesson-assistant-fab'
 
 export default async function LessonPage({
   params,
@@ -58,6 +59,7 @@ export default async function LessonPage({
     : null
 
   const isAdmin = session?.user?.role === 'ADMIN'
+  const canUseLessonAssistant = session?.user?.isPro === true
 
   if (!lesson) notFound()
   if (!lesson.isPublished && !isAdmin) notFound()
@@ -138,21 +140,23 @@ export default async function LessonPage({
   const currentIndex = orderedLessons.findIndex((l: any) => String(l.id) === String(lessonId))
   const prevLesson = currentIndex > 0 ? orderedLessons[currentIndex - 1] : null
   const nextLesson = currentIndex >= 0 && currentIndex < orderedLessons.length - 1 ? orderedLessons[currentIndex + 1] : null
-  return (
-    <div className="container mx-auto max-w-4xl px-4 py-7 sm:px-6 sm:py-8">
+  const lessonHeader = (
+    <>
       {/* Breadcrumb */}
       <div className="mb-6 text-sm text-muted-foreground">
-            <Link href="/courses" className="hover:text-primary">Courses</Link>
-        {' / '}
-            <Link href={`/courses/${slug}`} className="hover:text-primary">
-              {course?.title}
+        <Link href="/courses" className="hover:text-primary">
+          Courses
         </Link>
         {' / '}
-            <span className="text-foreground">{lesson.title}</span>
+        <Link href={`/courses/${slug}`} className="hover:text-primary">
+          {course?.title}
+        </Link>
+        {' / '}
+        <span className="text-foreground">{lesson.title}</span>
       </div>
 
       {/* Lesson Header */}
-      <div className="mb-8">
+      <div>
         <h1 className="text-4xl font-bold text-foreground mb-4">{lesson.title}</h1>
         {courseModule && (
           <Badge variant="outline" className="text-sm">
@@ -168,23 +172,27 @@ export default async function LessonPage({
               <input type="hidden" name="lessonId" value={lessonId} />
               <input type="hidden" name="slug" value={slug} />
               <input type="hidden" name="nextState" value={lesson.isPublished ? 'false' : 'true'} />
-              <Button type="submit">
-                {lesson.isPublished ? 'Hide' : 'Publish'}
-              </Button>
+              <Button type="submit">{lesson.isPublished ? 'Hide' : 'Publish'}</Button>
             </form>
           </div>
         )}
       </div>
+    </>
+  )
 
+  const lessonBody = (
+    <>
       {/* Lesson Content */}
       {(lesson.theoryBlocks && lesson.theoryBlocks.length > 0) || lesson.content ? (
         <Card className="mb-8 gap-0 py-0 shadow-sm">
           <CardContent className="px-5 py-7 sm:px-7 sm:py-8 md:px-9">
-            {lesson.theoryBlocks && lesson.theoryBlocks.length > 0 ? (
-              <TheoryBlocksRenderer blocks={lesson.theoryBlocks as Array<Record<string, unknown>> | undefined} />
-            ) : (
-              <LessonLegacyContent content={lesson.content} />
-            )}
+            <div id={THEORY_ROOT_ID} className="min-w-0">
+              {lesson.theoryBlocks && lesson.theoryBlocks.length > 0 ? (
+                <TheoryBlocksRenderer blocks={lesson.theoryBlocks as Array<Record<string, unknown>> | undefined} />
+              ) : (
+                <LessonLegacyContent content={lesson.content} />
+              )}
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -278,6 +286,16 @@ export default async function LessonPage({
           )}
         </div>
       </div>
-    </div>
+    </>
+  )
+
+  return (
+    <LessonAssistantShell
+      lessonId={lessonId}
+      courseSlug={slug}
+      enabled={canUseLessonAssistant}
+      lessonHeader={lessonHeader}
+      lessonBody={lessonBody}
+    />
   )
 }

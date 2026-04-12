@@ -30,8 +30,14 @@ services:
       # starts first (avoids healthcheck failures when import is slow); then remove when done.
       CONTENT_IMPORT: "${CONTENT_IMPORT:-}"
       CONTENT_IMPORT_DEFERRED: "${CONTENT_IMPORT_DEFERRED:-}"
+      # When "1", course import creates only new slugs; existing courses keep CMS edits (see .env.example).
+      CONTENT_IMPORT_SKIP_EXISTING_COURSES: "${CONTENT_IMPORT_SKIP_EXISTING_COURSES:-}"
       NODE_ENV: "production"
       PORT: "3000"
+      # Optional: Pro lesson assistant (Claude). Set in .env; omit to disable (API returns 503).
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      ANTHROPIC_MODEL: "${ANTHROPIC_MODEL:-}"
+      ANTHROPIC_SONNET_MODEL: "${ANTHROPIC_SONNET_MODEL:-}"
     ports:
       - "3000:3000"
     volumes:

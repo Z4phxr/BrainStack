@@ -6,6 +6,7 @@ export type SessionUser = {
   email: string
   name?: string | null
   role: Role
+  isPro: boolean
 }
 
 export async function requireAuth(): Promise<SessionUser> {
@@ -19,7 +20,16 @@ export async function requireAuth(): Promise<SessionUser> {
     email: session.user.email,
     name: session.user.name,
     role: session.user.role,
+    isPro: session.user.isPro === true,
   }
+}
+
+export async function requireProUser(): Promise<SessionUser> {
+  const user = await requireAuth()
+  if (!user.isPro) {
+    throw new Error('Forbidden')
+  }
+  return user
 }
 
 export async function requireAdmin(): Promise<SessionUser> {

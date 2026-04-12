@@ -96,6 +96,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             email: user.email,
             name: user.name,
             role: user.role,
+            isPro: user.isPro,
           };
         } catch (err) {
           // Re-throw rate-limit errors so NextAuth surfaces them to the user
@@ -116,6 +117,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id   = user.id;
         token.jti  = randomUUID();
         token.role = (user as { role?: Role }).role;
+        token.isPro = Boolean((user as { isPro?: boolean }).isPro);
         token.roleRefreshedAt = Date.now();
       } else if (token.id) {
         // ── Every subsequent request ───────────────────────────────────────
@@ -135,11 +137,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (now - lastRefresh > 5 * 60 * 1_000) {
           const freshUser = await prisma.user.findUnique({
             where:  { id: token.id as string },
-            select: { role: true },
+            select: { role: true, isPro: true },
           });
           // If the user record was deleted, invalidate the session immediately.
           if (!freshUser) return null;
           token.role            = freshUser.role;
+          token.isPro           = freshUser.isPro;
           token.roleRefreshedAt = now;
         }
       }
@@ -149,6 +152,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id   = token.id   as string;
         session.user.role = token.role as Role;
+        session.user.isPro = token.isPro === true;
       }
       return session;
     },

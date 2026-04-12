@@ -35,6 +35,7 @@ describe('auth-helpers', () => {
         email: 'test@example.com',
         name: 'Test User',
         role: 'STUDENT',
+        isPro: false,
       })
     })
 
@@ -93,6 +94,29 @@ describe('auth-helpers', () => {
         email: 'test@example.com',
         name: undefined,
         role: 'STUDENT',
+        isPro: false,
+      })
+    })
+
+    it('should map isPro true when session user is pro', async () => {
+      mockedAuth.mockResolvedValueOnce({
+        user: {
+          id: 'user-123',
+          email: 'pro@example.com',
+          name: 'Pro User',
+          role: 'STUDENT' as Role,
+          isPro: true,
+        },
+      } as any)
+
+      const result = await requireAuth()
+
+      expect(result).toEqual({
+        id: 'user-123',
+        email: 'pro@example.com',
+        name: 'Pro User',
+        role: 'STUDENT',
+        isPro: true,
       })
     })
 
@@ -130,6 +154,7 @@ describe('auth-helpers', () => {
         email: 'admin@example.com',
         name: 'Admin User',
         role: 'ADMIN',
+        isPro: false,
       })
     })
 
