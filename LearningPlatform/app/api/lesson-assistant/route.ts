@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import Anthropic from '@anthropic-ai/sdk'
+import type { TextBlock } from '@anthropic-ai/sdk/resources/messages'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { requireProUser } from '@/lib/auth-helpers'
@@ -134,7 +135,7 @@ export async function POST(req: Request) {
     }
 
     const answer = resp.content
-      .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+      .filter((b): b is TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('\n')
       .trim()
