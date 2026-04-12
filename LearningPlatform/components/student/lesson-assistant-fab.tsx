@@ -125,8 +125,10 @@ export function LessonAssistantShell({
     }
   }
 
+  const shellBase = 'mx-auto w-full px-4 py-7 sm:px-6 sm:py-8'
+
   const singleColumnWrap = (content: ReactNode) => (
-    <div className="container mx-auto max-w-4xl px-4 py-7 sm:px-6 sm:py-8">{content}</div>
+    <div className={cn(shellBase, 'max-w-4xl')}>{content}</div>
   )
 
   if (!enabled) {
@@ -141,100 +143,98 @@ export function LessonAssistantShell({
   const wideOpen = open
 
   return (
-    <div
-      className={cn(
-        'container mx-auto px-4 py-7 sm:px-6 sm:py-8',
-        wideOpen ? 'max-w-[min(100vw,90rem)]' : 'max-w-4xl',
-      )}
-    >
+    <div className={cn(shellBase, wideOpen ? 'max-w-[90rem]' : 'max-w-4xl')}>
       <div className="mb-8 min-w-0">{lessonHeader}</div>
 
       {open ? (
-        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2 lg:gap-10">
+        <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-2 md:gap-8 lg:gap-10">
           <div className="min-w-0">{lessonBody}</div>
 
           <aside
             className={cn(
-              'flex min-h-[min(70dvh,28rem)] w-full min-w-0 flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm dark:border-gray-700',
-              'lg:min-h-0 lg:max-h-[calc(100dvh-5rem)] lg:sticky lg:top-6',
+              'flex w-full min-w-0 flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm dark:border-gray-700',
+              'min-h-0 max-h-[min(90dvh,40rem)] md:max-h-[calc(100dvh-5.5rem)]',
+              'md:sticky md:top-6',
             )}
             aria-labelledby={panelTitleId}
           >
-            <div className="flex items-start justify-between gap-2 border-b border-border pb-3">
-              <h2 id={panelTitleId} className="text-base font-semibold leading-snug text-foreground">
-                Ask about this lesson
-              </h2>
-              <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => setOpen(false)}>
-                <X className="h-5 w-5" aria-hidden />
-                <span className="sr-only">Close assistant</span>
-              </Button>
-            </div>
-
-            <p className="text-sm text-muted-foreground">
-              Select text in the theory, then capture it. Your question is sent with full lesson context.
-            </p>
-
-            <div className="space-y-2">
-              <Label htmlFor="lesson-assistant-model" className="text-sm font-medium text-foreground">
-                Model
-              </Label>
-              <Select
-                value={modelPreset}
-                onValueChange={(v) => setModelPreset(v as LessonAssistantModelPreset)}
-                disabled={loading}
-              >
-                <SelectTrigger id="lesson-assistant-model" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectItem value="haiku">Haiku 4.5 — faster, lower cost</SelectItem>
-                  <SelectItem value="sonnet">Sonnet 4.5 — richer answers</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button type="button" variant="outline" size="sm" onClick={refreshSelection} className="w-fit gap-1.5">
-              <Highlighter className="h-4 w-4" aria-hidden />
-              Use page selection
-            </Button>
-
-            {selectedText ? (
-              <div className="max-h-24 overflow-y-auto rounded-md border border-dashed bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                {selectedText}
+            <div className="flex shrink-0 flex-col gap-3">
+              <div className="flex items-start justify-between gap-2 border-b border-border pb-3">
+                <h2 id={panelTitleId} className="text-base font-semibold leading-snug text-foreground">
+                  Ask about this lesson
+                </h2>
+                <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => setOpen(false)}>
+                  <X className="h-5 w-5" aria-hidden />
+                  <span className="sr-only">Close assistant</span>
+                </Button>
               </div>
-            ) : null}
 
-            <div className="space-y-1.5">
-              <Label htmlFor={questionInputId} className="sr-only">
-                Your question
-              </Label>
-              <Textarea
-                id={questionInputId}
-                placeholder="Your question…"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    void submit()
-                  }
-                }}
-                aria-describedby={`${questionInputId}-hint`}
-                className="min-h-[88px] resize-y text-base"
-                disabled={loading}
-              />
-              <p id={`${questionInputId}-hint`} className="text-xs text-muted-foreground">
-                <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[0.7rem]">Enter</kbd> to send ·{' '}
-                <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[0.7rem]">Shift</kbd> +{' '}
-                <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[0.7rem]">Enter</kbd> for new line
+              <p className="text-sm text-muted-foreground">
+                Select text in the theory, then capture it. Your question is sent with full lesson context.
               </p>
+
+              <div className="space-y-2">
+                <Label htmlFor="lesson-assistant-model" className="text-sm font-medium text-foreground">
+                  Model
+                </Label>
+                <Select
+                  value={modelPreset}
+                  onValueChange={(v) => setModelPreset(v as LessonAssistantModelPreset)}
+                  disabled={loading}
+                >
+                  <SelectTrigger id="lesson-assistant-model" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper">
+                    <SelectItem value="haiku">Haiku 4.5 — faster, lower cost</SelectItem>
+                    <SelectItem value="sonnet">Sonnet 4.5 — richer answers</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button type="button" variant="outline" size="sm" onClick={refreshSelection} className="w-fit gap-1.5">
+                <Highlighter className="h-4 w-4" aria-hidden />
+                Use page selection
+              </Button>
+
+              {selectedText ? (
+                <div className="max-h-24 overflow-y-auto rounded-md border border-dashed bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                  {selectedText}
+                </div>
+              ) : null}
+
+              <div className="space-y-1.5">
+                <Label htmlFor={questionInputId} className="sr-only">
+                  Your question
+                </Label>
+                <Textarea
+                  id={questionInputId}
+                  placeholder="Your question…"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      void submit()
+                    }
+                  }}
+                  aria-describedby={`${questionInputId}-hint`}
+                  className="min-h-[88px] resize-y text-base"
+                  disabled={loading}
+                />
+                <p id={`${questionInputId}-hint`} className="text-xs text-muted-foreground">
+                  <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[0.7rem]">Enter</kbd> to send ·{' '}
+                  <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[0.7rem]">Shift</kbd> +{' '}
+                  <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[0.7rem]">Enter</kbd> for new line
+                </p>
+              </div>
+
+              <Button type="button" onClick={() => void submit()} disabled={loading || !question.trim()} className="w-full">
+                {loading ? 'Thinking…' : 'Ask'}
+              </Button>
+
+              {error ? <p className="text-sm text-destructive">{error}</p> : null}
             </div>
-
-            <Button type="button" onClick={() => void submit()} disabled={loading || !question.trim()} className="w-full">
-              {loading ? 'Thinking…' : 'Ask'}
-            </Button>
-
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
             <div className="min-h-0 flex-1 overflow-y-auto rounded-md border bg-muted/20 px-3 py-2">
               {answer ? (

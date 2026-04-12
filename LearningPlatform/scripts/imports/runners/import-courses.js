@@ -36,6 +36,15 @@ async function run() {
   }
 
   let hadError = false
+  const skipExistingCourses =
+    process.env.CONTENT_IMPORT_SKIP_EXISTING_COURSES === '1' ||
+    process.env.CONTENT_IMPORT_SKIP_EXISTING_COURSES === 'true'
+
+  if (skipExistingCourses) {
+    console.log(
+      '[INFO] CONTENT_IMPORT_SKIP_EXISTING_COURSES is set — existing courses (by slug) will not be updated or re-synced.',
+    )
+  }
 
   try {
     for (const filePath of files) {
@@ -66,6 +75,7 @@ async function run() {
           prisma,
           structure,
           dryRun: opts.dryRun,
+          skipExistingCourses,
         })
       } catch (err) {
         console.error(`[ERROR] Course import failed: ${err.message || err}`)
