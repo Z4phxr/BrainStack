@@ -6,7 +6,7 @@ Detailed feature reference for content authoring, publishing controls, lesson/ta
 
 | Area | Highlights |
 |------|-----------|
-| Content management | Subjects -> Courses -> Modules -> Lessons -> Tasks, all with draft/publish control |
+| Content management | **Subjects** for taxonomy; **Courses → Modules → Lessons → Tasks** with per-entity draft/publish control |
 | Lesson builder | 6 composable content blocks: Rich Text, Image, Math (KaTeX), Callout, Video, Table |
 | Task engine | Multiple Choice, True/False, Open-Ended with optional auto-grading |
 | Adaptive learning | Tag-based weakness scoring surfaces personalized practice tasks |
@@ -14,8 +14,8 @@ Detailed feature reference for content authoring, publishing controls, lesson/ta
 | Flashcard decks | Admin-defined decks with optional tag scope and deck-based study filtering |
 | Pro features | Pro lesson assistant and admin-controlled user Pro entitlement |
 | Audit trail | Persistent activity log for every admin action, viewable and filterable in the panel |
-| Media | S3-compatible object storage with signed URL delivery and usage tracking |
-| Security | JWT revocation, rate limiting, per-request CSP nonces, Zod validation throughout |
+| Media | S3-compatible storage when configured; otherwise local files under `public/media`; delivery via `/api/media/serve/:filename` |
+| Security | JWT revocation, rate limiting, per-request CSP nonces, Zod on request bodies where schemas exist, plus targeted manual checks for simple inputs |
 | Progress tracking | Per-user lesson completion and task grading stored at every granularity level |
 
 ## Admin Panel
@@ -113,10 +113,10 @@ Every task can include:
 
 ## Media Management
 
-All uploaded files are stored in an **S3-compatible** object store (AWS S3, Cloudflare R2, Railway Object Storage, or any compatible API).
+When an S3-compatible bucket is configured (AWS S3, Cloudflare R2, Railway Object Storage, or any compatible API), uploads are pushed to object storage after being written locally for metadata extraction. **If no bucket is configured**, files remain on the server under **`public/media`** (typical for local development).
 
 - Files are uploaded via `POST /api/media/upload`, then registered in the Payload **Media** collection.
-- Files are delivered via `/api/media/serve/:filename` (signed S3 URL redirect when S3 is active, local serve fallback otherwise).
+- Files are delivered via **`/api/media/serve/:filename`**: the handler **serves from disk when the file exists**, otherwise (if S3 is configured) **redirects to a signed URL** for the object in the bucket.
 - Usage is tracked per file so admins can see which lessons and tasks reference a given asset before deletion.
 - Used by image-oriented lesson/task fields (lesson image blocks, task question media, task solution media, and lesson attachments).
 

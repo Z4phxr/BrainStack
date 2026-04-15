@@ -7,7 +7,7 @@ The Admin AI Agent can generate a full course draft and then create the final co
 
 ## Where to use it
 
-- Open Admin panel and go to `admin/ai-agent`.
+- Open Admin panel and go to `/admin/ai-agent`.
 - Fill in course discovery inputs (topic, level, current knowledge, learning goal type, depth, time budget, model, optional focus areas, optional flashcards).
 - Generate a draft, review it, refine it with follow-up prompts, then accept it.
 

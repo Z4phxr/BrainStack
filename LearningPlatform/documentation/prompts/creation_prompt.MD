@@ -159,7 +159,7 @@ Theory blocks are the main content. They go in the `theoryBlocks` array of each 
 ```javascript
 {
   blockType: 'callout',
-  variant: 'info',  // info | warning | tip | success
+  variant: 'info',  // info | warning | tip
   title: 'Optional Title',
   content: 'Your callout content here.'
 }
@@ -169,7 +169,6 @@ Theory blocks are the main content. They go in the `theoryBlocks` array of each 
 - `info` (blue): General information, real-world context, industry connections
 - `warning` (red): Common mistakes, gotchas, pitfalls
 - `tip` (green): Best practices, shortcuts, expert advice
-- `success` (green): Positive reinforcement, achievements
 
 **Use sparingly:** 1-2 callouts per lesson maximum.
 
@@ -234,15 +233,16 @@ Theory blocks are the main content. They go in the `theoryBlocks` array of each 
   image: '__IMPORT_PLACEHOLDER_IMAGE__',
   caption: 'Detailed description of what the image should show. Include: what to depict, labels needed, diagram type (flowchart/architecture/screenshot), and why it helps learning.',
   align: 'center', // 'left' | 'center' | 'right'
-  width: 'md'      // 'sm' | 'md' | 'lg'
+  width: 'md'      // 'sm' | 'md' | 'lg' | 'full'
 }
 ```
-**CRITICAL RULES:
 
--ALWAYS use blockType: 'image' (NEVER use text blocks for images)
--ALWAYS use image: '__IMPORT_PLACEHOLDER_IMAGE__'
--Put the FULL visual description inside caption
--The caption acts as BOTH description and future replacement instruction
+**CRITICAL RULES:**
+
+- ALWAYS use `blockType: 'image'` (NEVER use text blocks for images)
+- ALWAYS use `image: '__IMPORT_PLACEHOLDER_IMAGE__'`
+- Put the FULL visual description inside `caption`
+- The caption acts as BOTH description and future replacement instruction
 
 **IMPORTANT:** Create image placeholders for:
 - System architectures
@@ -812,7 +812,7 @@ module.exports = {
   image: '__IMPORT_PLACEHOLDER_IMAGE__',
   caption: 'Architecture diagram showing Docker structure. Left side: Traditional deployment with multiple VMs, each with full OS (labeled "Heavy"). Right side: Docker containers sharing host OS kernel (labeled "Lightweight"). Show size difference (GBs vs MBs) and startup time difference (minutes vs seconds). Use clear labels and arrows. This visual comparison helps learners understand Docker\'s efficiency advantage.',
   align: 'center',
-  width: 'md'
+  width: 'md'  // 'sm' | 'md' | 'lg' | 'full'
 },
             
             // REAL-WORLD BENEFITS
