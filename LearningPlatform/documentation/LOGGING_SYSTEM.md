@@ -35,6 +35,7 @@ The system captures the following action types:
 | `COURSE_UPDATED` | An admin updates course fields |
 | `COURSE_PUBLISHED` | An admin sets a course to published |
 | `COURSE_UNPUBLISHED` | An admin sets a course to draft |
+| `COURSE_TREE_PUBLISHED` | An admin publishes a course with all nested modules/lessons/tasks |
 | `COURSE_DELETED` | An admin deletes a course and all its content |
 
 ### Module Management
@@ -81,12 +82,19 @@ The system captures the following action types:
 | `TAG_UPDATED` | An admin renames or modifies a tag via `PUT /api/tags/:id` |
 | `TAG_DELETED` | An admin deletes a tag via `DELETE /api/tags/:id` |
 
-### Media Managment
+### Media Management
 
 | Action | Triggered by |
 |---|---|
 | `MEDIA_UPLOADED` | An admin uploads a media file |
 | `MEDIA_DELETED` | An admin deletes media file |
+
+### Pro and AI Features
+
+| Action | Triggered by |
+|---|---|
+| `USER_PRO_LESSON_ASSISTANT` | A Pro user asks the lesson assistant (`POST /api/lesson-assistant`) |
+| `ADMIN_USER_PRO_UPDATED` | An admin updates a user's Pro flag (`PATCH /api/admin/users/:id`) |
 
 ---
 
@@ -110,7 +118,7 @@ The system captures the following action types:
 
 ### Database Table
 
-The `activity_logs` table is defined in `prisma/schema.prisma` under the `ActivityLog` model and created by the migration in `migrations/20260302_add_activity_logs.sql`.
+The `activity_logs` table is defined in `prisma/schema.prisma` under the `ActivityLog` model and managed through Prisma migrations in `prisma/migrations`.
 
 Indexes are maintained on `timestamp`, `actorUserId`, `action`, and `resourceType` to support efficient filtered queries.
 
@@ -145,22 +153,29 @@ Logging calls are placed after the primary database operation succeeds in the fo
 | File | Operations logged |
 |---|---|
 | `app/auth/register/route.ts` | USER_REGISTERED |
+| `auth.ts` | USER_LOGIN, USER_LOGIN_FAILED, USER_LOGOUT |
 | `app/auth/login/route.ts` | USER_LOGIN |
 | `app/auth/logout/route.ts` | USER_LOGOUT |
-| `app/(admin)/admin/actions/courses.ts` | COURSE_CREATED, COURSE_UPDATED, COURSE_PUBLISHED, COURSE_UNPUBLISHED, COURSE_DELETED |
-| `app/(admin)/admin/actions/modules.ts` | MODULE_CREATED, MODULE_UPDATED, MODULE_DELETED |
-| `app/(admin)/admin/actions/lessons.ts` | LESSON_CREATED, LESSON_UPDATED, LESSON_DELETED |
+| `app/(admin)/admin/actions/courses.ts` | COURSE_CREATED, COURSE_UPDATED, COURSE_PUBLISHED, COURSE_UNPUBLISHED, COURSE_TREE_PUBLISHED, COURSE_DELETED |
+| `app/(admin)/admin/actions/modules.ts` | MODULE_CREATED, MODULE_UPDATED, MODULE_PUBLISHED, MODULE_UNPUBLISHED, MODULE_DELETED |
+| `app/(admin)/admin/actions/lessons.ts` | LESSON_CREATED, LESSON_UPDATED, LESSON_PUBLISHED, LESSON_UNPUBLISHED, LESSON_DELETED |
 | `app/(admin)/admin/actions/tasks.ts` | TASK_CREATED, TASK_UPDATED, TASK_DELETED |
+| `app/api/subjects/route.ts` | SUBJECT_CREATED, SUBJECT_UPDATED, SUBJECT_DELETED |
 | `app/api/flashcards/route.ts` | FLASHCARD_CREATED |
 | `app/api/flashcards/[id]/route.ts` | FLASHCARD_UPDATED, FLASHCARD_DELETED |
 | `app/api/tags/route.ts` | TAG_CREATED |
 | `app/api/tags/[id]/route.ts` | TAG_UPDATED, TAG_DELETED |
+| `app/api/media/upload/route.ts` | MEDIA_UPLOADED |
+| `app/(admin)/admin/actions/media.ts` | MEDIA_DELETED |
+| `app/api/lesson-assistant/route.ts` | USER_PRO_LESSON_ASSISTANT |
+| `app/api/admin/users/[id]/route.ts` | ADMIN_USER_PRO_UPDATED |
+| `lib/ai-agent/generation.ts` | COURSE_CREATED (source: ai-agent) |
 
 ---
 
 ## Viewing Logs in the Admin Panel
 
-1. Sign in to the admin panel at `/admin`.
+1. Sign in, then open the admin logs page at `/admin/logs`.
 2. In the left sidebar, click **Logs**.
 3. The logs page displays a paginated table of all recorded activity.
 

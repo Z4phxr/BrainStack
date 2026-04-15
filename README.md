@@ -6,30 +6,12 @@
 [![Payload CMS](https://img.shields.io/badge/Payload_CMS-3.72.0-ff69b4)](https://payloadcms.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![Prisma](https://img.shields.io/badge/Prisma-7.3.0-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io)
-[![Tests](https://img.shields.io/badge/tests-392%20passing-brightgreen)](https://github.com/Z4phxr/CourseManagementPlatform/actions)
+[![Tests](https://img.shields.io/badge/tests-Vitest%20%2B%20Playwright-blue)](LearningPlatform/documentation/TESTING.md)
 
 A production-ready exam preparation and course management platform built on Next.js 15, Payload CMS v3, and PostgreSQL. The platform covers the full lifecycle from content creation to student exam practice - with a rich admin panel, an adaptive learning engine, Anki-style spaced repetition flashcards, and a detailed audit log.
 
----
+**Technical reference:** all detailed setup, imports, testing, architecture, and stack docs live under [`LearningPlatform/documentation/`](LearningPlatform/documentation/README.md) (start with the index file linked here).
 
-## Table of Contents
-
-- [Feature Overview](#feature-overview)
-- [Admin Panel](#admin-panel)
-- [Draft → Publish Workflow](#draft--publish-workflow)
-- [Lesson Builder & Content Blocks](#lesson-builder--content-blocks)
-- [Task Types & Assessments](#task-types--assessments)
-- [Adaptive Learning Engine](#adaptive-learning-engine)
-- [Spaced Repetition Flashcards](#spaced-repetition-flashcards)
-- [Activity Log & Audit Trail](#activity-log--audit-trail)
-- [Media Management](#media-management)
-- [Security](#security)
-- [Documentation](#documentation)
-- [Getting Started](#getting-started)
-- [Content imports (bulk data)](#content-imports-bulk-data)
-- [Running Tests](#running-tests)
-- [Deployment](#deployment)
-- [Technology Stack](#technology-stack)
 
 ---
 
@@ -37,7 +19,7 @@ A production-ready exam preparation and course management platform built on Next
 
 | Area | Highlights |
 |------|-----------|
-| Content management | Subjects → Courses → Modules → Lessons → Tasks, all with draft/publish control |
+| Content management | Subjects → Courses → Modules → Lessons → Tasks; **draft/publish (`isPublished`) applies to courses, modules, lessons, and tasks** (subjects are taxonomy only) |
 | Lesson builder | 6 composable content blocks: Rich Text, Image, Math (KaTeX), Callout, Video, Table |
 | Task engine | Multiple Choice, True/False, Open-Ended with optional auto-grading |
 | Adaptive learning | Tag-based weakness scoring surfaces personalized practice tasks |
@@ -53,28 +35,29 @@ A production-ready exam preparation and course management platform built on Next
 
 Administrators manage the platform through a dedicated admin panel at `/admin`, built with [Payload CMS](https://payloadcms.com) and a custom Next.js UI layer.
 
-The sidebar provides access to:
+The sidebar (see `LearningPlatform/components/admin/sidebar.tsx`) includes:
 
-- **Courses** - create and organise the course catalog, set difficulty level (Beginner / Intermediate / Advanced), and link to a Subject
-- **Modules** - group lessons within a course with ordering
-- **Lessons** - build lesson content using the block-based editor (see [Lesson Builder](#lesson-builder--content-blocks))
-- **Tasks** - create questions with prompts, answer choices, solutions, point values, and tag annotations
-- **Subjects** - top-level topic taxonomy
-- **Tags** - canonical knowledge tags shared across tasks and flashcards; power the recommendation engine
-- **Flashcards** - create study cards linked to tags for the SRS system
-- **Media** - upload and manage images and files backed by S3-compatible object storage
-- **Settings** - global configuration (site title, default values)
-- **Logs** - full audit trail of every administrative action (see [Activity Log](#activity-log--audit-trail))
+- **Dashboard** — admin home
+- **Lessons** — block-based lesson authoring (see [Lesson Builder](#lesson-builder--content-blocks)); **courses and modules are edited inside these flows**, not as separate sidebar entries
+- **Subjects** — top-level taxonomy
+- **Tags** — canonical tags for tasks and flashcards (recommendations)
+- **Tasks** — assessments with prompts, solutions, points, and tags
+- **Flashcards** — SRS cards (deck organization is supported in the product; see `/api/flashcard-decks`)
+- **Media** — uploads and library management
+- **AI Agent** — experimental course generation workspace
+- **Logs** — audit trail (see [Activity Log](#activity-log--audit-trail))
+- **Users** — user list and **Pro** entitlement (`isPro`)
+- **Settings** — admin UI preferences (theme, reading size)
 
 ---
 
-## Draft → Publish Workflow
+## Draft to Publish Workflow
 
-Every content type at every level of the hierarchy has an independent `isPublished` flag controlled by the admin. Students only ever see published content.
+**Subjects** do not have an `isPublished` field; they are always available to admins for organization. **Courses, modules, lessons, and tasks** each have their own `isPublished` flag. Students only see content that is published along the path they are viewing.
 
 ```
 Subject  ──►  Course  ──►  Module  ──►  Lesson  ──►  Task
-(published)  (published)  (published)  (published)  (published)
+             (published)  (published)  (published)  (published)
 ```
 
 - A **Course** can be hidden in draft while its module structure is being built.
@@ -94,7 +77,7 @@ Lessons are assembled from a sequence of typed content blocks. Admins add, reord
 Rich text powered by the Lexical editor. Supports headings, bold/italic, bullet and numbered lists, inline code, and links.
 
 ### Image
-An image from the media library with configurable **width** (Small 400 px / Medium 600 px / Large 800 px / Full) and **alignment** (Left / Center / Right), plus an optional caption. Images are delivered through signed S3 URLs.
+An image from the media library with configurable **width** (Small 400 px / Medium 600 px / Large 800 px / Full) and **alignment** (Left / Center / Right), plus an optional caption. Images are served through **`/api/media/serve/:filename`** (local file response or redirect to a **signed S3 URL** when cloud storage is configured).
 
 ### Math
 A LaTeX formula rendered with **KaTeX** on the client. Supports both **display mode** (centred block equation) and **inline mode** for formulas embedded in surrounding text. An optional descriptive note is displayed beneath the formula.
@@ -145,9 +128,9 @@ The recommendation engine builds a per-user skill model from task submission his
 
 1. **Tag weakness scores** - for each tag the student has encountered, the engine computes a score based on recent answer accuracy and recency weighting.
 2. **Personalized task queue** - tasks tagged with the student's weakest knowledge areas are surfaced first at `/api/recommend/tasks`.
-3. **Analytics dashboard** - admins and students can view per-tag performance breakdowns. Results are cached with a 60-second TTL and invalidated automatically on new submissions.
+3. **Tag stats cache** - per-user tag statistics power recommendations and practice (`/api/practice/session`); results are cached (short TTL) and invalidated on new task submissions.
 
-The full algorithm is documented in [ADAPTIVE_LEARNING.md](CourseManagementPlatform/documentation/ADAPTIVE_LEARNING.md).
+The full algorithm is documented in [ADAPTIVE_LEARNING.md](LearningPlatform/documentation/ADAPTIVE_LEARNING.md).
 
 ---
 
@@ -181,6 +164,7 @@ Actions covered include:
 - **Subject / Course / Module / Lesson / Task** - created, updated, published, unpublished, deleted
 - **Flashcard & Tag** - created, updated, deleted
 - **Media** - uploaded, deleted
+- **Pro / assistant (where applicable)** - lesson assistant usage and admin Pro flag updates
 
 Each log entry stores the actor's user ID and email, the affected resource type and ID, a UTC timestamp, and an optional JSON metadata payload (e.g. the resource title).
 
@@ -188,186 +172,43 @@ Filters available in the admin panel: action type, actor user ID, date range. Al
 
 The logging design is fire-and-forget - a logging failure never disrupts the primary operation.
 
-Full reference: [LOGGING_SYSTEM.md](CourseManagementPlatform/documentation/LOGGING_SYSTEM.md)
+Full reference: [LOGGING_SYSTEM.md](LearningPlatform/documentation/LOGGING_SYSTEM.md)
 
----
 
 ## Media Management
 
-All uploaded files are stored in an **S3-compatible** object store (AWS S3, Cloudflare R2, Railway Object Storage, or any compatible API).
+All uploaded files are stored in an **S3-compatible** object store when configured (AWS S3, Cloudflare R2, Railway Object Storage, or any compatible API); otherwise media can be stored **locally** under `public/media`.
 
-- Files are uploaded through the Payload CMS **Media** collection and stored with generated unique keys.
-- Delivered via **pre-signed URLs** with a configurable expiry - no public bucket policy required.
+- Admins upload via **`POST /api/media/upload`**; assets are tracked in the Payload **Media** collection.
+- Delivery goes through **`/api/media/serve/:filename`** (signed URL redirect to S3 when enabled, or local file serve).
 - Usage is tracked per file so admins can see which lessons and tasks reference a given asset before deletion.
-- Supported by all lesson content blocks (images in Image blocks, question and solution media on tasks).
-
----
-
-## Security
-
-| Layer | Implementation |
-|-------|---------------|
-| Authentication | Auth.js v5 with hashed (bcrypt) passwords |
-| Session tokens | JWT with JTI field; a `token_blocklist` table enables instant revocation on logout |
-| Rate limiting | Per-IP sliding window on all auth endpoints (`/auth/login`, `/auth/register`) |
-| Input validation | Zod schemas on all API routes and server actions |
-| Content Security Policy | Strict CSP with **per-request nonces** for inline scripts; `img-src` restricted to known storage hostnames |
-| Access control | Role-based (`ADMIN` / `STUDENT`) enforced at the Payload collection level and in server actions |
-| Query safety | Prisma parameterized queries throughout; no raw SQL string interpolation |
+- Used by lesson image blocks, task question/solution media, and related fields.
 
 
----
+## Documentation
 
-## More info here
+Canonical index (same structure as the repo): **[`LearningPlatform/documentation/README.md`](LearningPlatform/documentation/README.md)**
 
-| Document | Description |
-|----------|-------------|
-| [DATABASE_ARCHITECTURE.md](CourseManagementPlatform/documentation/DATABASE_ARCHITECTURE.md) | Dual-schema PostgreSQL design, data models, indexing strategy, and cross-schema FK model |
-| [ADAPTIVE_LEARNING.md](CourseManagementPlatform/documentation/ADAPTIVE_LEARNING.md) | Tag system, skill analytics, task recommendation algorithm, and SRS integration |
-| [SECURITY_ARCHITECTURE.md](CourseManagementPlatform/documentation/SECURITY_ARCHITECTURE.md) | Authentication, authorization, rate limiting, input validation, CSP, and session security |
-| [LOGGING_SYSTEM.md](CourseManagementPlatform/documentation/LOGGING_SYSTEM.md) | Activity log schema, all logged action types, and admin panel usage |
+### Product and learning features
 
----
+- **[`PLATFORM_FEATURES.md`](LearningPlatform/documentation/PLATFORM_FEATURES.md)** — Admin capabilities, draft/publish workflow, lesson blocks, task types, media behavior.
+- **[`ADAPTIVE_LEARNING.md`](LearningPlatform/documentation/ADAPTIVE_LEARNING.md)** — Recommendations, weak-tag analytics, practice sessions, spaced repetition.
+- **[`AI_COURSE_GENERATION.md`](LearningPlatform/documentation/AI_COURSE_GENERATION.md)** — Admin AI Agent flow, providers, testing notes, cost guidance.
 
-## Local development
+### Development and operations
 
-### Prerequisites
+- **[`LOCAL_DEVELOPMENT.md`](LearningPlatform/documentation/LOCAL_DEVELOPMENT.md)** — Prerequisites, full local setup, quick start, Docker, local URLs.
+- **[`CONTENT_IMPORTS.md`](LearningPlatform/documentation/CONTENT_IMPORTS.md)** — Bulk imports: data shapes, npm scripts, troubleshooting, Docker.
+- **[`TESTING.md`](LearningPlatform/documentation/TESTING.md)** — Vitest and Playwright commands, suite layout, env flags, coverage baseline.
 
-- Node.js 20.x
-- Docker and Docker Compose (for local PostgreSQL)
-- An S3-compatible storage bucket (AWS S3, Cloudflare R2, Railway Object Storage, or similar)
+### Architecture and security
 
+- **[`DATABASE_ARCHITECTURE.md`](LearningPlatform/documentation/DATABASE_ARCHITECTURE.md)** — Dual-schema design, models, indexing, integrity.
+- **[`SECURITY_ARCHITECTURE.md`](LearningPlatform/documentation/SECURITY_ARCHITECTURE.md)** — Auth, authorization, rate limiting, CSP, sessions.
+- **[`LOGGING_SYSTEM.md`](LearningPlatform/documentation/LOGGING_SYSTEM.md)** — Activity log actions, schema, admin usage.
+- **[`TECHNOLOGY_STACK.md`](LearningPlatform/documentation/TECHNOLOGY_STACK.md)** — Framework, data, auth, testing, deployment layers.
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/Z4phxr/CourseManagementPlatform.git
-cd CourseManagementPlatform/CourseManagementPlatform
+### Prompts and assets
 
-# 2. Install dependencies
-npm install
-
-# 3. Configure environment variables
-cp .env.example .env
-# Edit .env - fill in DATABASE_URL, AUTH_SECRET, PAYLOAD_SECRET, and S3 credentials
-
-# 4. Start the local PostgreSQL instance
-docker compose up -d postgres
-
-# 5. Apply database migrations
-npm run db:migrate:deploy
-
-# 6. (Optional) Seed an admin account and sample content
-npm run cms:seed
-
-# 7. Start the development server
-npm run dev
-```
-
-| URL | Purpose |
-|-----|---------|
-| `http://localhost:3000` | Student-facing application |
-| `http://localhost:3000/admin` | Payload CMS admin panel |
-
----
-
-## Content imports (bulk data)
-
-Besides the admin UI, you can load **tags, full courses (subject → modules → lessons → tasks), extra modules on an existing course, and flashcards** from data files under the app. Imports are **idempotent**: re-running updates existing records that match the same keys (slugs, order fields, and so on) instead of duplicating everything.
-
-**Requirements:** a running database, `DATABASE_URL` (or `PAYLOAD_DATABASE_URL`) and `PAYLOAD_SECRET` in `.env`, same as normal app usage.
-
-From the **app directory** (the folder that contains `package.json`, e.g. `LearningPlatform/LearningPlatform`):
-
-```bash
-npm run content:import:all
-```
-
-Stage-specific scripts exist as well (`content:import:tags`, `content:import:course`, `content:import:modules`, `content:import:flashcards`). Use `--dry-run` on a runner to print what would change without writing.
-
-**File format and shapes** (where to put new files, how each export must look) are documented here:
-
-**[LearningPlatform/scripts/imports/README.md](LearningPlatform/scripts/imports/README.md)**
-
-Docker: after the stack is up, `docker compose --env-file .env exec app npm run content:import:all` (rebuild or mount `scripts/imports` if you change data files; see `LearningPlatform/DOCKER.md`).
-
----
-
-## Running Tests
-
-```bash
-npm run test            # single run
-npm run test:coverage   # with coverage report
-npm run test:watch      # watch mode
-```
-
-404 tests total (unit, integration, component) with Vitest and Testing Library. The default `npm run test:ci` / GitHub Actions job runs **392** of them; **12** Payload- or DB-heavy integration tests are skipped unless you run against a real database (see `SKIP_PAYLOAD_TESTS` / `SKIP_DB_SETUP` in the test files).
-
----
-
-## Deployment
-
-The platform can be deployed on [Railway](https://railway.app) using the included `Dockerfile` and `railway.toml`.
-
-On container start, `docker-entrypoint.sh` runs all pending Prisma migrations synchronously before the Next.js server starts, ensuring the schema is always up to date before traffic is accepted.
-
-### Required environment variables
-
-```
-DATABASE_URL
-PAYLOAD_DATABASE_URL
-AUTH_SECRET
-PAYLOAD_SECRET
-AUTH_TRUST_HOST=true
-NEXTAUTH_URL
-S3_BUCKET
-AWS_REGION
-AWS_ACCESS_KEY_ID
-AWS_SECRET_ACCESS_KEY
-```
-
-
-## Technology Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 15.5 (App Router) |
-| Language | TypeScript 5 |
-| CMS | Payload CMS 3.72 |
-| ORM | Prisma 7.3 |
-| Database | PostgreSQL 16 |
-| Authentication | Auth.js v5 (NextAuth) |
-| Object storage | AWS S3 / S3-compatible |
-| Styling | Tailwind CSS 4 + Radix UI |
-| Testing | Vitest 4 + Testing Library |
-| Container | Docker (multi-stage) |
-| CI | GitHub Actions |
-
----
-
-## Screenshots
-
-- **Admin dashboard**
-
-	![Admin dashboard](screenshots/Admin-dashboard.png)
-
-- **Lesson builder (admin)**
-
-	![Lesson builder](screenshots/Lesson-builder-admin.png)
-
-- **Lesson view**
-
-	![Lesson view](screenshots/Lesson-view.png)
-
-- **Tasks list**
-
-	![Tasks list](screenshots/Tasks.png)
-
-- **Main page**
-
-	![Main page](screenshots/Main-page.png)
-
-- **Logs (admin)**
-
-	![Logs](screenshots/Logs.png)
-
-
+- **[`prompts/creation_prompt.MD`](LearningPlatform/documentation/prompts/creation_prompt.MD)** — Large template for LLM-generated import-shaped content.
+- **[`screenshots/`](LearningPlatform/documentation/screenshots/)** — PNG assets (for example referenced from `AI_COURSE_GENERATION.md`).

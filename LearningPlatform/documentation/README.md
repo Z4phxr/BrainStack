@@ -1,6 +1,6 @@
 # Documentation Index
 
-This folder contains detailed technical documentation for the Learning Platform.
+This folder contains detailed technical documentation for BrainStack.
 
 If you want a quick product overview, start with the root [`README.md`](../README.md).  
 If you need architecture, implementation details, or operational guidance, use the documents below.
@@ -8,7 +8,7 @@ If you need architecture, implementation details, or operational guidance, use t
 ## Product and Learning Features
 
 - [`PLATFORM_FEATURES.md`](./PLATFORM_FEATURES.md)  
-  Product-level feature reference (admin workflows, lesson/task model, adaptive learning, AI generation context).
+  Admin panel capabilities, draft/publish workflow, lesson content blocks, task types, and media behavior.
 
 - [`ADAPTIVE_LEARNING.md`](./ADAPTIVE_LEARNING.md)  
   Deep dive into adaptive recommendations, weak-tag analytics, practice session composition, and spaced repetition behavior.
@@ -16,7 +16,18 @@ If you need architecture, implementation details, or operational guidance, use t
 - [`AI_COURSE_GENERATION.md`](./AI_COURSE_GENERATION.md)  
   Admin AI Agent flow, provider setup, current testing notes, and cost guidance.
 
-## Architecture and Operations
+## Development and Operations
+
+- [`LOCAL_DEVELOPMENT.md`](./LOCAL_DEVELOPMENT.md)  
+  Prerequisites, full local setup, quick start path, and local URLs.
+
+- [`CONTENT_IMPORTS.md`](./CONTENT_IMPORTS.md)  
+  Full import workflow reference: data shapes, stage scripts, LLM notes, troubleshooting, and Docker usage.
+
+- [`TESTING.md`](./TESTING.md)  
+  Vitest and Playwright commands, suite layout, environment flags, and a recorded coverage baseline.
+
+## Architecture and Security
 
 - [`DATABASE_ARCHITECTURE.md`](./DATABASE_ARCHITECTURE.md)  
   Database schema design, data model boundaries, and storage responsibilities.
@@ -27,6 +38,6 @@ If you need architecture, implementation details, or operational guidance, use t
 - [`LOGGING_SYSTEM.md`](./LOGGING_SYSTEM.md)  
   Logging strategy, diagnostics, and troubleshooting guidance.
 
-- [`DEPLOYMENT.md`](./DEPLOYMENT.md)  
-  Deployment requirements, environment configuration, and production setup.
+- [`TECHNOLOGY_STACK.md`](./TECHNOLOGY_STACK.md)  
+  Stack by layer across framework, data, auth, testing, and deployment.
 
