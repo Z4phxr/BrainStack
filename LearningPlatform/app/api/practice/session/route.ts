@@ -97,12 +97,12 @@ export async function GET(req: Request) {
     )
 
     // ── Step 2: build attempt maps ────────────────────────────────────────────
-    const attempts = await prisma.taskProgress.findMany({
-      where:  { userId: user.id },
-      select: { taskId: true, isCorrect: true },
+    const attempts = await prisma.taskAttempt.findMany({
+      where:  { userId: user.id, isCorrect: true },
+      select: { taskId: true },
     })
     const solvedCorrectly = new Set(
-      attempts.filter((a) => a.isCorrect === true).map((a) => a.taskId),
+      attempts.map((a) => a.taskId),
     )
 
     // ── Step 3: fetch candidate tasks ─────────────────────────────────────────

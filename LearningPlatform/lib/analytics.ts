@@ -1,9 +1,8 @@
 /**
  * ─── Adaptive Learning Analytics ────────────────────────────────────────────
  *
- * Computes per-user, per-tag skill statistics from the TaskProgress event log.
- * No new database tables are required — all aggregations are derived on-demand
- * from the existing `task_progress` table.
+ * Computes per-user, per-tag skill statistics from the TaskAttempt event log.
+ * Aggregations are derived on-demand from `task_attempts`.
  *
  * Usage:
  *   const stats    = await getUserTagStats('user-id')
@@ -14,7 +13,7 @@ import { prisma } from '@/lib/prisma'
 
 // ─── Per-user TTL cache ────────────────────────────────────────────────────────
 //
-// getUserTagStats performs an unbounded findMany over the full task_progress
+// getUserTagStats performs an unbounded findMany over the full task_attempts
 // history and aggregates it in JavaScript.  Both /api/practice/session and
 // /api/recommend/tasks call this function independently for the same user on
 // every request.  The cache prevents redundant DB reads within a 60-second
@@ -94,8 +93,8 @@ export interface WeakTag {
  * Compute per-tag statistics for a user based on their full TaskProgress history.
  *
  * Algorithm:
- *  1. Fetch all TaskProgress rows for the user via the taskProgressTags relation.
- *  2. Each tag linked through TaskProgressTag becomes an independent observation.
+ *  1. Fetch all TaskAttempt rows for the user via the taskAttemptTags relation.
+ *  2. Each tag linked through TaskAttemptTag becomes an independent observation.
  *  3. Accumulate attempts/correct/lastAttemptAt per tag.
  *  4. Derive successRate and Bayesian score.
  *
@@ -105,10 +104,10 @@ export async function getUserTagStats(userId: string): Promise<TagStat[]> {
   const cached = getCached(userId)
   if (cached) return cached
 
-  const records = await prisma.taskProgress.findMany({
+  const records = await prisma.taskAttempt.findMany({
     where:  { userId },
     select: {
-      taskProgressTags: { select: { tag: { select: { name: true } } } },
+      taskAttemptTags: { select: { tag: { select: { name: true } } } },
       isCorrect:        true,
       attemptedAt:      true,
     },
@@ -122,8 +121,8 @@ export async function getUserTagStats(userId: string): Promise<TagStat[]> {
   }>()
 
   for (const row of records) {
-    for (const tpt of row.taskProgressTags) {
-      const tag = tpt.tag.name
+    for (const tat of row.taskAttemptTags) {
+      const tag = tat.tag.name
       if (!tag) continue
       const acc = tagMap.get(tag) ?? { attempts: 0, correct: 0, lastAttemptAt: null }
 

@@ -20,6 +20,7 @@ model User {
   flashcardSettings FlashcardSettings?
   lessonProgress    LessonProgress[]
   taskProgress      TaskProgress[]
+  taskAttempts      TaskAttempt[]
   flashcardProgress UserFlashcardProgress[]
 
   @@index([email])
@@ -36,6 +37,7 @@ model LessonProgress {
   lastViewedAt DateTime       @default(now())
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   taskProgress TaskProgress[]
+  taskAttempts TaskAttempt[]
 
   @@unique([userId, lessonId])
   @@index([userId])
@@ -61,6 +63,7 @@ model TaskProgress {
   lessonProgress   LessonProgress    @relation(fields: [lessonProgressId], references: [id], onDelete: Cascade)
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   taskProgressTags TaskProgressTag[]
+  taskAttempts     TaskAttempt[]
 
   @@unique([userId, taskId])
   @@index([userId])
@@ -98,6 +101,7 @@ model Tag {
   /// Whether this is a primary/main tag shown by default in the UI.
   main             Boolean           @default(false)
   taskProgressTags TaskProgressTag[]
+  taskAttemptTags  TaskAttemptTag[]
   flashcards       Flashcard[]       @relation("FlashcardTags")
   flashcardDecks   FlashcardDeck[]   @relation("DeckTags")
 
@@ -209,6 +213,49 @@ model TaskProgressTag {
   @@index([taskProgressId])
   @@index([tagId])
   @@map("task_progress_tags")
+}
+
+/// Append-only event log of task submissions. Unlike TaskProgress (latest state),
+/// this model stores one row per submission attempt for longitudinal analytics.
+model TaskAttempt {
+  id               String           @id @default(cuid())
+  userId           String
+  taskId           String
+  lessonProgressId String
+  taskProgressId   String?
+  submittedAnswer  String?
+  earnedPoints     Int              @default(0)
+  maxPoints        Int
+  isCorrect        Boolean?
+  difficultyRating Int?
+  attemptedAt      DateTime         @default(now())
+  createdAt        DateTime         @default(now())
+  lessonProgress   LessonProgress   @relation(fields: [lessonProgressId], references: [id], onDelete: Cascade)
+  taskProgress     TaskProgress?    @relation(fields: [taskProgressId], references: [id], onDelete: SetNull)
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskAttemptTags  TaskAttemptTag[]
+
+  @@index([userId])
+  @@index([taskId])
+  @@index([attemptedAt])
+  @@index([userId, taskId])
+  @@index([userId, attemptedAt])
+  @@index([taskProgressId])
+  @@map("task_attempts")
+}
+
+/// Normalised join between a TaskAttempt event and canonical tags.
+model TaskAttemptTag {
+  id            String      @id @default(cuid())
+  taskAttemptId String
+  tagId         String
+  tag           Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  taskAttempt   TaskAttempt @relation(fields: [taskAttemptId], references: [id], onDelete: Cascade)
+
+  @@unique([taskAttemptId, tagId])
+  @@index([taskAttemptId])
+  @@index([tagId])
+  @@map("task_attempt_tags")
 }
 
 /// Blocklist for revoked JWT session tokens.

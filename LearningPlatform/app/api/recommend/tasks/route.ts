@@ -23,7 +23,7 @@ import { extractText } from '@/lib/lexical'
  *     3. Apply novelty (+0.3) and staleness (+0.2) bonuses.
  *
  *   review — Return tasks the user previously got wrong, most recent first.
- *     1. Pull TaskProgress rows with isCorrect = false.
+ *     1. Pull TaskAttempt rows with isCorrect = false.
  *     2. De-duplicate by taskId keeping the latest attempt.
  *     3. Exclude tasks since solved correctly.
  *     4. Sort by attemptedAt descending.
@@ -84,12 +84,19 @@ async function weakMode(
   const weakTagSet = new Set(topWeak.map((t) => normalise(t.tag)))
   const weakTagMap = new Map(topWeak.map((t) => [normalise(t.tag), t.weakness]))
 
-  const attempts = await prisma.taskProgress.findMany({
+  const attempts = await prisma.taskAttempt.findMany({
     where:  { userId },
     select: { taskId: true, attemptedAt: true },
+    orderBy: { attemptedAt: 'desc' },
   })
-  const attemptedIds    = new Set(attempts.map((a) => a.taskId))
-  const lastAttemptedAt = new Map(attempts.map((a) => [a.taskId, a.attemptedAt]))
+  const attemptedIds    = new Set<string>()
+  const lastAttemptedAt = new Map<string, Date>()
+  for (const a of attempts) {
+    attemptedIds.add(a.taskId)
+    if (a.attemptedAt && !lastAttemptedAt.has(a.taskId)) {
+      lastAttemptedAt.set(a.taskId, a.attemptedAt)
+    }
+  }
 
   const now = Date.now()
 
@@ -138,7 +145,7 @@ async function reviewMode(
   allTasks: any[],
   limit: number,
 ): Promise<{ tasks: ScoredTask[]; explanation: string }> {
-  const allAttempts = await prisma.taskProgress.findMany({
+  const allAttempts = await prisma.taskAttempt.findMany({
     where:  { userId },
     select: { taskId: true, isCorrect: true, attemptedAt: true },
     orderBy: { attemptedAt: 'desc' },

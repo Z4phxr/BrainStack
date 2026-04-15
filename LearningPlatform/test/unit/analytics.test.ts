@@ -2,7 +2,7 @@
  * Unit tests — lib/analytics.ts
  *
  * Tests for getUserTagStats() and getUserWeakTags() which derive per-tag
- * skill statistics from the TaskProgress event log.
+ * skill statistics from the TaskAttempt event log.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
@@ -26,14 +26,14 @@ const { getUserTagStats, getUserWeakTags, invalidateUserTagStatsCache } = await 
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Build a minimal TaskProgress row compatible with the select used in getUserTagStats. */
+/** Build a minimal TaskAttempt row compatible with the select used in getUserTagStats. */
 function progressRow(
   tagNames: string[],
   isCorrect: boolean,
   attemptedAt: Date = new Date('2025-01-15T12:00:00.000Z'),
 ) {
   return {
-    taskProgressTags: tagNames.map((name) => ({ tag: { name } })),
+    taskAttemptTags: tagNames.map((name) => ({ tag: { name } })),
     isCorrect,
     attemptedAt,
   }
@@ -48,7 +48,7 @@ describe('getUserTagStats', () => {
   })
 
   it('returns an empty array when the user has no task history', async () => {
-    mockPrisma.taskProgress.findMany.mockResolvedValueOnce([])
+    mockPrisma.taskAttempt.findMany.mockResolvedValueOnce([])
 
     const result = await getUserTagStats('user-1')
 
@@ -59,7 +59,7 @@ describe('getUserTagStats', () => {
     // Row 1: biology ✓, chemistry ✓
     // Row 2: biology ✗
     // Row 3: chemistry ✓
-    mockPrisma.taskProgress.findMany.mockResolvedValueOnce([
+    mockPrisma.taskAttempt.findMany.mockResolvedValueOnce([
       progressRow(['biology', 'chemistry'], true),
       progressRow(['biology'], false),
       progressRow(['chemistry'], true),
@@ -81,7 +81,7 @@ describe('getUserTagStats', () => {
 
   it('calculates successRate = correct / attempts', async () => {
     // 3 attempts, 1 correct
-    mockPrisma.taskProgress.findMany.mockResolvedValueOnce([
+    mockPrisma.taskAttempt.findMany.mockResolvedValueOnce([
       progressRow(['algebra'], true),
       progressRow(['algebra'], false),
       progressRow(['algebra'], false),
@@ -97,7 +97,7 @@ describe('getUserTagStats', () => {
 
   it('applies Bayesian (Laplace) smoothing: score = (correct + 1) / (attempts + 2)', async () => {
     // 1 attempt, 1 correct → score = 2/3 ≈ 0.667
-    mockPrisma.taskProgress.findMany.mockResolvedValueOnce([
+    mockPrisma.taskAttempt.findMany.mockResolvedValueOnce([
       progressRow(['physics'], true),
     ])
 
@@ -108,7 +108,7 @@ describe('getUserTagStats', () => {
 
   it('gives a neutral prior of 0.5 to a tag seen exactly once — wrong', async () => {
     // 1 attempt, 0 correct → score = (0+1)/(1+2) = 1/3
-    mockPrisma.taskProgress.findMany.mockResolvedValueOnce([
+    mockPrisma.taskAttempt.findMany.mockResolvedValueOnce([
       progressRow(['history'], false),
     ])
 
@@ -121,7 +121,7 @@ describe('getUserTagStats', () => {
     const older  = new Date('2025-01-10T00:00:00.000Z')
     const newer  = new Date('2025-01-20T00:00:00.000Z')
 
-    mockPrisma.taskProgress.findMany.mockResolvedValueOnce([
+    mockPrisma.taskAttempt.findMany.mockResolvedValueOnce([
       progressRow(['math'], true,  older),
       progressRow(['math'], false, newer),
     ])
@@ -132,7 +132,7 @@ describe('getUserTagStats', () => {
   })
 
   it('skips empty / falsy tag names in taskProgressTags', async () => {
-    mockPrisma.taskProgress.findMany.mockResolvedValueOnce([
+    mockPrisma.taskAttempt.findMany.mockResolvedValueOnce([
       progressRow(['', 'valid-tag', ''], true),
     ])
 
@@ -152,7 +152,7 @@ describe('getUserWeakTags', () => {
   })
 
   it('returns an empty array when the user has no task history', async () => {
-    mockPrisma.taskProgress.findMany.mockResolvedValueOnce([])
+    mockPrisma.taskAttempt.findMany.mockResolvedValueOnce([])
 
     const result = await getUserWeakTags('user-1')
 
@@ -163,7 +163,7 @@ describe('getUserWeakTags', () => {
     // chemistry: 0 correct out of 2  → successRate = 0.0 → weakness = 1.0
     // biology:   1 correct out of 2  → successRate = 0.5 → weakness = 0.5
     // physics:   2 correct out of 2  → successRate = 1.0 → weakness = 0.0
-    mockPrisma.taskProgress.findMany.mockResolvedValueOnce([
+    mockPrisma.taskAttempt.findMany.mockResolvedValueOnce([
       progressRow(['chemistry'], false),
       progressRow(['chemistry'], false),
       progressRow(['biology'],   true),
@@ -182,7 +182,7 @@ describe('getUserWeakTags', () => {
 
   it('computes weakness = 1 - successRate', async () => {
     // 1 correct / 4 attempts → successRate = 0.25 → weakness = 0.75
-    mockPrisma.taskProgress.findMany.mockResolvedValueOnce([
+    mockPrisma.taskAttempt.findMany.mockResolvedValueOnce([
       progressRow(['calculus'], true),
       progressRow(['calculus'], false),
       progressRow(['calculus'], false),
@@ -196,7 +196,7 @@ describe('getUserWeakTags', () => {
   })
 
   it('returns WeakTag objects with only tag and weakness properties', async () => {
-    mockPrisma.taskProgress.findMany.mockResolvedValueOnce([
+    mockPrisma.taskAttempt.findMany.mockResolvedValueOnce([
       progressRow(['geometry'], true),
     ])
 

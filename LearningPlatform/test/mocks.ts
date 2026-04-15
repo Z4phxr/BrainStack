@@ -190,6 +190,50 @@ export const createMockPrisma = (overrides = {}) => {
       deleteMany: vi.fn(() => createMockResult({ count: 0 })),
     },
 
+    // TaskAttempt operations (append-only task submission log)
+    taskAttempt: {
+      create: vi.fn((args) => createMockResult({
+        id: 'mock-task-attempt-id',
+        userId: 'mock-user-id',
+        taskId: 'mock-task-id',
+        lessonProgressId: 'mock-lesson-progress-id',
+        taskProgressId: 'mock-task-progress-id',
+        submittedAnswer: '',
+        earnedPoints: 0,
+        maxPoints: 10,
+        isCorrect: false,
+        difficultyRating: null,
+        attemptedAt: new Date(),
+        createdAt: new Date(),
+        ...args.data,
+      })),
+      findUnique: vi.fn(() => createMockResult(null)),
+      findFirst: vi.fn(() => createMockResult(null)),
+      findMany: vi.fn(() => createMockResult([])),
+      update: vi.fn((args) => createMockResult({ id: args.where.id, ...args.data })),
+      delete: vi.fn((args) => createMockResult({ id: args.where.id })),
+      upsert: vi.fn((args) => createMockResult({
+        id: 'mock-task-attempt-id',
+        ...args.create,
+      })),
+      count: vi.fn(() => createMockResult(0)),
+      deleteMany: vi.fn(() => createMockResult({ count: 0 })),
+    },
+
+    // TaskAttemptTag operations (normalised tag-attempt join)
+    taskAttemptTag: {
+      create: vi.fn((args) => createMockResult({ id: 'mock-tat-id', ...args.data })),
+      createMany: vi.fn((args) => createMockResult({ count: args?.data?.length ?? 0 })),
+      findUnique: vi.fn(() => createMockResult(null)),
+      findFirst: vi.fn(() => createMockResult(null)),
+      findMany: vi.fn(() => createMockResult([])),
+      update: vi.fn((args) => createMockResult({ id: args.where.id, ...args.data })),
+      delete: vi.fn((args) => createMockResult({ id: args.where.id })),
+      upsert: vi.fn((args) => createMockResult({ id: 'mock-tat-id', ...args.create })),
+      count: vi.fn(() => createMockResult(0)),
+      deleteMany: vi.fn(() => createMockResult({ count: 0 })),
+    },
+
     // ActivityLog operations
     activityLog: {
       create:     vi.fn((args) => createMockResult({ id: 'mock-activity-log-id', ...args.data })),

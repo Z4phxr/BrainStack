@@ -79,7 +79,7 @@ describe('GET /api/practice/session', () => {
     vi.clearAllMocks()
     mockedTagStats.mockResolvedValue([])
     mockedWeakTags.mockResolvedValue([])
-    mockPrisma.taskProgress.findMany.mockResolvedValue([])
+    mockPrisma.taskAttempt.findMany.mockResolvedValue([])
   })
 
   it('returns 401 for unauthenticated requests', async () => {
@@ -180,7 +180,7 @@ describe('GET /api/practice/session', () => {
       { tag: 'math', attempts: 2, correct: 1, successRate: 0.5, score: 0.5, lastAttemptAt: null },
     ])
     // Mark 'solved-1' as correctly solved
-    mockPrisma.taskProgress.findMany.mockResolvedValue([
+    mockPrisma.taskAttempt.findMany.mockResolvedValue([
       { taskId: 'solved-1', isCorrect: true },
     ])
 

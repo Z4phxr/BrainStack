@@ -113,6 +113,8 @@ export async function submitTaskAnswer(
     ? difficultyRating
     : null
 
+  const attemptedAt = new Date()
+
   const taskProgress = await prisma.taskProgress.upsert({
     where: { userId_taskId: { userId: session.user.id, taskId } },
     create: {
@@ -125,8 +127,8 @@ export async function submitTaskAnswer(
       isCorrect,
       difficultyRating: validatedRating,
       status: isCorrect ? 'PASSED' : 'ATTEMPTED',
-      attemptedAt: new Date(),
-      passedAt: isCorrect ? new Date() : null,
+      attemptedAt,
+      passedAt: isCorrect ? attemptedAt : null,
     },
     update: {
       submittedAnswer: answer,
@@ -134,10 +136,38 @@ export async function submitTaskAnswer(
       isCorrect,
       difficultyRating: validatedRating,
       status: isCorrect ? 'PASSED' : 'ATTEMPTED',
-      attemptedAt: new Date(),
-      passedAt: isCorrect ? new Date() : null,
+      attemptedAt,
+      passedAt: isCorrect ? attemptedAt : null,
     },
   })
+
+  // Persist append-only attempt history for longitudinal analytics.
+  try {
+    const taskAttempt = await prisma.taskAttempt.create({
+      data: {
+        userId: session.user.id,
+        taskId,
+        lessonProgressId: lessonProgress.id,
+        taskProgressId: taskProgress.id,
+        submittedAnswer: answer,
+        earnedPoints,
+        maxPoints: task.points,
+        isCorrect,
+        difficultyRating: validatedRating,
+        attemptedAt,
+      },
+      select: { id: true },
+    })
+
+    if (canonicalTags.length > 0) {
+      await prisma.taskAttemptTag.createMany({
+        data: canonicalTags.map((t) => ({ taskAttemptId: taskAttempt.id, tagId: t.id })),
+        skipDuplicates: true,
+      })
+    }
+  } catch (attemptLogErr) {
+    console.warn('[submitTaskAnswer] TaskAttempt logging failed:', attemptLogErr)
+  }
 
   await checkLessonCompletion(session.user.id, lessonId, session.user?.role)
 
