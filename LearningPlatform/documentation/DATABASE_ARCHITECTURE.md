@@ -1,8 +1,5 @@
 ﻿# Database Architecture
 
-**CourseManagementPlatform** — technical reference for all database systems, models, relationships, indexes, and service interactions.
-
----
 
 ## Table of Contents
 
@@ -20,15 +17,9 @@
 
 ## 1. Overview
 
-CourseManagementPlatform is a full-stack learning management system built with **Next.js 15**. It serves two distinct user roles: **students**, who enroll in courses, complete tasks, and study flashcards; and **administrators**, who manage course content through a headless CMS.
+This document focuses on the platform's database architecture: schema ownership, data boundaries, relationships, integrity strategy, and query/performance patterns.
 
-The database is central to every feature of the platform:
-
-- **Course catalog** — courses, modules, lessons, and tasks are stored and served through a CMS-managed schema.
-- **Progress tracking** — every task submission, lesson completion, and course enrollment is persisted and queried in real time.
-- **Spaced repetition (SRS)** — per-user flashcard scheduling state is stored across sessions and drives the study algorithm.
-- **Authentication** — user accounts and hashed credentials are stored alongside role information.
-- **Audit logging** — administrative actions are recorded in an activity log for accountability.
+The system uses a dual-schema PostgreSQL setup so application data and CMS-managed content can evolve independently while still being coordinated at the app layer.
 
 The platform uses a **single PostgreSQL instance** divided into two independent schemas:
 
@@ -37,9 +28,9 @@ The platform uses a **single PostgreSQL instance** divided into two independent 
 | `public` | Prisma ORM | User accounts, authentication, progress tracking, flashcards, tags, activity logs |
 | `payload` | Payload CMS | Course catalog — courses, modules, lessons, tasks, subjects, media |
 
-This separation exists because the two schemas have fundamentally different write characteristics and ownership models. The `payload` schema is managed exclusively by Payload CMS auto-migrations. The `public` schema is owned by Prisma and evolves through explicit, versioned migrations under developer control.
+This separation exists because the two schemas have fundamentally different write characteristics and ownership models. The `payload` schema is managed by Payload migrations/configuration. The `public` schema is owned by Prisma and evolves through explicit, versioned migrations under developer control.
 
-Because PostgreSQL does not enforce foreign keys across schemas belonging to different ownership contexts, cross-schema references (for example, `LessonProgress.lessonId` pointing to a Payload lesson) are stored as plain string fields and enforced at the application level via Payload CMS lifecycle hooks.
+While PostgreSQL can support cross-schema references, this project intentionally does not define DB-level FKs between Prisma-managed and Payload-managed entities. Cross-schema references (for example, `LessonProgress.lessonId` pointing to a Payload lesson) are stored as plain string fields and enforced at the application level via server actions/API logic and Payload hooks.
 
 ---
 
@@ -111,11 +102,14 @@ The database connection string is read from the `DATABASE_URL` environment varia
 |  |  TaskProgress          |  |  lessons               |  |
 |  |  CourseProgress        |  |  tasks                 |  |
 |  |  Tag                   |  |  subjects              |  |
+|  |  FlashcardDeck         |  |  payload-users         |  |
 |  |  Flashcard             |  |  media                 |  |
 |  |  FlashcardSettings     |  |  tasks_tags (join)     |  |
-|  |  UserFlashcardProgress |  |  users (CMS auth)      |  |
+|  |  UserFlashcardProgress |  |                        |  |
 |  |  TaskProgressTag       |  |                        |  |
 |  |  ActivityLog           |  |                        |  |
+|  |  RevokedToken          |  |                        |  |
+|  |  RateLimit             |  |                        |  |
 |  +------------+-----------+  +------------+-----------+  |
 |               |                           |              |
 +---------------+---------------------------+--------------+
@@ -143,6 +137,7 @@ Stores credentials and role assignment for every platform participant.
 | `name` | `String?` | Optional display name |
 | `passwordHash` | `String?` | Bcrypt hash; null for OAuth-only accounts |
 | `role` | `Role` enum | `STUDENT` or `ADMIN` |
+| `isPro` | `Boolean` | Enables Pro/VIP-gated features |
 | `createdAt` | `DateTime` | Auto-set on creation |
 | `updatedAt` | `DateTime` | Auto-updated on change |
 
@@ -217,7 +212,7 @@ A canonical label that can be applied to flashcards and, via `TaskProgressTag`, 
 
 **Relations:** many-to-many to `Flashcard` via implicit `_FlashcardTags`; one-to-many to `TaskProgressTag`.
 
-Denormalised copies of `name` and `slug` also exist in `payload.tasks_tags`. These are kept in sync by `PUT /api/tags/[id]` via a raw SQL cross-schema update.
+Denormalised copies of `name` and `slug` also exist in `payload.tasks_tags`. These are kept in sync by `PUT /api/tags/[id]` through paginated Payload task updates (not direct SQL mutation of `tasks_tags`).
 
 ---
 
@@ -229,10 +224,25 @@ A study card with LaTeX-capable question and answer text and optional media refe
 |-------|------|-------|
 | `question` | `String` | Supports LaTeX markup |
 | `answer` | `String` | Supports LaTeX markup |
+| `deckId` | `String` | FK -> `FlashcardDeck.id` |
 | `questionImageId` | `String?` | ID of a `payload.media` record |
 | `answerImageId` | `String?` | ID of a `payload.media` record |
 
-**Relations:** many-to-many to `Tag` via implicit `_FlashcardTags`; one-to-many to `UserFlashcardProgress`.
+**Relations:** belongs to `FlashcardDeck`; many-to-many to `Tag` via implicit `_FlashcardTags`; one-to-many to `UserFlashcardProgress`.
+
+---
+
+#### `FlashcardDeck`
+
+Named grouping container for flashcards. Import scripts and admin APIs use deck slug/id as a stable grouping key.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `slug` | `String` | Unique |
+| `name` | `String` | Display name |
+| `description` | `String?` | Optional deck description |
+
+**Relations:** one-to-many to `Flashcard`; many-to-many to `Tag`.
 
 ---
 
@@ -307,6 +317,30 @@ Rows are never updated or deleted — this table is append-only by convention.
 
 ---
 
+#### `RevokedToken`
+
+Stores revoked JWT token IDs (`jti`) and expiry time for logout/session invalidation.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `jti` | `String` | Primary key (token ID) |
+| `expiresAt` | `DateTime` | Token expiry; used for cleanup |
+| `revokedAt` | `DateTime` | Revocation timestamp |
+
+---
+
+#### `RateLimit`
+
+Persistent rate-limit counters shared across all app instances.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | `String` | Counter key |
+| `count` | `Int` | Current count in window |
+| `resetAt` | `DateTime` | Window reset timestamp |
+
+---
+
 ### 3.3 `payload` schema — Payload CMS entities
 
 Payload auto-generates tables from collection configuration files in `src/payload/collections/`. The key collections are:
@@ -343,6 +377,8 @@ Payload also creates implicit join tables such as `tasks_tags` to store the `tag
   LessonProgress (1) --< (N) TaskProgress
   TaskProgress   (N) >--< (N) Tag      [via TaskProgressTag]
 
+  FlashcardDeck (1) --< (N) Flashcard
+  FlashcardDeck (N) >--< (N) Tag       [via implicit DeckTags]
   Flashcard (N) >--< (N) Tag           [via implicit _FlashcardTags]
   Flashcard (1) --< (N) UserFlashcardProgress
 
@@ -383,7 +419,7 @@ Client (browser)
 
 ```
 Client (browser)
-  └─► GET /api/flashcards/study?tag=<slug>
+  └─► GET /api/flashcards/study?tagSlug=<slug>&subject=<slug>&deckSlug=<slug>
         │
         ├── requireAuth()
         ├── prisma.flashcard.findMany()             Fetch cards (selective field projection)
@@ -418,7 +454,7 @@ Admin client
         ├── prisma.tag.findUnique()         Verify tag exists
         ├── prisma.tag.findFirst()          Uniqueness check on new name/slug
         ├── prisma.tag.update()             Rename canonical Tag record
-        └── prisma.$executeRaw             UPDATE payload.tasks_tags SET name, slug (best-effort)
+        └── payload.find + payload.update   Sync denormalized tag objects in tasks.tags (best-effort)
 ```
 
 ### 4.5 Course progress recalculation
@@ -462,14 +498,17 @@ const userProgressRows = await prisma.userFlashcardProgress.findMany({
 const progressMap = new Map(userProgressRows.map((p) => [p.flashcardId, p]))
 ```
 
-### 5.3 Selective field projection
+### 5.3 Projection + relation loading
 
-The study endpoint uses `select` to avoid fetching large rich-text answer fields when building the ID list for the progress merge:
+The study endpoint fetches flashcards with required relations (`tags`, `deck`) in one query, then fetches per-user progress in a second query to avoid N+1:
 
 ```typescript
 const flashcards = await prisma.flashcard.findMany({
-  where: tagSlug ? { tags: { some: { slug: tagSlug } } } : undefined,
-  select: { id: true, question: true, answer: true, tags: true },
+  where: whereFilter,
+  include: {
+    tags: { select: { id: true, name: true, slug: true } },
+    deck: { select: { id: true, name: true, slug: true } },
+  },
 })
 ```
 
@@ -505,7 +544,7 @@ const newReviewedToday = await prisma.userFlashcardProgress.count({
 
 | Risk | Location | Mitigation |
 |------|----------|-----------|
-| Cross-schema join on every tag sync | `PUT /api/tags/[id]` | Secondary index on `payload.tasks_tags.tag_id` |
+| Cross-schema grouped read on tags dashboard | `getTaskCountsByPrismaTagId` / `GET /api/tags` | Secondary index on `payload.tasks_tags.tag_id` |
 | Unbounded Payload `find` during course recalculation | `recalculateCourseProgress` | Bounded by published lesson count per course |
 | `$transaction` with many upserts for tag sync | `submitTaskAnswer` | Sent as single request; wrapped in try/catch so failure is non-fatal |
 
@@ -528,7 +567,9 @@ const newReviewedToday = await prisma.userFlashcardProgress.count({
 | Unique | `(userId, lessonId)` | Upsert lookup and uniqueness enforcement |
 | Index | `userId` | Fetch all lessons for a student |
 | Index | `lessonId` | Check which users have progress on a given lesson |
-| Index | `status` | Dashboard queries filtering by `IN_PROGRESS` / `COMPLETED` || Index | `(userId, status)` | Fetch all in-progress lessons for a student in one scan |
+| Index | `status` | Dashboard queries filtering by `IN_PROGRESS` / `COMPLETED` |
+| Index | `(userId, status)` | Fetch all in-progress lessons for a student in one scan |
+
 #### `task_progress`
 
 | Index | Columns | Rationale |
@@ -558,6 +599,19 @@ const newReviewedToday = await prisma.userFlashcardProgress.count({
 | Index | `nextReviewAt` | Scheduler: fetch all cards due before a given timestamp |
 | Index | `(userId, state)` | Dashboard: count `NEW / LEARNING / REVIEW` cards per user |
 
+#### `flashcards`
+
+| Index | Columns | Rationale |
+|-------|---------|-----------|
+| Index | `deckId` | Filter cards by deck |
+| Index | `createdAt` | Stable recency sorting in admin/API |
+
+#### `flashcard_decks`
+
+| Index | Columns | Rationale |
+|-------|---------|-----------|
+| Unique | `slug` | Stable deck identity for imports/UI |
+
 #### `task_progress_tags`
 
 | Index | Columns | Rationale |
@@ -582,7 +636,7 @@ A secondary index on `tag_id` is added via migration to improve cross-schema joi
 ### 6.2 Potential performance bottlenecks
 
 - **`CourseProgress` recalculation on every task submission.** This triggers a Payload CMS `find` call plus a Prisma aggregate on each submission. For courses with many lessons this is acceptable, but the read is unbounded and not cached.
-- **Cross-schema raw SQL.** The `$executeRaw` calls against `payload.tasks_tags` bypass Prisma's type system and query planner benefits. These run on every tag rename and delete.
+- **Cross-schema raw SQL read path.** `getTaskCountsByPrismaTagId()` uses one grouped raw SQL query on `payload.tasks_tags` for admin tag counts. This is fast, but depends on Payload table shape stability.
 
 ---
 
@@ -633,16 +687,15 @@ afterDelete: [
 
 When a Payload lesson or task is deleted, all orphaned Prisma progress rows are removed synchronously. Cascade deletion of `TaskProgress` rows then automatically removes their `TaskProgressTag` children via the Prisma-managed FK.
 
-For tag synchronisation, `PUT /api/tags/[id]` propagates name and slug changes to `payload.tasks_tags`, and `DELETE /api/tags/[id]` removes orphaned rows before deleting the canonical `Tag` record:
+For tag synchronisation, `PUT /api/tags/[id]` propagates name and slug changes by updating matching `tasks.tags` entries through the Payload API, and `DELETE /api/tags/[id]` removes matching task-tag entries before deleting the canonical `Tag` record:
 
 ```typescript
-// Propagate rename to denormalised copy
-await prisma.$executeRaw`
-  UPDATE payload.tasks_tags SET name = ${newName}, slug = ${newSlug} WHERE tag_id = ${id}
-`
+// Rename path: find tasks referencing tagId, then update each task's tags array
+const { docs } = await payload.find({ collection: 'tasks', where: { 'tags.tagId': { equals: tagId } } })
+await payload.update({ collection: 'tasks', id: String(task.id), data: { tags: nextTags } })
 
-// Remove orphaned rows before delete
-await prisma.$executeRaw`DELETE FROM payload.tasks_tags WHERE tag_id = ${id}`
+// Delete path: remove tag entries from each task.tags array before deleting Prisma tag
+await payload.update({ collection: 'tasks', id: String(task.id), data: { tags: filteredTags } })
 ```
 
 Both operations are wrapped in `try/catch` so a schema permission failure does not abort the main operation.
@@ -720,7 +773,7 @@ The pool is capped at 10 connections, which is appropriate for Railway's free ti
 
 ### 9.4 Cross-schema raw SQL
 
-The raw SQL operations on `payload.tasks_tags` run only on admin tag renames and deletes and do not affect student-facing latency. However, they bypass Prisma's migration system — any Payload schema change that renames `tag_id` in `tasks_tags` would silently break them.
+Cross-schema raw SQL is currently used for aggregated tag counts (`SELECT ... FROM payload.tasks_tags GROUP BY tag_id`) in admin tag-list analytics. Tag rename/delete synchronization itself is performed through Payload API updates, not SQL writes. The raw query remains a schema-coupled optimization: if Payload changes `tasks_tags` shape, this query must be updated.
 
 ### 9.5 Single database instance
 

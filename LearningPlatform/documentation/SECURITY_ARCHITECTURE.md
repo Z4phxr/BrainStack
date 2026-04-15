@@ -21,8 +21,8 @@ This document describes the security measures implemented in this application.
 - Login attempts are rate-limited to **5 requests per 5 minutes per IP**.
 - Registration is rate-limited to **10 requests per 60 seconds per IP**.
 - Counters are stored in **PostgreSQL** (`rate_limits` table) using an atomic `UPSERT`. They survive process restarts and are shared across all application instances behind a load-balancer.
-- The rate limiter reads the **rightmost** value from `X-Forwarded-For`, which is appended by the trusted reverse proxy (Railway / Render), not the client-supplied value.
-- Rate-limit exceeded responses return HTTP `429` (registration) or a NextAuth error message (login).
+- The rate limiter reads the **leftmost** value from `X-Forwarded-For` (de-facto client IP position in `client, proxy1, proxy2` format).
+- Rate-limit exceeded responses return HTTP `429` on explicit route handlers (e.g. registration/login API routes). In credential-provider flows, Auth.js also surfaces a throttling error path.
 - If the database is unavailable, the limiter fails open so that a DB outage does not lock legitimate users out.
 
 ---
@@ -36,7 +36,7 @@ The application enforces access control at two independent layers:
 - Users without the `ADMIN` role are redirected away from any `/admin/*` path.
 
 **Layer 2 — Route-level guards (`lib/auth-helpers.ts`)**
-- Every protected API route calls `requireAuth()` or `requireAdmin()` as its first operation.
+- Protected endpoints call `requireAuth()`, `requireAdmin()`, or `requireProUser()` early in request handling.
 - This ensures authorization is enforced even if the middleware matcher is misconfigured.
 
 User-owned records (progress, settings) are always queried with `userId` scoped to the authenticated session — users cannot access each other's data.
@@ -45,7 +45,8 @@ User-owned records (progress, settings) are always queried with `userId` scoped 
 
 ## Input Validation
 
-- All API request bodies are validated with **Zod** schemas before processing.
+- Security-critical request bodies (auth, admin mutations, assistant endpoints, flashcard/tag mutations, etc.) are validated with **Zod** schemas before processing.
+- Some endpoints accept simple query params or trusted internal payloads and use targeted manual validation.
 - All database queries use **Prisma's parameterized query interface**. Raw SQL uses Prisma's tagged template literals which parameterize values automatically. No string interpolation into SQL was used.
 - No `eval()`, `new Function()`, or shell execution from user input exists in the codebase.
 
@@ -57,7 +58,8 @@ User-owned records (progress, settings) are always queried with `userId` scoped 
 - Filenames are sanitized: Unicode-normalized, whitespace replaced with dashes, non-alphanumeric characters (except `.`, `-`, `_`, `()`) stripped — preventing path traversal.
 - Files are validated by **both** `Content-Type` header and **magic byte inspection** (JPEG, PNG, GIF, WebP, BMP, TIFF signatures checked against the actual buffer).
 - Maximum upload size is enforced at **10 MB** before the buffer is written to disk.
-- Files are stored in a **private S3 bucket** and served only via short-lived signed URLs (1-hour expiry). The bucket has no public-read ACL.
+- Storage supports **S3-compatible private buckets** with signed URL delivery via `/api/media/serve/:filename`.
+- Local filesystem fallback is supported for non-S3 environments and migration compatibility.
 
 ---
 
@@ -84,12 +86,12 @@ This eliminates `unsafe-inline` from `script-src` — injected inline scripts wi
 
 ## Session Security
 
-- JWTs are stored in **HttpOnly, Secure, SameSite** cookies managed by Auth.js.
+- JWTs are stored in **HttpOnly, SameSite** cookies managed by Auth.js. `Secure` is enforced in HTTPS production environments.
 - Every JWT carries a unique **JTI** (JWT ID) generated with `crypto.randomUUID()` at sign-in.
 - Sessions expire after **8 hours** (`maxAge: 28800`).
 - **Token revocation**: on sign-out, the session JTI is written to a `revoked_tokens` PostgreSQL table. Every subsequent request checks this table and immediately invalidates sessions whose JTI is listed, regardless of token expiry. Expired entries are cleaned up probabilistically.
 - **Role propagation**: the user's role is re-fetched from the database every **5 minutes** inside the JWT callback. Role changes (e.g. demotion from ADMIN) take effect within that window, not at token expiry. If the user record is deleted, the session is invalidated immediately.
-- JWT payload contains only: user ID, email, display name, role, JTI, and last-role-refresh timestamp. Password hashes are never included.
+- JWT payload contains identity and authorization claims (including user id/role, JTI, Pro flag, and role-refresh timestamp). Password hashes are never included.
 
 ---
 
@@ -116,7 +118,7 @@ This eliminates `unsafe-inline` from `script-src` — injected inline scripts wi
 
 - The frontend is built with **React 19**, which escapes all dynamic string content by default in JSX.
 - Rich text is authored and stored in Payload CMS **Lexical JSON** format. Text extraction for API responses uses a plain-text utility, not raw HTML serialization.
-- No use of `dangerouslySetInnerHTML` was found in security-sensitive rendering paths.
+- `dangerouslySetInnerHTML` is used in controlled rendering paths (e.g. KaTeX/math and markdown-derived output), not as a generic sink for raw user HTML.
 
 ---
 

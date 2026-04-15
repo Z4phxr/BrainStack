@@ -1,6 +1,6 @@
 # Adaptive Learning System
 
-**CourseManagementPlatform** — technical reference for the personalised learning engine that drives task recommendations, practice sessions, and spaced-repetition flashcard scheduling.
+Technical reference for the personalised learning engine that drives task recommendations, practice sessions, and spaced-repetition flashcard scheduling.
 
 ---
 
@@ -24,11 +24,11 @@ The adaptive learning system personalises the study experience for each student 
 
 | Subsystem | Location | Responsibility |
 |-----------|----------|----------------|
-| **Skill analytics** | `lib/analytics.ts` | Aggregates task history into per-tag statistics. Outputs tag weakness scores used by other subsystems. |
+| **Skill analytics** | `lib/analytics.ts` | Aggregates `task_progress` rows into per-tag statistics. Outputs tag weakness scores used by other subsystems. |
 | **Task recommendation engine** | `app/api/recommend/tasks/route.ts` | Selects practice tasks from the CMS based on weakness scores, past errors, or random variety. |
 | **Spaced repetition (SRS)** | `lib/srs.ts` + `app/api/flashcards/` | Schedules flashcard reviews per user using the SM-2 algorithm. Study session ordering is also influenced by weakness scores. |
 
-The subsystems are **orthogonal**: the SRS algorithm and the task recommendation engine each call `getUserWeakTags()` independently. There is no shared state between the two beyond what `lib/analytics.ts` derives from the `task_progress` history.
+The subsystems are **orthogonal**: the SRS algorithm and the task recommendation engine each call `getUserWeakTags()` independently. There is no shared state between the two beyond what `lib/analytics.ts` derives from current `task_progress` rows.
 
 ---
 
@@ -84,21 +84,34 @@ Tags reach tasks and flashcards through different paths:
 
 ### 3.3 Cross-schema tag synchronisation
 
-The `payload.tasks_tags` table stores denormalised `name` and `slug` columns to allow Payload CMS to display tag names without querying the `public` schema. Changes to a canonical `Tag` are propagated via raw SQL:
+The `payload.tasks_tags` table stores denormalised `name` and `slug` columns to allow Payload CMS to display tag names without querying the `public` schema. Changes to a canonical `Tag` are propagated by updating matching `tasks` documents through Payload APIs:
 
 ```typescript
 // PUT /api/tags/[id]
-await prisma.$executeRaw`
-  UPDATE payload.tasks_tags SET name = ${newName}, slug = ${newSlug} WHERE tag_id = ${id}
-`
+const { docs } = await payload.find({
+  collection: 'tasks',
+  where: { 'tags.tagId': { equals: id } },
+})
+
+for (const task of docs) {
+  const next = task.tags.map((t) =>
+    t?.tagId === id ? { ...t, name: newName, slug: newSlug } : t
+  )
+  await payload.update({
+    collection: 'tasks',
+    id: String(task.id),
+    data: { tags: next },
+  })
+}
 ```
 
 ```typescript
 // DELETE /api/tags/[id]
-await prisma.$executeRaw`DELETE FROM payload.tasks_tags WHERE tag_id = ${id}`
+await removeTagFromTasks(id)
+await prisma.tag.delete({ where: { id } })
 ```
 
-Both operations are wrapped in `try/catch` so a cross-schema permission failure does not abort the primary mutation.
+Both operations are wrapped in `try/catch` so task-tag sync failures do not abort the primary mutation.
 
 ### 3.4 Task submission tag sync
 
@@ -107,7 +120,12 @@ When a student submits a task answer, the tags declared in the Payload task's me
 ```typescript
 // app/actions/submit-task.ts (simplified)
 const canonicalTags = await prisma.tag.findMany({
-  where: { slug: { in: taskTagSlugs } },
+  where: {
+    OR: [
+      { slug: { in: normalisedTaskTagSlugs } },
+      { name: { in: taskTagNames } },
+    ],
+  },
 })
 
 await prisma.$transaction(
@@ -127,7 +145,11 @@ This sync is **best-effort, non-blocking**: failures are logged with `console.wa
 
 ## 4. Tag-Based Skill Analytics
 
-All adaptive content selection is derived from the statistics computed in `lib/analytics.ts`. No ML models or external services are used — the analytics are computed on-demand by aggregating the `task_progress` event log.
+All adaptive content selection is derived from the statistics computed in `lib/analytics.ts`. No ML models or external services are used — the analytics are computed on-demand from `task_progress` rows.
+
+### 4.0 Data model caveat (latest-state rows, not full attempt history)
+
+`TaskProgress` currently has a unique key on `(userId, taskId)`, and `submitTaskAnswer` writes via `upsert`. That means one row per user-task pair is continuously updated with the latest submission state. Analytics therefore reflect the latest saved state per task-tag relation, not a full append-only attempt timeline.
 
 ### 4.1 `getUserTagStats(userId)`
 
@@ -188,7 +210,7 @@ A tag with `weakness = 1.0` means every attempt was wrong. A tag with `weakness 
 ### 4.3 Performance characteristics
 
 - **Query cost:** One single `findMany` with nested includes per call. With typical student histories (hundreds to low thousands of task_progress rows) this runs well under 50 ms.
-- **Caching:** Results are not cached. Every call to `getUserWeakTags` issues a fresh database query. Caching at the API route or request level would be worthwhile at scale.
+- **Caching:** Results are cached per user in-memory for 60 seconds (`CACHE_TTL_MS = 60_000`) in `lib/analytics.ts`. Cache entries are invalidated after new task submissions.
 - **Minimum data required:** The user needs at least one completed task for any tags to appear. Routes that call `getUserWeakTags` gracefully handle the empty-array case.
 
 ---
@@ -280,7 +302,7 @@ Generates a single practice queue of up to `limit` tasks (default 10, max 50) ba
 
 ### 6.2 Exclusion and fill
 
-Tasks already solved correctly are removed from all three pools first. If a pool runs dry before its quota is filled, already-solved tasks are added back to guarantee the requested `limit`. This ensures the session never returns fewer tasks than requested.
+Tasks already solved correctly are removed from all three pools first. If a pool runs dry before its quota is filled, already-solved tasks are added back. In normal datasets this fills the requested `limit`; if the total unique candidate pool is smaller than `limit`, the response can still be shorter.
 
 ### 6.3 Session flow
 
@@ -362,16 +384,18 @@ Ordering (weak bonus): analytics determines the ORDER within due cards
 score = getCardUrgency(card, now) + (card_has_weak_tag ? WEAK_TAG_BONUS : 0)
 ```
 
-`WEAK_TAG_BONUS = 0.5`. Cards tagged with one of the user's weakest topics are surfaced first within the due set. Cards the scheduler deems overdue still appear before cards that are only mildly due, regardless of tag weakness.
+`WEAK_TAG_BONUS = 0.5`. Cards tagged with one of the user's weakest topics receive a route-level ordering bonus.
 
 ### 7.4 SRS session modes
 
-`GET /api/flashcards/study?mode=<mode>&tagSlug=<slug>`
+`GET /api/flashcards/study?mode=<mode>&tagSlug=<slug>&subject=<slug>&deckSlug=<slug>`
 
 | Mode | Behaviour |
 |------|-----------|
 | `srs` (default) | Shows only cards that are due now; respects `newCardsPerDay` and `maxReviews` daily budgets |
 | `free` | Shows all cards in the set regardless of schedule; no daily limits |
+
+`tagSlug`, `subject`, and `deckSlug` are optional filters that scope candidate cards before SRS/free mode rules are applied.
 
 In `srs` mode, the daily new-card budget is calculated via a `count` query rather than by loading all progress rows:
 
@@ -413,7 +437,7 @@ The following describes a complete learning arc from first login through adaptiv
 
 1. Student authenticates and opens a course.
 2. They submit their first task answers. The `submitTaskAnswer` action creates `TaskProgress` rows and syncs `TaskProgressTag` records.
-3. `getUserWeakTags()` is callable immediately but returns all tags at equal weakness (no history bias). The recommendation engine uses a uniform prior — effectively random for new users.
+3. Before any tagged progress exists, `getUserWeakTags()` returns an empty list. `GET /api/recommend/tasks?mode=weak` therefore returns an empty `tasks` array with an explanation prompting the user to submit tasks first.
 
 ### 8.2 After several task submissions
 
@@ -478,11 +502,10 @@ The `0.40–0.70` success-rate window for the medium band is hardcoded in `app/a
 
 ### 9.4 SRS defaults
 
-`DEFAULT_SETTINGS` in `lib/srs.ts` is the canonical source for all SRS defaults. Changes here affect:
-- New user default `FlashcardSettings` rows (via `prisma.flashcardSettings.upsert` with implicit defaults)
-- Bootstrap state for new `UserFlashcardProgress` rows in `POST /api/flashcards/[id]/review`
+`DEFAULT_SETTINGS` in `lib/srs.ts` is the runtime default object used by SRS logic and per-user progress bootstrap. Database defaults for new `FlashcardSettings` rows are defined in `prisma/schema.prisma` (`@default(...)` values). Keep both aligned when tuning.
 
+### 9.5 Tuning notes
 
-
-
-
+- Task analytics currently use latest per-task state (`TaskProgress` upsert model), not an append-only attempt event stream.
+- `mode=weak` recommendations are empty for cold-start users until at least one tagged task result is recorded.
+- Study ordering in `GET /api/flashcards/study` uses route-level numeric sorting (`getCardUrgency + weak-tag bonus`) rather than a strict two-pass comparator.
