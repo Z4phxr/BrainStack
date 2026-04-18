@@ -27,16 +27,6 @@ export async function getAllCourseProgress() {
     throw new Error('Unauthorized')
   }
 
-  const rows = await prisma.courseProgress.findMany({
-    where: { userId: session.user.id },
-    orderBy: { lastActivityAt: 'desc' },
-  })
-
-  // Recompute aggregates so stored totals stay in sync (e.g. after fixing Payload find limits).
-  await Promise.all(
-    rows.map((row) => recalculateCourseProgress(session.user.id, row.courseId)),
-  )
-
   return prisma.courseProgress.findMany({
     where: { userId: session.user.id },
     orderBy: { lastActivityAt: 'desc' },

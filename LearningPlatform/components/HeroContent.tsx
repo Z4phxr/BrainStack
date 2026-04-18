@@ -2,25 +2,40 @@
 import useIsDark from './useIsDark'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { heroMarketingBodyClass, heroMarketingGlassText } from '@/lib/hero-marketing-classes'
+
+/** Live hero title: Outfit via `font-hero`, same glass gradient as BrainStack. */
+const titleMetrics =
+  'font-extrabold tracking-tight text-7xl sm:text-8xl md:text-9xl md:tracking-tighter whitespace-nowrap relative inline-block overflow-visible px-[0.12em]'
 
 export default function HeroContent() {
   const isDark = useIsDark()
+  const glass = heroMarketingGlassText(isDark)
 
-  // Text color adapts to theme: black in light mode, white in dark mode
-  const heroTextClass = isDark ? 'text-white' : 'text-black'
-  const subtitleClass = isDark ? 'text-gray-300' : 'text-gray-600'
+  const heroTextClass = isDark ? 'text-white' : 'text-gray-900'
 
   return (
-    <div className={`text-center ${heroTextClass}`}>
-      <h1 className="mb-6 text-5xl font-bold">BrainStack</h1>
-      <p className={`mb-8 text-xl ${subtitleClass}`}>
+    <div className={cn('text-center', heroTextClass)}>
+      <h1 className="mb-8 flex w-full min-w-0 justify-center overflow-visible px-2 text-center">
+        <span
+          className={cn(
+            'font-hero',
+            titleMetrics,
+            glass,
+          )}
+        >
+          BrainStack
+        </span>
+      </h1>
+      <p className={cn('mb-8', heroMarketingBodyClass(isDark))}>
         Platform for courses, lessons, and interactive learning content.
       </p>
       <div className="flex justify-center items-center gap-4">
-        <Button asChild size="lg" className="btn-themed opacity-80">
+        <Button asChild size="lg" variant="hero">
           <Link href="/register">Get started</Link>
         </Button>
-        <Button asChild size="lg" className="btn-themed opacity-80">
+        <Button asChild size="lg" variant="hero">
           <Link href="/login">Sign in</Link>
         </Button>
       </div>

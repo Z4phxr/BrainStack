@@ -12,6 +12,8 @@ import useIsDark from '@/components/useIsDark'
 import ThemeToggle from '@/components/theme-toggle'
 import Link from 'next/link'
 import { Home } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { heroMarketingAuthInputClass, heroMarketingGlassText } from '@/lib/hero-marketing-classes'
 
 function validatePassword(password: string): string | null {
   if (password.length < 8) return 'Password must be at least 8 characters'
@@ -89,33 +91,40 @@ export default function RegisterPage() {
   }
 
   const isDark = useIsDark()
+  const glass = heroMarketingGlassText(isDark)
+  const fieldLabelClass = isDark ? glass : 'font-medium text-slate-800'
+  const fieldInputClass = heroMarketingAuthInputClass(isDark)
 
   return (
     <div className="relative min-h-screen">
       <DarkBackground />
 
       {/* Fixed top-right: theme toggle + home icon */}
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-1">
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
         <ThemeToggle />
-        <Button variant="ghost" size="icon" asChild aria-label="Go to home">
+        <Button variant="ghost" size="icon-xl" asChild aria-label="Go to home">
           <Link href="/">
-            <Home className={`w-4 h-4 ${isDark ? '' : 'text-black'}`} />
+            <Home className={cn('size-6', !isDark && 'text-gray-900')} />
           </Link>
         </Button>
       </div>
 
-      <div className={`relative z-10 flex min-h-screen items-center justify-center px-4 ${isDark ? 'text-white' : 'text-black'}`}>
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4">
         <Card className="w-full max-w-md bg-white/10 dark:bg-white/10 backdrop-blur-lg border border-white/20">
         <CardHeader className="space-y-1">
-          <CardTitle className={`text-2xl font-bold text-center ${isDark ? 'text-white' : 'text-black'}`}>Create account</CardTitle>
-          <CardDescription className={`text-center ${isDark ? 'text-white' : 'text-black'}`}>
+          <CardTitle className={cn('text-2xl font-bold text-center', glass)}>
+            Create account
+          </CardTitle>
+          <CardDescription className={cn('text-center', glass)}>
             Start learning by creating your account
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name" className={isDark ? 'text-white' : 'text-black'}>Name (optional)</Label>
+              <Label htmlFor="name" className={fieldLabelClass}>
+                Name (optional)
+              </Label>
               <Input
                 id="name"
                 name="name"
@@ -125,11 +134,13 @@ export default function RegisterPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={isLoading}
-                className={`${isDark ? 'text-white placeholder:text-white/60' : 'text-black placeholder:text-black/60'} bg-transparent`}
+                className={fieldInputClass}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email" className={isDark ? 'text-white' : 'text-black'}>Email</Label>
+              <Label htmlFor="email" className={fieldLabelClass}>
+                Email
+              </Label>
               <Input
                 id="email"
                 name="email"
@@ -140,11 +151,13 @@ export default function RegisterPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
-                className={`${isDark ? 'text-white placeholder:text-white/60' : 'text-black placeholder:text-black/60'} bg-transparent`}
+                className={fieldInputClass}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className={isDark ? 'text-white' : 'text-black'}>Password</Label>
+              <Label htmlFor="password" className={fieldLabelClass}>
+                Password
+              </Label>
               <Input
                 id="password"
                 name="password"
@@ -155,11 +168,13 @@ export default function RegisterPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                className={`${isDark ? 'text-white placeholder:text-white/60' : 'text-black placeholder:text-black/60'} bg-transparent`}
+                className={fieldInputClass}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className={isDark ? 'text-white' : 'text-black'}>Confirm password</Label>
+              <Label htmlFor="confirmPassword" className={fieldLabelClass}>
+                Confirm password
+              </Label>
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -170,7 +185,7 @@ export default function RegisterPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                className={`${isDark ? 'text-white placeholder:text-white/60' : 'text-black placeholder:text-black/60'} bg-transparent`}
+                className={fieldInputClass}
               />
             </div>
 
@@ -180,13 +195,15 @@ export default function RegisterPage() {
               </div>
             )}
 
-            <Button type="submit" className={"w-full btn-themed opacity-80"} disabled={isLoading}>
-              {isLoading ? 'Creating account...' : 'Create account'}
-            </Button>
+            <div className="mx-auto w-full max-w-[280px]">
+              <Button type="submit" variant="hero" size="lg" className="auth-hero-cta w-full" disabled={isLoading}>
+                {isLoading ? 'Creating account...' : 'Create account'}
+              </Button>
+            </div>
           </form>
 
           <div className="mt-6 text-center text-sm">
-            <Link href="/login" className={`${isDark ? 'text-white' : 'text-black'} hover:underline`}>
+            <Link href="/login" className={cn('font-medium hover:underline', glass)}>
               Already have an account? Sign in
             </Link>
           </div>

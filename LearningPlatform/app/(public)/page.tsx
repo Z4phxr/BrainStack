@@ -36,7 +36,7 @@ export default async function HomePage() {
       </div>
 
       {/* Hero centered both horizontally and vertically */}
-      <div className="relative z-10 px-4 w-full max-w-3xl mx-auto">
+      <div className="relative z-10 w-full max-w-5xl px-4 mx-auto">
         <HeroContent />
       </div>
     </div>
