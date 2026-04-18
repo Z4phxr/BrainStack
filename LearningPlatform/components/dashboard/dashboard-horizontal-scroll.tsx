@@ -133,7 +133,12 @@ export function DashboardHorizontalScroll({
             type="button"
             variant="outline"
             size="icon"
-            className="absolute left-0 top-1/2 z-10 h-9 w-9 -translate-y-1/2 bg-background/95 shadow-sm backdrop-blur-sm sm:h-10 sm:w-10"
+            className={cn(
+              'absolute left-0 top-1/2 z-10 h-9 w-9 -translate-y-1/2 bg-background/95 shadow-sm backdrop-blur-sm sm:h-10 sm:w-10',
+              // Outline buttons lift on hover; that overrides -translate-y-1/2 and shifts these controls.
+              'motion-safe:hover:-translate-y-1/2 motion-safe:active:-translate-y-1/2',
+              'hover:shadow-sm dark:hover:shadow-sm',
+            )}
             disabled={!canScrollLeft}
             aria-label="Scroll left"
             onClick={() => scrollByDir(-1)}
@@ -144,7 +149,11 @@ export function DashboardHorizontalScroll({
             type="button"
             variant="outline"
             size="icon"
-            className="absolute right-0 top-1/2 z-10 h-9 w-9 -translate-y-1/2 bg-background/95 shadow-sm backdrop-blur-sm sm:h-10 sm:w-10"
+            className={cn(
+              'absolute right-0 top-1/2 z-10 h-9 w-9 -translate-y-1/2 bg-background/95 shadow-sm backdrop-blur-sm sm:h-10 sm:w-10',
+              'motion-safe:hover:-translate-y-1/2 motion-safe:active:-translate-y-1/2',
+              'hover:shadow-sm dark:hover:shadow-sm',
+            )}
             disabled={!canScrollRight}
             aria-label="Scroll right"
             onClick={() => scrollByDir(1)}

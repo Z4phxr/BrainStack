@@ -25,9 +25,9 @@ export function LessonReadingSizeSettings() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Lesson reading</CardTitle>
+        <CardTitle>Lesson text size</CardTitle>
         <CardDescription>
-          Text size for lesson theory (including Markdown in text blocks). Saved in this browser only.
+          How large lesson theory and Markdown text blocks appear. Stored in this browser only.
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -1,6 +1,7 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { notFound } from 'next/navigation'
+import { Check } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,9 +9,12 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import Link from 'next/link'
 import Image from 'next/image'
+import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
 
 export default async function CoursePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
+  const session = await auth()
   const payload = await getPayload({ config })
 
   // Fetch course from Payload CMS
@@ -70,6 +74,22 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
     ...courseModule,
     lessons: lessonsByModule[String(courseModule.id)] || [],
   }))
+
+  const lessonIds = allLessons.map((l) => String(l.id))
+  const completedLessonIds = new Set<string>()
+  if (session?.user?.id && lessonIds.length > 0) {
+    const rows = await prisma.lessonProgress.findMany({
+      where: {
+        userId: session.user.id,
+        lessonId: { in: lessonIds },
+        status: 'COMPLETED',
+      },
+      select: { lessonId: true },
+    })
+    for (const r of rows) {
+      completedLessonIds.add(r.lessonId)
+    }
+  }
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-4xl">
@@ -137,13 +157,21 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
                           href={`/courses/${slug}/lessons/${lesson.id}`}
                           className="group block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                         >
-                          <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/25 p-3 shadow-sm transition-[border-color,background-color,box-shadow] duration-200 group-hover:border-primary/35 group-hover:bg-muted/70 group-hover:shadow-md dark:border-white/10 dark:bg-white/[0.04] dark:shadow-none dark:group-hover:border-primary/45 dark:group-hover:bg-white/[0.09] dark:group-hover:shadow-lg dark:group-hover:shadow-black/25">
+                          <div className="flex min-h-[3.25rem] items-center gap-3 rounded-lg border border-border/60 bg-muted/25 p-3 shadow-sm transition-[border-color,background-color,box-shadow] duration-200 group-hover:border-primary/35 group-hover:bg-muted/70 group-hover:shadow-md dark:border-white/10 dark:bg-white/[0.04] dark:shadow-none dark:group-hover:border-primary/45 dark:group-hover:bg-white/[0.09] dark:group-hover:shadow-lg dark:group-hover:shadow-black/25">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary transition-colors group-hover:bg-primary/15 dark:bg-primary/30 dark:text-white dark:group-hover:bg-primary/40">
                               {lesson.order}
                             </div>
                             <span className="min-w-0 flex-1 font-medium text-foreground dark:text-gray-100">
                               {lesson.title}
                             </span>
+                            {completedLessonIds.has(String(lesson.id)) && (
+                              <span
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/35 bg-emerald-500/[0.12] text-emerald-600 dark:border-emerald-400/40 dark:bg-emerald-400/15 dark:text-emerald-400"
+                                aria-label="Lesson completed"
+                              >
+                                <Check className="h-4 w-4" strokeWidth={2.75} aria-hidden />
+                              </span>
+                            )}
                           </div>
                         </Link>
                       ))}

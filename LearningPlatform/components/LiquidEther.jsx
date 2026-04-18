@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
+/** Caps fluid sim grid longest edge (px); keeps cost bounded on 4K / ultrawide. */
+const LIQUID_ETHER_MAX_SIM_EDGE = 480;
+
 export default function LiquidEther({
   mouseForce = 20,
   cursorSize = 100,
@@ -836,8 +839,14 @@ export default function LiquidEther({
         });
       }
       calcSize() {
-        const width = Math.max(1, Math.round(this.options.resolution * Common.width));
-        const height = Math.max(1, Math.round(this.options.resolution * Common.height));
+        let width = Math.max(1, Math.round(this.options.resolution * Common.width));
+        let height = Math.max(1, Math.round(this.options.resolution * Common.height));
+        const major = Math.max(width, height);
+        if (major > LIQUID_ETHER_MAX_SIM_EDGE) {
+          const scale = LIQUID_ETHER_MAX_SIM_EDGE / major;
+          width = Math.max(1, Math.round(width * scale));
+          height = Math.max(1, Math.round(height * scale));
+        }
         const px_x = 1.0 / width;
         const px_y = 1.0 / height;
         this.cellScale.set(px_x, px_y);
@@ -916,8 +925,12 @@ export default function LiquidEther({
         Common.renderer.setRenderTarget(null);
         Common.renderer.render(this.scene, this.camera);
       }
-      update() {
+      /** One fluid solve step (FBO passes only; no present to screen). */
+      stepSimulation() {
         this.simulation.update();
+      }
+      update() {
+        this.stepSimulation();
         this.render();
       }
     }
@@ -973,7 +986,10 @@ export default function LiquidEther({
         if (this.autoDriver) this.autoDriver.update();
         Mouse.update();
         Common.update();
-        this.output.update();
+        // Single sim step per frame: multi-substeps on a heavy pipeline made
+        // slow GPUs spend multiple frames' worth of work in one rAF (worse jank).
+        this.output.stepSimulation();
+        this.output.render();
       }
       loop() {
         if (!this.running) return; // safety

@@ -12,6 +12,8 @@ import useIsDark from '@/components/useIsDark';
 import ThemeToggle from '@/components/theme-toggle';
 import Link from 'next/link';
 import { Home } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { heroMarketingAuthInputClass, heroMarketingGlassText } from '@/lib/hero-marketing-classes';
 
 function LoginForm() {
   const isDark = useIsDark();
@@ -57,17 +59,25 @@ function LoginForm() {
     }
   };
 
+  const glass = heroMarketingGlassText(isDark)
+  const fieldLabelClass = isDark ? glass : 'font-medium text-slate-800'
+  const fieldInputClass = heroMarketingAuthInputClass(isDark)
+
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <Card className="w-full max-w-md bg-white/10 dark:bg-white/10 backdrop-blur-lg border border-white/20">
           <CardHeader className="space-y-1">
-            <CardTitle className={`text-2xl font-bold text-center ${isDark ? 'text-white' : 'text-black'}`}>Sign in</CardTitle>
-            <CardDescription className={`text-center ${isDark ? 'text-white' : 'text-black'}`}>Enter your details to continue</CardDescription>
+            <CardTitle className={cn('text-2xl font-bold text-center', glass)}>Sign in</CardTitle>
+            <CardDescription className={cn('text-center', glass)}>
+              Enter your details to continue
+            </CardDescription>
           </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className={isDark ? 'text-white' : 'text-black'}>Email</Label>
+              <Label htmlFor="email" className={fieldLabelClass}>
+                Email
+              </Label>
               <Input
                 id="email"
                 name="email"
@@ -78,11 +88,13 @@ function LoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
-                className={`${isDark ? 'text-white placeholder:text-white/60' : 'text-black placeholder:text-black/60'} bg-transparent`}
+                className={fieldInputClass}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className={isDark ? 'text-white' : 'text-black'}>Password</Label>
+              <Label htmlFor="password" className={fieldLabelClass}>
+                Password
+              </Label>
               <Input
                 id="password"
                 name="password"
@@ -93,7 +105,7 @@ function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                className={`${isDark ? 'text-white placeholder:text-white/60' : 'text-black placeholder:text-black/60'} bg-transparent`}
+                className={fieldInputClass}
               />
             </div>
 
@@ -103,20 +115,18 @@ function LoginForm() {
               </div>
             )}
 
-            <Button 
-              type="submit" 
-              className={`w-full btn-themed opacity-80`} 
-              disabled={isLoading}
-            >
-              {isLoading ? 'Signing in...' : 'Sign in'}
-            </Button>
+            <div className="mx-auto w-full max-w-[280px]">
+              <Button type="submit" variant="hero" size="lg" className="auth-hero-cta w-full" disabled={isLoading}>
+                {isLoading ? 'Signing in...' : 'Sign in'}
+              </Button>
+            </div>
           </form>
 
           <div className="mt-6 text-center text-sm">
-            <p className={`mb-2 ${isDark ? 'text-white' : 'text-black'}`}>New here?</p>
+            <p className={cn('mb-2', glass)}>New here?</p>
             <button
               type="button"
-              className={`${isDark ? 'text-white' : 'text-black'} px-3 py-1 rounded bg-transparent hover:underline`}
+              className={cn('bg-transparent font-medium hover:underline', glass)}
               onClick={() => router.push('/register')}
             >
               Create a user account
@@ -134,11 +144,11 @@ export default function LoginPage() {
   return (
     <>
       {/* Fixed top-right: theme toggle + home icon */}
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-1">
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
         <ThemeToggle />
-        <Button variant="ghost" size="icon" asChild aria-label="Go to home">
+        <Button variant="ghost" size="icon-xl" asChild aria-label="Go to home">
           <Link href="/">
-            <Home className={`w-4 h-4 ${isDark ? '' : 'text-black'}`} />
+            <Home className={cn('size-6', !isDark && 'text-gray-900')} />
           </Link>
         </Button>
       </div>
@@ -148,19 +158,10 @@ export default function LoginPage() {
           <DarkBackground />
 
           <div className="relative z-10">
-            <LoginFormWrapper />
+            <LoginForm />
           </div>
         </div>
       </Suspense>
     </>
   );
-}
-
-function LoginFormWrapper() {
-  const isDark = useIsDark()
-  return (
-    <div className={isDark ? 'text-white' : 'text-black'}>
-      <LoginForm />
-    </div>
-  )
 }

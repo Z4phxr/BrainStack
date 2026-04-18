@@ -134,16 +134,25 @@ function FlashcardBlock({
           </div>
         </div>
 
-        <div className="w-full flex gap-2 justify-center">
-          <Link href={studyHref}>
-            <Button size="default" className="w-40 text-sm md:text-base" disabled={!canStudy}>
-              <Brain className="mr-1.5 h-5 w-5" />
+        <div className="grid w-full min-w-0 grid-cols-2 gap-2">
+          <Link href={studyHref} className="min-w-0">
+            <Button
+              size="sm"
+              className="h-auto w-full min-w-0 justify-center gap-1 whitespace-normal px-2 py-2 text-xs leading-tight sm:text-sm"
+              disabled={!canStudy}
+            >
+              <Brain className="h-4 w-4 shrink-0" />
               Study Now
             </Button>
           </Link>
-          <Link href={freeHref}>
-            <Button size="default" variant="outline" className="w-40 text-sm md:text-base" disabled={stats.total === 0}>
-              <Zap className="mr-1.5 h-5 w-5" />
+          <Link href={freeHref} className="min-w-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-auto w-full min-w-0 justify-center gap-1 whitespace-normal px-2 py-2 text-xs leading-tight sm:text-sm"
+              disabled={stats.total === 0}
+            >
+              <Zap className="h-4 w-4 shrink-0" />
               Free Learn
             </Button>
           </Link>
@@ -266,7 +275,8 @@ function FlashcardBlocksCarousel({
   return (
     <DashboardHorizontalScroll
       aria-label="Flashcard decks"
-      itemClassName="w-[min(90vw,20rem)] sm:w-[20rem]"
+      scrollArrows
+      itemClassName="w-[min(92vw,22rem)] sm:w-[24rem] md:w-[26rem]"
     >
       {items}
     </DashboardHorizontalScroll>
@@ -384,7 +394,7 @@ export function FlashcardDashboardSection() {
         />
       )}
 
-      {/* Centered SRS Settings button under flashcards */}
+      {/* Link to full settings (reading, theme, SRS) */}
       <div className="mt-4 flex w-full justify-center">
         <Link href="/dashboard/flashcards/settings">
           <Button
@@ -393,7 +403,7 @@ export function FlashcardDashboardSection() {
             className="text-sm text-gray-600 hover:bg-gray-800/10 dark:text-gray-400 md:text-base"
           >
             <Settings className="mr-1.5 h-5 w-5" />
-            SRS Settings
+            Settings
           </Button>
         </Link>
       </div>

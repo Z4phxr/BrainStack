@@ -66,7 +66,7 @@ export default function ThemeToggle() {
     return (
       <Button
         variant="ghost"
-        size="icon-lg"
+        size="icon-xl"
         aria-label="Toggle theme"
         disabled
         className="opacity-0"
@@ -77,14 +77,14 @@ export default function ThemeToggle() {
   return (
     <Button
       variant="ghost"
-      size="icon-lg"
+      size="icon-xl"
       onClick={toggleAndReload}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       {isDark ? (
-        <Sun className="h-5 w-5" />
+        <Sun className="size-6" />
       ) : (
-        <Moon className="h-5 w-5 text-black dark:text-white" />
+        <Moon className="size-6 text-black dark:text-white" />
       )}
     </Button>
   )

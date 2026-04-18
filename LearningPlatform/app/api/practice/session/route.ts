@@ -17,8 +17,10 @@ import { extractText } from '@/lib/lexical'
  *   ~30% medium-tag tasks — tasks covering tags with middling performance
  *   ~30% random tasks     — any published tasks for variety
  *
- * Exclusion: tasks already solved correctly are excluded first; if a
- * pool runs dry they are added back to guarantee the requested limit.
+ * Exclusion: tasks whose latest progress is correct are excluded first; if a
+ * pool runs dry they are added back to guarantee the requested limit. (Uses
+ * TaskProgress, not attempt history, so a task answered wrong after a correct
+ * try is not treated as solved.)
  *
  * Response:
  *   { sessionId: string, tasks: [{ id, question, tags }] }
@@ -97,11 +99,16 @@ export async function GET(req: Request) {
     )
 
     // ── Step 2: build attempt maps ────────────────────────────────────────────
-    const solvedRows = await prisma.taskAttempt.groupBy({
-      by: ['taskId'],
-      where: { userId: user.id, isCorrect: true },
+    // Latest correctness lives on TaskProgress (upserted per submit). TaskAttempt
+    // is append-only, so "ever correct" would wrongly hide tasks the user is
+    // currently getting wrong.
+    const attempts = await prisma.taskProgress.findMany({
+      where:  { userId: user.id },
+      select: { taskId: true, isCorrect: true },
     })
-    const solvedCorrectly = new Set(solvedRows.map((r) => r.taskId))
+    const solvedCorrectly = new Set(
+      attempts.filter((a) => a.isCorrect === true).map((a) => a.taskId),
+    )
 
     // ── Step 3: fetch candidate tasks ─────────────────────────────────────────
     const payload = await getPayload({ config })
