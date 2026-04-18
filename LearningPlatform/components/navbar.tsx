@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { auth } from '@/auth';
 import { signOut } from '@/auth';
@@ -19,18 +20,27 @@ export async function Navbar() {
           BrainStack
         </Link>
         
-        <div className="flex items-center gap-3 sm:gap-4">
-          <ThemeToggle />
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 md:gap-4">
           {session ? (
             <>
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-200 text-base font-semibold text-gray-800 dark:bg-gray-700 dark:text-gray-100">
+              {/* Order: user → theme → settings → (admin) → sign out */}
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200 text-base font-semibold text-gray-800 dark:bg-gray-700 dark:text-gray-100"
+                  aria-hidden
+                >
                   {initial}
                 </div>
-                <span className="max-w-[10rem] truncate text-base text-gray-700 dark:text-gray-100 sm:max-w-none">
+                <span className="max-w-[10rem] truncate text-base text-gray-700 dark:text-gray-100 sm:max-w-[14rem] md:max-w-none">
                   {displayName ?? 'Account'}
                 </span>
               </div>
+              <ThemeToggle />
+              <Button asChild variant="ghost" size="icon-lg" aria-label="Settings">
+                <Link href="/dashboard/flashcards/settings">
+                  <Settings className="h-5 w-5" />
+                </Link>
+              </Button>
               {session.user?.role === 'ADMIN' && (
                 <Button asChild variant="outline" size="default" className="text-base">
                   <Link href="/admin/dashboard">Admin dashboard</Link>
@@ -49,6 +59,7 @@ export async function Navbar() {
             </>
           ) : (
             <>
+              <ThemeToggle />
               <Button asChild size="default" className="text-base">
                 <Link href="/register">Get started</Link>
               </Button>
