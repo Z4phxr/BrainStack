@@ -145,11 +145,11 @@ This sync is **best-effort, non-blocking**: failures are logged with `console.wa
 
 ## 4. Tag-Based Skill Analytics
 
-All adaptive content selection is derived from the statistics computed in `lib/analytics.ts`. No ML models or external services are used — the analytics are computed on-demand from `task_progress` rows.
+All adaptive content selection is derived from the statistics computed in `lib/analytics.ts`. No ML models or external services are used — the analytics are computed on-demand from the append-only `task_attempts` event log.
 
-### 4.0 Data model caveat (latest-state rows, not full attempt history)
+### 4.0 Data model note (latest state + full history)
 
-`TaskProgress` currently has a unique key on `(userId, taskId)`, and `submitTaskAnswer` writes via `upsert`. That means one row per user-task pair is continuously updated with the latest submission state. Analytics therefore reflect the latest saved state per task-tag relation, not a full append-only attempt timeline.
+`TaskProgress` still keeps latest per-task state via `(userId, taskId)` + `upsert`, while `TaskAttempt` now stores one row per submission for longitudinal analytics. Adaptive scoring and review-history logic read from `task_attempts`.
 
 ### 4.1 `getUserTagStats(userId)`
 
@@ -158,10 +158,10 @@ Returns a `TagStat[]` array with one entry per tag the user has encountered.
 **Query:**
 
 ```typescript
-const records = await prisma.taskProgress.findMany({
+const records = await prisma.taskAttempt.findMany({
   where:  { userId },
   select: {
-    taskProgressTags: { select: { tag: { select: { name: true } } } },
+    taskAttemptTags: { select: { tag: { select: { name: true } } } },
     isCorrect:        true,
     attemptedAt:      true,
   },
@@ -171,8 +171,8 @@ const records = await prisma.taskProgress.findMany({
 **Aggregation algorithm:**
 
 ```
-For each TaskProgress row:
-  For each tag linked via taskProgressTags:
+For each TaskAttempt row:
+  For each tag linked via taskAttemptTags:
     acc[tag].attempts      += 1
     acc[tag].correct       += isCorrect ? 1 : 0
     acc[tag].lastAttemptAt  = max(lastAttemptAt, row.attemptedAt)
@@ -506,6 +506,6 @@ The `0.40–0.70` success-rate window for the medium band is hardcoded in `app/a
 
 ### 9.5 Tuning notes
 
-- Task analytics currently use latest per-task state (`TaskProgress` upsert model), not an append-only attempt event stream.
+- Task analytics and review-history logic use append-only `TaskAttempt` events; `TaskProgress` remains the latest-state snapshot used by other progress flows.
 - `mode=weak` recommendations are empty for cold-start users until at least one tagged task result is recorded.
 - Study ordering in `GET /api/flashcards/study` uses route-level numeric sorting (`getCardUrgency + weak-tag bonus`) rather than a strict two-pass comparator.
