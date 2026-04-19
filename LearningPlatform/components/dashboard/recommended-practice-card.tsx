@@ -11,8 +11,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { BookOpen, Loader2, Zap } from 'lucide-react'
+import { studentGlassCard, studentGlassPill } from '@/lib/student-glass-styles'
+import { cn } from '@/lib/utils'
 
 export function RecommendedPracticeCard() {
   const router = useRouter()
@@ -52,24 +53,25 @@ export function RecommendedPracticeCard() {
   }
 
   return (
-    <Card className="w-full">
+    <Card className={cn('w-full border-0 shadow-none', studentGlassCard)}>
       <CardContent className="px-4 py-8 sm:px-6">
         <div className="grid items-center gap-8 md:grid-cols-2 md:gap-10 lg:gap-12">
-          {/* Column 1 — CTA and mix */}
+          {/* Column 1: CTA and mix */}
           <div className="flex w-full flex-col items-center justify-center gap-4 text-center">
             <div className="space-y-2">
               <CardTitle className="flex flex-wrap items-center justify-center gap-2.5 text-lg font-bold tracking-tight md:text-xl">
                 <span
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-sm md:h-10 md:w-10"
+                  className={cn(
+                    'btn-hero-glass auth-hero-cta flex h-9 w-9 shrink-0 items-center justify-center rounded-md md:h-10 md:w-10',
+                    'text-[#f8fafc] dark:text-[#0f172a]',
+                  )}
                   aria-hidden
                 >
-                  <Zap className="h-4 w-4 text-white md:h-5 md:w-5" />
+                  <Zap className="h-4 w-4 md:h-5 md:w-5" />
                 </span>
                 <span className="flex flex-wrap items-center justify-center gap-2">
                   Recommended Practice
-                  <Badge variant="secondary" className="text-xs font-normal md:text-sm">
-                    Adaptive
-                  </Badge>
+                  <span className={cn(studentGlassPill, 'font-medium uppercase md:text-sm')}>Adaptive</span>
                 </span>
               </CardTitle>
               <CardDescription className="text-sm leading-relaxed md:text-base">
@@ -106,7 +108,8 @@ export function RecommendedPracticeCard() {
               onClick={handleStartPractice}
               disabled={loading}
               size="default"
-              className="bg-indigo-600 text-sm hover:bg-indigo-700 md:text-base"
+              variant="hero"
+              className="auth-hero-cta text-sm md:text-base"
             >
               {loading ? (
                 <>
@@ -119,7 +122,7 @@ export function RecommendedPracticeCard() {
             </Button>
           </div>
 
-          {/* Column 2 — how it works */}
+          {/* Column 2: how it works */}
           <div className="flex w-full flex-col items-center justify-center gap-4 border-border border-t pt-8 text-center md:border-t-0 md:border-l md:pt-0 md:pl-10 lg:pl-12">
             <h3 className="text-lg font-bold tracking-tight text-foreground md:text-xl">
               How does adaptive practice work?

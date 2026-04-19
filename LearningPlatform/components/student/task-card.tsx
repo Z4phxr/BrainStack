@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import Image from 'next/image'
 import { Separator } from '@/components/ui/separator'
 import { CheckCircle, XCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { studentGlassCard } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
 import { submitTaskAnswer } from '@/app/actions/progress'
 import { LexicalRichText } from '@/components/student/lexical-rich-text'
@@ -265,7 +266,7 @@ export function TaskCard({ task, index, lessonId, courseSlug, userProgress }: Ta
   }
 
   return (
-    <Card>
+    <Card className={cn('border-0 shadow-none', studentGlassCard)}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -408,24 +409,30 @@ export function TaskCard({ task, index, lessonId, courseSlug, userProgress }: Ta
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
           {!hasChecked && (
-            <Button 
+            <Button
+              type="button"
+              variant="hero"
               size={ui.buttonSize}
+              className={cn('auth-hero-cta', ui.buttonText)}
               onClick={handleCheck}
               disabled={
                 (task.type === 'MULTIPLE_CHOICE' || task.type === 'TRUE_FALSE') && !selectedAnswer ||
                 task.type === 'OPEN_ENDED' && !openAnswer.trim()
               }
-              className={cn('bg-blue-600 hover:bg-blue-700', ui.buttonText)}
             >
               Check answer
             </Button>
           )}
-          
-            <Button 
+
+          <Button
+            type="button"
             size={ui.buttonSize}
-            variant="outline" 
+            variant="outline"
             onClick={handleShowSolution}
-            className={cn('text-blue-600 border-blue-300 hover:bg-[var(--block-bg)]', ui.buttonText)}
+            className={cn(
+              'border-white/25 bg-white/10 backdrop-blur-sm hover:bg-white/15 dark:border-white/20 dark:bg-white/5 dark:hover:bg-white/10',
+              ui.buttonText,
+            )}
           >
             {showSolution ? (
               <>
@@ -441,9 +448,10 @@ export function TaskCard({ task, index, lessonId, courseSlug, userProgress }: Ta
           </Button>
 
           {hasChecked && (
-            <Button 
+            <Button
+              type="button"
               size={ui.buttonSize}
-              variant="ghost" 
+              variant="ghost"
               onClick={handleReset}
               className={cn('ml-auto', ui.buttonText)}
             >
@@ -536,25 +544,50 @@ export function TaskCard({ task, index, lessonId, courseSlug, userProgress }: Ta
 
       {/* Inline Difficulty Rating (shown under open-ended tasks after checking) */}
       {task.type === 'OPEN_ENDED' && hasChecked && difficultyRating == null && (
-        <div className="mt-4 rounded-lg border border-dashed bg-white p-4 dark:bg-gray-800">
-          <h4 className={cn(ui.difficultyTitle, 'mb-2')}>How difficult was this task for you?</h4>
-          <p className={cn('mb-3', ui.helperMuted)}>Your feedback helps us personalize your learning experience.</p>
+        <div
+          className={cn(
+            'mx-auto mt-4 w-full max-w-md rounded-xl border border-dashed p-4 backdrop-blur-md sm:max-w-lg',
+            'border-slate-400/50 bg-white/[0.22] dark:border-white/25 dark:bg-white/[0.08]',
+          )}
+        >
+          <h4 className={cn(ui.difficultyTitle, 'mb-2 text-gray-900 dark:text-white')}>
+            How difficult was this task for you?
+          </h4>
+          <p
+            className={cn(
+              'mb-3 text-gray-600 dark:text-white/85',
+              tier === 'large' ? 'text-base' : 'text-sm',
+            )}
+          >
+            Your feedback helps us personalize your learning experience.
+          </p>
           <div className="grid grid-cols-5 gap-2">
-            {[1,2,3,4,5].map((value) => (
+            {[1, 2, 3, 4, 5].map((value) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => handleDifficultySubmit(value)}
                 disabled={isPending}
                 className={cn(
-                  'rounded-lg border transition-colors',
+                  'rounded-xl border transition-colors',
                   ui.difficultyGridBtn,
                   isPending ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
-                  difficultyRating === value ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40' : 'border-gray-300 hover:border-gray-400 dark:border-gray-600',
+                  difficultyRating === value
+                    ? 'border-blue-500 bg-blue-50 text-gray-900 dark:border-blue-400/70 dark:bg-blue-500/25 dark:text-white'
+                    : 'border-slate-300/70 bg-white/50 text-gray-900 hover:border-slate-400 dark:border-white/25 dark:bg-white/[0.1] dark:text-white dark:hover:border-white/40',
                 )}
               >
-                <div className={cn('text-center font-medium', ui.difficultyNumber)}>{value}</div>
-                <div className={cn('text-center', ui.difficultySub)}>{value === 1 ? 'Very Easy' : value === 2 ? 'Easy' : value === 3 ? 'Moderate' : value === 4 ? 'Hard' : 'Very Hard'}</div>
+                <div className={cn('text-center font-semibold text-gray-900 dark:text-white', ui.difficultyNumber)}>
+                  {value}
+                </div>
+                <div
+                  className={cn(
+                    'mt-0.5 text-center text-gray-600 dark:text-white/80',
+                    tier === 'large' ? 'text-sm' : 'text-xs',
+                  )}
+                >
+                  {value === 1 ? 'Very Easy' : value === 2 ? 'Easy' : value === 3 ? 'Moderate' : value === 4 ? 'Hard' : 'Very Hard'}
+                </div>
               </button>
             ))}
           </div>

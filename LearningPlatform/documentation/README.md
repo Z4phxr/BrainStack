@@ -8,7 +8,7 @@ If you need architecture, implementation details, or operational guidance, use t
 ## Product and Learning Features
 
 - [`PLATFORM_FEATURES.md`](./PLATFORM_FEATURES.md)  
-  Admin panel capabilities, draft/publish workflow, lesson content blocks, task types, and media behavior.
+  Admin panel capabilities, draft/publish workflow, lesson content blocks, task types, media behavior, and the student dashboard plus `/courses` catalog (filters, search, sort, pagination).
 
 - [`ADAPTIVE_LEARNING.md`](./ADAPTIVE_LEARNING.md)  
   Deep dive into adaptive recommendations, weak-tag analytics, practice session composition, and spaced repetition behavior.
@@ -36,7 +36,7 @@ If you need architecture, implementation details, or operational guidance, use t
   Authentication, authorization, and security controls across the platform.
 
 - [`LOGGING_SYSTEM.md`](./LOGGING_SYSTEM.md)  
-  Logging strategy, diagnostics, and troubleshooting guidance.
+  Activity log action types, `logActivity` integration points, optional **pause** via Admin Settings, and `/admin/logs` filters.
 
 - [`TECHNOLOGY_STACK.md`](./TECHNOLOGY_STACK.md)  
   Stack by layer across framework, data, auth, testing, and deployment.

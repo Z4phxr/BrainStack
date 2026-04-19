@@ -3,6 +3,7 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getPayload } from 'payload'
+import type { Payload } from 'payload'
 import config from '@payload-config'
 import { unstable_cache } from 'next/cache'
 
@@ -130,3 +131,136 @@ const getCachedCourseProgress = unstable_cache(
   ['course-progress'],
   { revalidate: 60, tags: ['course-progress'] }
 )
+
+const POPULAR_COURSE_LIMIT = 5
+
+/**
+ * After engagement-based ordering, pad with newest published courses (excluding any
+ * already chosen) until `limit` ids, or until the catalog runs out.
+ */
+async function extendPopularCourseIdsToLimit(
+  payload: Payload,
+  engagementOrderedIds: string[],
+  limit = POPULAR_COURSE_LIMIT,
+): Promise<string[]> {
+  const out = [...engagementOrderedIds]
+  const seen = new Set(out)
+  if (out.length >= limit) return out.slice(0, limit)
+
+  const { docs: recent } = await payload.find({
+    collection: 'courses',
+    where: { isPublished: { equals: true } },
+    sort: '-createdAt',
+    limit: 50,
+    depth: 0,
+  })
+
+  for (const c of recent) {
+    const id = String(c.id)
+    if (seen.has(id)) continue
+    out.push(id)
+    seen.add(id)
+    if (out.length >= limit) break
+  }
+
+  return out
+}
+
+async function computePopularCourseIds(): Promise<string[]> {
+  const payload = await getPayload({ config })
+  const rows = await prisma.lessonProgress.findMany({
+    where: { status: { in: ['IN_PROGRESS', 'COMPLETED'] } },
+    select: { userId: true, lessonId: true },
+  })
+  if (rows.length === 0) {
+    return extendPopularCourseIdsToLimit(payload, [], POPULAR_COURSE_LIMIT)
+  }
+
+  const lessonIds = [...new Set(rows.map((r) => r.lessonId))]
+  if (lessonIds.length === 0) {
+    return extendPopularCourseIdsToLimit(payload, [], POPULAR_COURSE_LIMIT)
+  }
+  const { docs: lessons } = await payload.find({
+    collection: 'lessons',
+    where: {
+      id: { in: lessonIds },
+      isPublished: { equals: true },
+    },
+    limit: lessonIds.length,
+    depth: 0,
+  })
+
+  const lessonToCourse = new Map<string, string>()
+  for (const lesson of lessons) {
+    const cid =
+      typeof lesson.course === 'object' && lesson.course !== null && 'id' in lesson.course
+        ? String((lesson.course as { id: string }).id)
+        : String(lesson.course)
+    lessonToCourse.set(String(lesson.id), cid)
+  }
+
+  const pairSeen = new Set<string>()
+  const counts = new Map<string, number>()
+  for (const row of rows) {
+    const cid = lessonToCourse.get(row.lessonId)
+    if (!cid) continue
+    const key = `${row.userId}:${cid}`
+    if (pairSeen.has(key)) continue
+    pairSeen.add(key)
+    counts.set(cid, (counts.get(cid) ?? 0) + 1)
+  }
+
+  const courseIds = [...counts.keys()]
+  if (courseIds.length === 0) {
+    return extendPopularCourseIdsToLimit(payload, [], POPULAR_COURSE_LIMIT)
+  }
+
+  const { docs: courses } = await payload.find({
+    collection: 'courses',
+    where: {
+      id: { in: courseIds },
+      isPublished: { equals: true },
+    },
+    limit: courseIds.length,
+    depth: 0,
+  })
+
+  const meta = new Map(
+    courses.map((c) => {
+      const id = String(c.id)
+      const createdRaw = (c as { createdAt?: string }).createdAt
+      const createdAt = createdRaw ? new Date(createdRaw).getTime() : 0
+      const title = String((c as { title?: string }).title ?? '')
+      return [id, { createdAt, title }] as const
+    }),
+  )
+
+  const engagementOrdered = courseIds
+    .filter((id) => meta.has(id))
+    .sort((a, b) => {
+      const diff = (counts.get(b) ?? 0) - (counts.get(a) ?? 0)
+      if (diff !== 0) return diff
+      const ma = meta.get(a)!
+      const mb = meta.get(b)!
+      if (mb.createdAt !== ma.createdAt) return mb.createdAt - ma.createdAt
+      return ma.title.localeCompare(mb.title)
+    })
+    .slice(0, POPULAR_COURSE_LIMIT)
+
+  return extendPopularCourseIdsToLimit(payload, engagementOrdered, POPULAR_COURSE_LIMIT)
+}
+
+const getPopularCourseIdsCached = unstable_cache(
+  async () => computePopularCourseIds(),
+  ['popular-course-ids-v2'],
+  { revalidate: 120 },
+)
+
+/**
+ * Up to five published course ids for the dashboard strip: ranked by distinct learners
+ * (users with any IN_PROGRESS or COMPLETED lesson in that course), then padded with
+ * newest published courses if fewer than five have engagement data. Cached ~2 minutes.
+ */
+export async function getPopularCourseIds(): Promise<string[]> {
+  return getPopularCourseIdsCached()
+}

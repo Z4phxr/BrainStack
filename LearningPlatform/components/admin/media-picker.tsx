@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 // tabs removed: consolidate upload + browse into single view
 import { X, Search, Upload, Loader2, Image as ImageIcon, Video, Check } from 'lucide-react'
+import { adminGlassCard, adminGlassOutlineButton } from '@/lib/student-glass-styles'
 
 interface Media {
   id: string  // Payload CMS uses varchar UUIDs, not integers
@@ -161,7 +162,7 @@ export function MediaPicker({ open, onClose, onSelect, currentMediaId, filter = 
       "fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4",
       !open && "hidden"
     )}>
-      <div className="w-full max-w-4xl max-h-[90vh] rounded-lg block-contrast shadow-xl flex flex-col">
+      <div className={cn('flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden shadow-2xl', adminGlassCard)}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b shrink-0">
           <div className="flex items-center gap-3">
@@ -190,7 +191,7 @@ export function MediaPicker({ open, onClose, onSelect, currentMediaId, filter = 
           <div className="flex-1 overflow-y-auto pb-8 px-6">
             {loading ? (
               <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
               <div className="grid grid-cols-3 md:grid-cols-4 gap-3 pb-4">
@@ -200,13 +201,13 @@ export function MediaPicker({ open, onClose, onSelect, currentMediaId, filter = 
                     <div className="flex flex-col items-center gap-3 p-6 text-center">
                       {uploading ? (
                         <>
-                          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                          <span className="text-sm font-medium text-blue-600">Uploading...</span>
+                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                          <span className="text-sm font-medium text-primary">Uploading...</span>
                         </>
                       ) : (
                         <>
-                          <div className="bg-blue-100 p-3 rounded-full">
-                            <Upload className="h-6 w-6 text-blue-600" />
+                          <div className="rounded-full border border-primary/25 bg-primary/10 p-3 backdrop-blur-sm dark:bg-primary/15">
+                            <Upload className="h-6 w-6 text-primary" />
                           </div>
                           <div>
                             <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Click to select file</span>
@@ -229,11 +230,13 @@ export function MediaPicker({ open, onClose, onSelect, currentMediaId, filter = 
                       onClick={() => setSelectedId(item.id)}
                       className={cn(
                         'relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all hover:shadow-lg group',
-                        isSelected ? 'border-blue-600 ring-2 ring-blue-200' : 'border-gray-200 hover:border-blue-300'
+                        isSelected
+                          ? 'border-primary ring-2 ring-primary/25'
+                          : 'border-slate-300/50 hover:border-primary/40 dark:border-white/15'
                       )}
                     >
                       {/* Preview */}
-                      <div className="aspect-square block-bg flex items-center justify-center relative">
+                      <div className="relative flex aspect-square items-center justify-center bg-slate-100/80 dark:bg-black/40">
                         {isImage && (
                           <Image
                             src={`/api/media/serve/${encodeURIComponent(item.filename)}`}
@@ -253,7 +256,7 @@ export function MediaPicker({ open, onClose, onSelect, currentMediaId, filter = 
                         {/* Selected badge only (no opaque overlay) */}
                         {isSelected && (
                           <div className="absolute top-2 right-2">
-                            <div className="bg-blue-600 rounded-full p-1 shadow-md">
+                            <div className="rounded-full bg-primary p-1 shadow-md">
                               <Check className="h-4 w-4 text-white" />
                             </div>
                           </div>
@@ -269,7 +272,7 @@ export function MediaPicker({ open, onClose, onSelect, currentMediaId, filter = 
                       </div>
 
                       {/* Info */}
-                      <div className="p-2 block-contrast border-t">
+                      <div className="border-t border-white/20 bg-white/[0.15] p-2 backdrop-blur-md dark:border-white/10 dark:bg-white/[0.06]">
                         <p className="text-xs font-medium truncate" title={item.filename}>
                           {item.filename}
                         </p>
@@ -286,16 +289,10 @@ export function MediaPicker({ open, onClose, onSelect, currentMediaId, filter = 
 
           {/* Actions */}
           <div className="flex items-center justify-center gap-4 pt-4 border-t pb-6">
-            <Button variant="ghost" onClick={onClose} className="border border-gray-200 block-contrast">
+            <Button variant="outline" onClick={onClose} className={cn(adminGlassOutlineButton)}>
               Cancel
             </Button>
-            <Button
-              onClick={handleSelect}
-              disabled={!selectedId}
-              className={
-                "bg-blue-600 hover:bg-blue-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100"
-              }
-            >
+            <Button onClick={handleSelect} disabled={!selectedId} variant="hero" className="auth-hero-cta">
               Select
             </Button>
           </div>

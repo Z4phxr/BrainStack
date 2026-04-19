@@ -94,7 +94,8 @@ The system captures the following action types:
 | Action | Triggered by |
 |---|---|
 | `USER_PRO_LESSON_ASSISTANT` | A Pro user asks the lesson assistant (`POST /api/lesson-assistant`) |
-| `ADMIN_USER_PRO_UPDATED` | An admin updates a user's Pro flag (`PATCH /api/admin/users/:id`) |
+| `ADMIN_USER_PRO_UPDATED` | An admin updates a user's Pro flag (`PATCH /api/admin/users/:id` body: `isPro`) |
+| `ADMIN_USER_ROLE_UPDATED` | An admin changes a user's role (`PATCH /api/admin/users/:id` body: `role`: `STUDENT` / `ADMIN`) |
 
 ---
 
@@ -129,7 +130,9 @@ The central logging utility lives in `lib/activity-log.ts`. It exports:
 - `ActivityAction` — a frozen object of all supported action type constants.
 - `logActivity(params)` — the main logging function.
 
-`logActivity` is **fire-and-forget**: it calls `prisma.activityLog.create(...)` without being awaited by the caller. Any database error is silently caught and written to the application logger at the `WARNING` level. This design ensures that a logging failure never disrupts the primary operation being performed.
+**Pausing new logs:** Admins can turn off recording under **Admin → Settings → Activity logs** (“Turn off logging”). The flag is stored in Prisma as a singleton row on `platform_flags` (`id = "platform"`, field `activityLoggingEnabled`). When disabled, `logActivity` **does not** insert new rows; existing rows in `activity_logs` remain queryable. Implementation: `lib/platform-flags.ts` (read with a short TTL cache) and `setActivityLoggingEnabled` via server actions in `app/(admin)/admin/actions/platform-settings.ts`. If reading the flag fails, new logs are still written (fail-open) so outages do not silently drop audit data.
+
+`logActivity` is **fire-and-forget**: when logging is enabled, it schedules `prisma.activityLog.create(...)` without being awaited by the caller. Any database error is silently caught and written to the application logger at the `WARNING` level. This design ensures that a logging failure never disrupts the primary operation being performed.
 
 Usage example:
 
@@ -168,7 +171,7 @@ Logging calls are placed after the primary database operation succeeds in the fo
 | `app/api/media/upload/route.ts` | MEDIA_UPLOADED |
 | `app/(admin)/admin/actions/media.ts` | MEDIA_DELETED |
 | `app/api/lesson-assistant/route.ts` | USER_PRO_LESSON_ASSISTANT |
-| `app/api/admin/users/[id]/route.ts` | ADMIN_USER_PRO_UPDATED |
+| `app/api/admin/users/[id]/route.ts` | `ADMIN_USER_PRO_UPDATED`, `ADMIN_USER_ROLE_UPDATED` (separate log lines when `isPro` and/or `role` are sent) |
 | `lib/ai-agent/generation.ts` | COURSE_CREATED (source: ai-agent) |
 
 ---
@@ -177,7 +180,7 @@ Logging calls are placed after the primary database operation succeeds in the fo
 
 1. Sign in, then open the admin logs page at `/admin/logs`.
 2. In the left sidebar, click **Logs**.
-3. The logs page displays a paginated table of all recorded activity.
+3. The logs page displays a paginated table of all recorded activity (only events that were written while logging was on).
 
 ### Filtering
 

@@ -14,6 +14,8 @@ import { AddTaskDialog } from './add-task-dialog'
 import { TheoryBlocksEditor } from './theory-blocks-editor'
 import { FormError, FieldError } from '@/components/ui/form-error'
 import { ZodError } from 'zod'
+import { cn } from '@/lib/utils'
+import { adminGlassCard, adminGlassOutlineButton } from '@/lib/student-glass-styles'
 
 interface Lesson {
   id: string
@@ -117,18 +119,20 @@ export function LessonBuilder({ lesson, tasks }: { lesson: Lesson; tasks: Task[]
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" asChild>
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+        <div className="flex items-start gap-4">
+          <Button variant="outline" size="icon" className={cn(adminGlassOutlineButton)} asChild>
             <Link href="/admin/dashboard">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{lesson.title}</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Lesson editor</p>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">
+              {lesson.title}
+            </h1>
+            <p className="mt-2 text-base text-gray-600 dark:text-gray-400">Lesson editor</p>
             {/** Show who last updated the lesson (if available) */}
             {('lastUpdatedBy' in (lesson as any)) && (lesson as any).lastUpdatedBy && (
               <p className="text-xs text-gray-500 mt-1">Last updated by: {(lesson as any).lastUpdatedBy}</p>
@@ -136,8 +140,8 @@ export function LessonBuilder({ lesson, tasks }: { lesson: Lesson; tasks: Task[]
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button variant="outline" asChild>
+        <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
+          <Button variant="outline" className={cn(adminGlassOutlineButton)} asChild>
             <Link href={previewHref}>
               <Eye className="mr-2 h-4 w-4" />
               Preview
@@ -146,7 +150,8 @@ export function LessonBuilder({ lesson, tasks }: { lesson: Lesson; tasks: Task[]
           {activeTab === 'theory' && (
             <Button
               type="button"
-              variant="secondary"
+              variant="hero"
+              className="auth-hero-cta"
               disabled={loading}
               onClick={() => void handleSave()}
               title="Save lesson title and theory blocks (does not publish)"
@@ -157,13 +162,21 @@ export function LessonBuilder({ lesson, tasks }: { lesson: Lesson; tasks: Task[]
           )}
           <Button
             type="button"
+            variant="outline"
+            className={cn(adminGlassOutlineButton)}
             onClick={() => void handlePublish()}
             disabled={loading}
             title="Show or hide this lesson for students. Use Save to store your edits first."
           >
             {lesson.isPublished ? 'Hide' : 'Publish'}
           </Button>
-          <Button type="button" variant="destructive" onClick={() => void handleDeleteLesson()} disabled={loading}>
+          <Button
+            type="button"
+            variant="outline"
+            className="border-red-300/50 text-red-700 hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-950/30"
+            onClick={() => void handleDeleteLesson()}
+            disabled={loading}
+          >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete
           </Button>
@@ -171,27 +184,29 @@ export function LessonBuilder({ lesson, tasks }: { lesson: Lesson; tasks: Task[]
       </div>
 
       {/* Tabs */}
-      <div className="border-b">
-        <div className="flex gap-4">
+      <div className="rounded-xl border border-slate-300/40 bg-white/[0.12] px-1 backdrop-blur-md dark:border-white/12 dark:bg-white/[0.06]">
+        <div className="flex gap-1">
           <button
             type="button"
             onClick={() => setActiveTab('theory')}
-            className={`border-b-2 px-4 py-2 font-medium ${
+            className={cn(
+              'rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
               activeTab === 'theory'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
-            }`}
+                ? 'bg-white/50 text-primary shadow-sm dark:bg-white/10 dark:text-primary'
+                : 'text-muted-foreground hover:bg-white/25 hover:text-foreground dark:hover:bg-white/5',
+            )}
           >
             Theory
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('tasks')}
-            className={`border-b-2 px-4 py-2 font-medium ${
+            className={cn(
+              'rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
               activeTab === 'tasks'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
-            }`}
+                ? 'bg-white/50 text-primary shadow-sm dark:bg-white/10 dark:text-primary'
+                : 'text-muted-foreground hover:bg-white/25 hover:text-foreground dark:hover:bg-white/5',
+            )}
           >
             Tasks
           </button>
@@ -202,9 +217,9 @@ export function LessonBuilder({ lesson, tasks }: { lesson: Lesson; tasks: Task[]
 
       {/* Theory Tab */}
       {activeTab === 'theory' && (
-        <Card>
+        <Card className={cn('border-0 shadow-none', adminGlassCard)}>
           <CardHeader>
-            <CardTitle>Lesson content</CardTitle>
+            <CardTitle className="text-gray-900 dark:text-gray-100">Lesson content</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
@@ -231,8 +246,9 @@ export function LessonBuilder({ lesson, tasks }: { lesson: Lesson; tasks: Task[]
               <div className="flex justify-center pt-2">
                 <Button
                   type="button"
+                  variant="hero"
+                  className="auth-hero-cta min-w-[14rem] px-8"
                   size="lg"
-                  className="min-w-[14rem] px-8"
                   onClick={() => void handleSave()}
                   disabled={loading}
                 >
@@ -247,11 +263,11 @@ export function LessonBuilder({ lesson, tasks }: { lesson: Lesson; tasks: Task[]
 
       {/* Tasks Tab */}
       {activeTab === 'tasks' && (
-        <Card>
+        <Card className={cn('border-0 shadow-none', adminGlassCard)}>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Questions and tasks</CardTitle>
-              <Button onClick={() => setShowAddTask(true)}>
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+              <CardTitle className="text-gray-900 dark:text-gray-100">Questions and tasks</CardTitle>
+              <Button variant="hero" className="auth-hero-cta w-full shrink-0 sm:w-auto" onClick={() => setShowAddTask(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add task
               </Button>

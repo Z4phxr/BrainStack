@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
+import { adminGlassCard, adminGlassOutlineButton } from '@/lib/student-glass-styles'
 
 type Level = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
 type Provider = 'anthropic' | 'openai'
@@ -266,10 +268,10 @@ export function AIAgentWorkspace() {
   }, [run, lastRunStatusNotified])
 
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-      <Card className="xl:col-span-5">
+    <div className="grid grid-cols-1 gap-8 xl:grid-cols-12">
+      <Card className={cn('border-0 shadow-none xl:col-span-5', adminGlassCard)}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
             <Sparkles className="h-5 w-5" />
             AI Agent Inputs
           </CardTitle>
@@ -413,14 +415,20 @@ export function AIAgentWorkspace() {
 
           <div className="flex gap-2">
             <Button
+              variant="hero"
+              className="auth-hero-cta flex-1"
               onClick={() => requestDraft(`Generate draft structure for topic: ${form.topic}`)}
               disabled={loadingDraft}
-              className="flex-1"
             >
               <Wand2 className="mr-2 h-4 w-4" />
               {loadingDraft ? 'Generating draft...' : 'Generate Draft'}
             </Button>
-            <Button onClick={acceptDraft} disabled={!draft || startingRun} className="flex-1">
+            <Button
+              variant="outline"
+              className={cn('flex-1', adminGlassOutlineButton)}
+              onClick={acceptDraft}
+              disabled={!draft || startingRun}
+            >
               {startingRun ? 'Starting...' : 'Accept and Generate'}
             </Button>
           </div>
@@ -428,23 +436,28 @@ export function AIAgentWorkspace() {
         </CardContent>
       </Card>
 
-      <div className="space-y-6 xl:col-span-7">
-        <Card>
+      <div className="space-y-8 xl:col-span-7">
+        <Card className={cn('border-0 shadow-none', adminGlassCard)}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
               <Bot className="h-5 w-5" />
               AI Chat
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="mb-4 max-h-[320px] space-y-3 overflow-auto rounded-md border p-3">
+            <div className="mb-4 max-h-[320px] space-y-3 overflow-auto rounded-xl border border-slate-300/40 bg-white/[0.12] p-3 backdrop-blur-md dark:border-white/12 dark:bg-white/[0.05]">
               {chat.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No messages yet. Generate a draft or type a follow-up instruction.</p>
               ) : (
                 chat.map((m, i) => (
                   <div
                     key={`${m.role}-${i}`}
-                    className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${m.role === 'user' ? 'ml-auto bg-blue-600 text-white' : 'bg-muted text-foreground'}`}
+                    className={cn(
+                      'max-w-[85%] rounded-xl px-3 py-2 text-sm shadow-sm',
+                      m.role === 'user'
+                        ? 'ml-auto border border-primary/35 bg-primary/90 text-primary-foreground backdrop-blur-sm dark:bg-primary/80'
+                        : 'border border-slate-200/50 bg-white/[0.35] text-foreground backdrop-blur-md dark:border-white/10 dark:bg-white/[0.08]',
+                    )}
                   >
                     {m.content}
                   </div>
@@ -464,7 +477,7 @@ export function AIAgentWorkspace() {
                   }
                 }}
               />
-              <Button onClick={() => requestDraft()} disabled={loadingDraft}>
+              <Button variant="hero" className="auth-hero-cta shrink-0" size="icon" onClick={() => requestDraft()} disabled={loadingDraft}>
                 <Send className="h-4 w-4" />
               </Button>
             </div>
@@ -476,7 +489,7 @@ export function AIAgentWorkspace() {
               ) : (
                 <div className="space-y-3">
                   <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                    <div className="h-full bg-blue-600" style={{ width: `${run.progress}%` }} />
+                    <div className="h-full bg-primary" style={{ width: `${run.progress}%` }} />
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Status: <span className="font-medium">{run.status}</span> - {run.progress}%
@@ -499,9 +512,9 @@ export function AIAgentWorkspace() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={cn('border-0 shadow-none', adminGlassCard)}>
           <CardHeader>
-            <CardTitle>Draft Structure</CardTitle>
+            <CardTitle className="text-gray-900 dark:text-gray-100">Draft Structure</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {!draft ? (

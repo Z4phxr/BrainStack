@@ -16,6 +16,7 @@ A production-ready exam preparation and course management platform built on Next
 
 | Area | Highlights |
 |------|-----------|
+| Student discovery | Dashboard shows courses you have started, a popularity strip, and a catalog promo card linking to `/courses` (filter by level and subject, search titles, sort, 15 per page) |
 | Course authoring | Manage `Subject -> Course -> Module -> Lesson -> Task` content with draft/publish controls |
 | Structured lessons | Build lessons from content blocks (text, image, math, callout, video, table) |
 | Assessments | Use multiple-choice, true/false, and open-ended tasks with scoring and solutions |

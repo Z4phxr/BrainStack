@@ -65,6 +65,8 @@ export async function createCourse(data: z.infer<typeof courseFormSchema>) {
       // Store subject as string id (payload uses varchar/uuid ids)
       subject: validated.subject ? String(validated.subject) : undefined,
       isPublished: false,
+      lastUpdatedBy: admin.email ?? undefined,
+      createdVia: 'admin',
     },
   })
 
@@ -96,7 +98,10 @@ export async function updateCourse(
   const course = await payload.update({
     collection: 'courses',
     id,
-    data: payloadData,
+    data: {
+      ...payloadData,
+      lastUpdatedBy: admin.email ?? undefined,
+    },
   })
 
   logActivity({
@@ -119,7 +124,7 @@ export async function toggleCoursePublish(id: string, isPublished: boolean) {
   const course = await payload.update({
     collection: 'courses',
     id,
-    data: { isPublished },
+    data: { isPublished, lastUpdatedBy: admin.email ?? undefined },
   })
 
   logActivity({
@@ -215,7 +220,7 @@ export async function publishCourseTree(courseId: string) {
     await payload.update({
       collection: 'courses',
       id: String(courseId),
-      data: { isPublished: true },
+      data: { isPublished: true, lastUpdatedBy: admin.email ?? undefined },
     })
   }
 

@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { studentGlassCard } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
 import {
   LESSON_THEORY_TEXT_SIZE_OPTIONS,
@@ -23,14 +24,13 @@ export function LessonReadingSizeSettings() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Lesson text size</CardTitle>
-        <CardDescription>
-          How large lesson theory and Markdown text blocks appear. Stored in this browser only.
-        </CardDescription>
+    <Card className={cn('border-0 shadow-none', studentGlassCard)}>
+      <CardHeader className="pb-4">
+        <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Lesson text size
+        </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         <div className="grid gap-2 sm:grid-cols-3">
           {LESSON_THEORY_TEXT_SIZE_OPTIONS.map((opt) => (
             <button

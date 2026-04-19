@@ -9,6 +9,8 @@ import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { FormError, FieldError } from '@/components/ui/form-error'
 import { ZodError } from 'zod'
 import { useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
+import { adminGlassCard, adminGlassOutlineButton } from '@/lib/student-glass-styles'
 
 interface Subject {
   id: string
@@ -140,14 +142,14 @@ export default function AdminSubjectsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-3xl space-y-8">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Subjects</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage course subjects</p>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">Subjects</h1>
+          <p className="mt-2 text-base text-gray-600 dark:text-gray-400 md:text-lg">Manage course subjects</p>
         </div>
         {!showForm && (
-          <Button onClick={() => setShowForm(true)}>
+          <Button variant="hero" className="auth-hero-cta" onClick={() => setShowForm(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add subject
           </Button>
@@ -155,7 +157,7 @@ export default function AdminSubjectsPage() {
       </div>
 
       {showForm && (
-        <Card>
+        <Card className={cn('border-0 shadow-none', adminGlassCard)}>
           <CardHeader>
             <CardTitle>{editingId ? 'Edit subject' : 'Add new subject'}</CardTitle>
           </CardHeader>
@@ -195,10 +197,10 @@ export default function AdminSubjectsPage() {
                 {fieldErrors.slug && <FieldError message={fieldErrors.slug} />}
               </div>
               <div className="flex gap-2">
-                <Button type="submit" disabled={loading}>
+                <Button type="submit" variant="hero" className="auth-hero-cta" disabled={loading}>
                   {editingId ? 'Update' : 'Create'}
                 </Button>
-                <Button type="button" variant="outline" onClick={handleCancel}>
+                <Button type="button" variant="outline" className={cn(adminGlassOutlineButton)} onClick={handleCancel}>
                   Cancel
                 </Button>
               </div>
@@ -207,9 +209,9 @@ export default function AdminSubjectsPage() {
         </Card>
       )}
 
-      <Card>
+      <Card className={cn('border-0 shadow-none', adminGlassCard)}>
         <CardHeader>
-          <CardTitle>All subjects ({subjects.length})</CardTitle>
+          <CardTitle className="text-gray-900 dark:text-gray-100">All subjects ({subjects.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {loading && subjects.length === 0 ? (
@@ -223,7 +225,10 @@ export default function AdminSubjectsPage() {
               {subjects.map((subject) => (
                 <div
                   key={subject.id}
-                  className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+                  className={cn(
+                    'flex items-center justify-between rounded-xl border p-4 shadow-sm backdrop-blur-md',
+                    'border-slate-300/45 bg-white/[0.28] dark:border-white/12 dark:bg-white/[0.06] dark:shadow-none',
+                  )}
                 >
                   <div>
                     <h3 className="font-medium text-gray-900 dark:text-gray-100">{subject.name}</h3>
@@ -233,6 +238,7 @@ export default function AdminSubjectsPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      className={cn(adminGlassOutlineButton)}
                       onClick={() => handleEdit(subject)}
                       disabled={loading}
                     >
@@ -243,7 +249,7 @@ export default function AdminSubjectsPage() {
                       variant="outline"
                       onClick={() => handleDelete(subject.id)}
                       disabled={loading}
-                      className="text-red-600 hover:text-red-700 dark:text-red-400"
+                      className="border-red-300/50 text-red-700 hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-950/30"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

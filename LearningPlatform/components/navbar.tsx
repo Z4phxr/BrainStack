@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { auth } from '@/auth';
 import { signOut } from '@/auth';
 import ThemeToggle from '@/components/theme-toggle';
+import { NavbarBrand } from '@/components/navbar-brand';
+import { studentGlassNav } from '@/lib/student-glass-styles';
+import { cn } from '@/lib/utils';
 
 export async function Navbar() {
   const session = await auth();
@@ -11,14 +14,9 @@ export async function Navbar() {
   const initial = (displayName ?? session?.user?.email ?? 'A')[0]?.toUpperCase()
 
   return (
-    <nav className="border-b dark:border-gray-700 block-contrast">
+    <nav className={cn('relative z-30', studentGlassNav)}>
       <div className="container mx-auto flex min-h-[4.25rem] items-center justify-between gap-4 px-4 py-3 sm:min-h-[4.5rem] sm:py-4">
-        <Link
-          href="/dashboard"
-          className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl"
-        >
-          BrainStack
-        </Link>
+        <NavbarBrand />
         
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 md:gap-4">
           {session ? (
@@ -26,23 +24,28 @@ export async function Navbar() {
               {/* Order: user → theme → settings → (admin) → sign out */}
               <div className="flex min-w-0 items-center gap-2.5">
                 <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200 text-base font-semibold text-gray-800 dark:bg-gray-700 dark:text-gray-100"
+                  className={cn(
+                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-base font-semibold backdrop-blur-sm',
+                    /* Light: readable on pale glass nav — tint + rim + soft depth (navbar shell unchanged). */
+                    'border-slate-400/45 bg-slate-200/75 text-slate-800 shadow-sm ring-1 ring-slate-900/[0.06]',
+                    'dark:border-white/20 dark:bg-white/10 dark:text-gray-100 dark:shadow-none dark:ring-0',
+                  )}
                   aria-hidden
                 >
                   {initial}
                 </div>
-                <span className="max-w-[10rem] truncate text-base text-gray-700 dark:text-gray-100 sm:max-w-[14rem] md:max-w-none">
+                <span className="max-w-[10rem] truncate text-base text-slate-800 dark:text-gray-100 sm:max-w-[14rem] md:max-w-none">
                   {displayName ?? 'Account'}
                 </span>
               </div>
               <ThemeToggle />
-              <Button asChild variant="ghost" size="icon-lg" aria-label="Settings">
+              <Button asChild variant="ghost" size="icon-xl" aria-label="Settings">
                 <Link href="/dashboard/flashcards/settings">
-                  <Settings className="h-5 w-5" />
+                  <Settings className="size-6" />
                 </Link>
               </Button>
               {session.user?.role === 'ADMIN' && (
-                <Button asChild variant="outline" size="default" className="text-base">
+                <Button asChild variant="hero" size="default" className="auth-hero-cta text-base">
                   <Link href="/admin/dashboard">Admin dashboard</Link>
                 </Button>
               )}
@@ -52,7 +55,7 @@ export async function Navbar() {
                   await signOut({ redirectTo: '/' });
                 }}
               >
-                <Button type="submit" variant="outline" size="default" className="text-base">
+                <Button type="submit" variant="hero" size="default" className="auth-hero-cta text-base">
                   Sign out
                 </Button>
               </form>
@@ -60,10 +63,10 @@ export async function Navbar() {
           ) : (
             <>
               <ThemeToggle />
-              <Button asChild size="default" className="text-base">
+              <Button asChild variant="hero" size="default" className="auth-hero-cta text-base">
                 <Link href="/register">Get started</Link>
               </Button>
-              <Button asChild variant="outline" size="default" className="text-base">
+              <Button asChild variant="hero" size="default" className="auth-hero-cta text-base">
                 <Link href="/login">Sign in</Link>
               </Button>
             </>

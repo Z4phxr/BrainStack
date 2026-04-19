@@ -4,6 +4,8 @@ import { ReloadButton } from '@/components/ui/reload-button'
 import { CoursesList } from '@/components/admin/courses-list'
 import { AddCourseButton } from '@/components/admin/add-course-button'
 import { BookOpen, Users, GraduationCap } from 'lucide-react'
+import { adminGlassCard } from '@/lib/student-glass-styles'
+import { cn } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +16,10 @@ type Course = {
   subject: string
   level: string
   isPublished: boolean
+  createdAt: string
   updatedAt: string
+  lastUpdatedBy: string | null
+  createdVia: string | null
 }
 
 export default async function AdminDashboardPage() {
@@ -33,7 +38,10 @@ export default async function AdminDashboardPage() {
         subject: typeof c.subject === 'string' ? c.subject : c.subject?.name ?? '',
         level: c.level,
         isPublished: Boolean(c.isPublished),
+        createdAt: c.createdAt,
         updatedAt: c.updatedAt,
+        lastUpdatedBy: typeof c.lastUpdatedBy === 'string' && c.lastUpdatedBy.trim() ? c.lastUpdatedBy.trim() : null,
+        createdVia: typeof c.createdVia === 'string' ? c.createdVia : null,
       }))
     } catch (err) {
       console.error('Failed to fetch courses:', err)
@@ -53,53 +61,53 @@ export default async function AdminDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-6xl space-y-8">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400">Manage courses and content</p>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">Dashboard</h1>
+          <p className="mt-2 text-base text-gray-600 dark:text-gray-400 md:text-lg">Manage courses and content</p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <AddCourseButton />
           <ReloadButton />
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className={cn('border-0 shadow-none', adminGlassCard)}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-medium">All courses</CardTitle>
-            <BookOpen className="h-5 w-5 text-blue-600" />
+            <CardTitle className="text-base font-medium text-gray-900 dark:text-gray-100">All courses</CardTitle>
+            <BookOpen className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats.totalCourses}</div>
+            <div className="text-3xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{stats.totalCourses}</div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={cn('border-0 shadow-none', adminGlassCard)}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-medium">Published</CardTitle>
-            <GraduationCap className="h-5 w-5 text-green-600" />
+            <CardTitle className="text-base font-medium text-gray-900 dark:text-gray-100">Published</CardTitle>
+            <GraduationCap className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats.publishedCourses}</div>
+            <div className="text-3xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{stats.publishedCourses}</div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={cn('border-0 shadow-none', adminGlassCard)}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-medium">Drafts</CardTitle>
-            <Users className="h-5 w-5 text-gray-600" />
+            <CardTitle className="text-base font-medium text-gray-900 dark:text-gray-100">Drafts</CardTitle>
+            <Users className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats.draftCourses}</div>
+            <div className="text-3xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{stats.draftCourses}</div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      <Card className={cn('border-0 shadow-none', adminGlassCard)}>
         <CardHeader>
-          <CardTitle className="text-2xl">Courses</CardTitle>
+          <CardTitle className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Courses</CardTitle>
         </CardHeader>
         <CardContent>
           {error ? (

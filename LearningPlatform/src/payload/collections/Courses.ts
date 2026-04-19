@@ -112,5 +112,28 @@ export const Courses: CollectionConfig = {
         description: 'Only published courses are visible to learners',
       },
     },
+    {
+      name: 'lastUpdatedBy',
+      type: 'text',
+      label: 'Last updated by',
+      admin: {
+        readOnly: true,
+        description: 'Admin email when the course was last saved from the panel; empty if only import touched it.',
+      },
+    },
+    {
+      name: 'createdVia',
+      type: 'select',
+      defaultValue: 'admin',
+      label: 'Created via',
+      options: [
+        { label: 'Admin / UI', value: 'admin' },
+        { label: 'Content import', value: 'import' },
+      ],
+      admin: {
+        readOnly: true,
+        description: 'How this course was first created.',
+      },
+    },
   ],
 }

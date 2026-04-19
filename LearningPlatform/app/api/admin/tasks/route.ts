@@ -3,8 +3,15 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { requireAdmin } from '@/lib/auth-helpers'
 
+const TASK_TYPES = ['MULTIPLE_CHOICE', 'OPEN_ENDED', 'TRUE_FALSE'] as const
+type TaskTypeFilter = (typeof TASK_TYPES)[number]
+
+function isTaskTypeFilter(v: string | null): v is TaskTypeFilter {
+  return v !== null && (TASK_TYPES as readonly string[]).includes(v)
+}
+
 // ─── GET /api/admin/tasks ─────────────────────────────────────────────────────
-// Returns all tasks with their lesson populated (depth 1).
+// Returns tasks with lesson populated (depth 1). Optional: tagSlugs (AND), type.
 
 export async function GET(req: Request) {
   try {
@@ -16,21 +23,35 @@ export async function GET(req: Request) {
     const tagSlugsParam = searchParams.get('tagSlugs')
     const tagSlugs = tagSlugsParam ? tagSlugsParam.split(',').map((s) => s.trim()).filter(Boolean) : (tagSlug ? [tagSlug] : [])
 
+    const typeParam = searchParams.get('type')
+
     const payload = await getPayload({ config })
 
     const query: Parameters<typeof payload.find>[0] = {
       collection: 'tasks',
-      limit: 500,
+      limit: 2000,
       sort: '-createdAt',
       depth: 1, // populate lesson so we can show lesson title
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parts: any[] = []
+
     // Tag filtering: tasks store tags as an array field `tags` with sub-field `slug`.
-    // If multiple slugs provided, use AND semantics: task must have all specified tags.
     if (tagSlugs.length === 1) {
-      query.where = { 'tags.slug': { equals: tagSlugs[0] } }
+      parts.push({ 'tags.slug': { equals: tagSlugs[0] } })
     } else if (tagSlugs.length > 1) {
-      query.where = { and: tagSlugs.map((s) => ({ 'tags.slug': { equals: s } })) }
+      parts.push({ and: tagSlugs.map((s) => ({ 'tags.slug': { equals: s } })) })
+    }
+
+    if (isTaskTypeFilter(typeParam)) {
+      parts.push({ type: { equals: typeParam } })
+    }
+
+    if (parts.length === 1) {
+      query.where = parts[0]
+    } else if (parts.length > 1) {
+      query.where = { and: parts }
     }
 
     const { docs } = await payload.find(query)

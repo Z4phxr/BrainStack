@@ -226,7 +226,12 @@ async function ensureSubject(payload: any, draft: DraftCourse): Promise<string> 
   return String(created.id)
 }
 
-async function createCourse(payload: any, draft: DraftCourse, subjectId: string): Promise<{ id: string; title: string }> {
+async function createCourse(
+  payload: any,
+  draft: DraftCourse,
+  subjectId: string,
+  actor?: { id?: string; email?: string },
+): Promise<{ id: string; title: string }> {
   let slug = toSlug(draft.course.slug)
   const existing = await payload.find({
     collection: 'courses',
@@ -245,6 +250,8 @@ async function createCourse(payload: any, draft: DraftCourse, subjectId: string)
       level: draft.course.level,
       subject: subjectId,
       isPublished: false,
+      lastUpdatedBy: typeof actor?.email === 'string' ? actor.email : undefined,
+      createdVia: 'admin',
     },
   })
   return { id: String(course.id), title: String(course.title) }
@@ -355,7 +362,7 @@ export async function runAcceptPipeline(runId: string, input: unknown, actor?: {
     setProgress(runId, 5)
 
     const subjectId = await ensureSubject(payload, parsed.draft)
-    const course = await createCourse(payload, parsed.draft, subjectId)
+    const course = await createCourse(payload, parsed.draft, subjectId, actor)
     createdCourseId = course.id
     if (prepId) updateTimeline(runId, prepId, { status: 'done', detail: `Course ${course.title} created` })
     setProgress(runId, 15)

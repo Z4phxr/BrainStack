@@ -300,6 +300,16 @@ model ActivityLog {
   @@map("activity_logs")
 }
 
+/// Singleton-style row (`id` = "platform") for cross-instance admin toggles.
+model PlatformFlags {
+  id                       String   @id
+  /// When false, `logActivity` skips creating new rows (existing logs remain).
+  activityLoggingEnabled Boolean @default(true)
+  updatedAt              DateTime @updatedAt
+
+  @@map("platform_flags")
+}
+
 enum Role {
   STUDENT
   ADMIN

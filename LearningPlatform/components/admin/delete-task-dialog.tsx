@@ -1,6 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { adminGlassCard, adminGlassOutlineButton } from '@/lib/student-glass-styles'
 import { AlertTriangle, BookOpen, Loader2, Trash2, X } from 'lucide-react'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -39,7 +41,7 @@ export function DeleteTaskDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div
-        className="w-full max-w-md rounded-lg block-contrast shadow-xl"
+        className={cn('w-full max-w-md overflow-hidden shadow-2xl', adminGlassCard)}
         data-testid="delete-task-dialog"
       >
         {/* Header */}
@@ -116,7 +118,7 @@ export function DeleteTaskDialog({
               </>
             )}
           </Button>
-          <Button variant="outline" onClick={onClose} disabled={loading}>
+          <Button variant="outline" className={cn(adminGlassOutlineButton)} onClick={onClose} disabled={loading}>
             Cancel
           </Button>
         </div>

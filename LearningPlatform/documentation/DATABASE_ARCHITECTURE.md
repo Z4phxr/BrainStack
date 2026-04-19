@@ -108,6 +108,7 @@ The database connection string is read from the `DATABASE_URL` environment varia
 |  |  UserFlashcardProgress |  |                        |  |
 |  |  TaskProgressTag       |  |                        |  |
 |  |  ActivityLog           |  |                        |  |
+|  |  PlatformFlags         |  |                        |  |
 |  |  RevokedToken          |  |                        |  |
 |  |  RateLimit             |  |                        |  |
 |  +------------+-----------+  +------------+-----------+  |
@@ -314,6 +315,17 @@ Immutable audit record of significant platform actions (tag creation, course del
 | `metadata` | `Json?` | Arbitrary key-value context (old/new values, etc.) |
 
 Rows are never updated or deleted — this table is append-only by convention.
+
+---
+
+#### `PlatformFlags`
+
+Singleton-style configuration row for cross-instance toggles (single logical key `id = "platform"`).
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | `String` | Primary key; use `"platform"` for the default row |
+| `activityLoggingEnabled` | `Boolean` | When `false`, `logActivity` skips creating new `ActivityLog` rows (see `lib/platform-flags.ts`) |
 
 ---
 
@@ -586,8 +598,10 @@ const newReviewedToday = await prisma.userFlashcardProgress.count({
 | Index | Columns | Rationale |
 |-------|---------|-----------|
 | Unique | `(userId, courseId)` | Upsert lookup |
-| Index | `userId` | Student's enrolled courses list |
-| Index | `courseId` | All students enrolled in a course |
+| Index | `userId` | Fetch all per-course aggregate rows for a user (progress bars, recalculation) |
+| Index | `courseId` | Aggregate rows for everyone working in one course |
+
+The student **“Your courses”** list and **Active courses** stat use **`LessonProgress`** (started or completed published lessons), not a simple count of `CourseProgress` rows. `CourseProgress` remains the denormalised per-course summary used after submissions and for progress UI.
 
 #### `user_flashcard_progress`
 
@@ -729,9 +743,11 @@ All three surfaces share the same singleton `prisma` client exported from `lib/p
 |------|---------------|
 | `submit-task.ts` | Core submission flow: upsert progress, evaluate answer, sync tags, recalculate course aggregate |
 | `lesson-progress.ts` | `checkLessonCompletion`: marks lesson complete when all tasks are submitted |
-| `course-progress.ts` | `recalculateCourseProgress`: recomputes `CourseProgress` aggregate from live data |
-| `progress.ts` | Read helpers: fetch task and lesson progress for the current user |
-| `user-stats.ts` | Dashboard aggregate queries: total points earned, tasks attempted, lessons completed |
+| `course-progress.ts` | `recalculateCourseProgress`, cached per-course reads, **`getPopularCourseIds()`** (distinct learners from `LessonProgress`, padded to five with newest published courses, short `unstable_cache` TTL) |
+| `progress.ts` | Barrel re-exports for `app/actions/*` progress modules |
+| `user-stats.ts` | Dashboard stats: completed lessons, total points, **active courses** (distinct started courses via `getOrderedStartedCourseIds`; takes a Payload instance to avoid duplicate CMS round-trips) |
+| `lib/started-courses.ts` | **`getOrderedStartedCourseIds`**, **`fetchPublishedCoursesByIdsInOrder`**: map `LessonProgress` to published courses for the dashboard strip and stats |
+| `lib/courses-catalog.ts` | Parses `/courses` query params, builds Payload `where`, serialises links for pagination (15 per page) |
 
 ### 8.3 SRS algorithm
 
@@ -753,7 +769,7 @@ The algorithm accepts the current card state plus the user's answer (`AGAIN / HA
 | SRS algorithm | `lib/srs.ts` — pure functions, no side effects |
 | CMS content access | `getPayload({ config })` — Payload SDK |
 | Cache invalidation | `revalidateTag()` / `revalidatePath()` from Next.js |
-| Audit logging | `lib/activity-log.ts` — append-only writes to `activity_logs` |
+| Audit logging | `lib/activity-log.ts` — append-only writes to `activity_logs` when `platform_flags.activityLoggingEnabled` is true (`lib/platform-flags.ts`) |
 
 ---
 

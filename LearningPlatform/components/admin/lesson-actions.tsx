@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
-import { updateLesson, deleteLesson, toggleLessonPublish } from '@/app/(admin)/admin/actions'
+import { deleteLesson, toggleLessonPublish } from '@/app/(admin)/admin/actions'
+import { cn } from '@/lib/utils'
+import { adminGlassOutlineButton } from '@/lib/student-glass-styles'
 
 interface LessonActionsProps {
   lessonId: string | number
@@ -44,24 +46,26 @@ export function LessonActions({ lessonId, lessonTitle, isPublished }: LessonActi
   }
 
   return (
-    <div className="flex gap-2">
-      <Button variant="outline" size="sm" asChild>
+    <div className="flex flex-wrap gap-2">
+      <Button variant="hero" size="sm" className="auth-hero-cta" asChild>
         <Link href={`/admin/lessons/${lessonId}/builder`}>
-          <Edit className="h-4 w-4 mr-2" />
+          <Edit className="mr-2 h-4 w-4" />
           Edit
         </Link>
       </Button>
-      <Button 
-        variant="outline" 
-        size="sm" 
+      <Button
+        variant="outline"
+        size="sm"
+        className={cn(adminGlassOutlineButton)}
         onClick={handlePublishToggle}
         disabled={loading}
       >
         {isPublished ? 'Unpublish' : 'Publish'}
       </Button>
-      <Button 
-        variant="destructive" 
-        size="sm" 
+      <Button
+        variant="outline"
+        size="sm"
+        className="border-red-300/50 text-red-700 hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-950/30"
         onClick={handleDelete}
         disabled={loading}
       >

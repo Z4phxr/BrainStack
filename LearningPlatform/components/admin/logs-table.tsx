@@ -21,6 +21,8 @@ import {
 } from '@/components/ui/table'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { LogEntry } from '@/lib/logs-types'
+import { cn } from '@/lib/utils'
+import { adminGlassCard, adminGlassOutlineButton, studentGlassPill } from '@/lib/student-glass-styles'
 
 interface LogsTableProps {
   logs: LogEntry[]
@@ -110,7 +112,7 @@ export function LogsTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-3 items-end rounded-lg border bg-card p-4">
+      <div className={cn('flex flex-wrap items-end gap-3 rounded-xl border-0 p-4 shadow-none', adminGlassCard)}>
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground">Action</label>
           <Select
@@ -163,12 +165,16 @@ export function LogsTable({
         </div>
 
         <div className="flex gap-2">
-          <Button size="sm" onClick={applyFilters}>Apply</Button>
-          <Button size="sm" variant="outline" onClick={resetFilters}>Reset</Button>
+          <Button size="sm" variant="hero" className="auth-hero-cta" onClick={applyFilters}>
+            Apply
+          </Button>
+          <Button size="sm" variant="outline" className={cn(adminGlassOutlineButton)} onClick={resetFilters}>
+            Reset
+          </Button>
         </div>
       </div>
 
-      <div className="rounded-lg border overflow-hidden">
+      <div className={cn('overflow-hidden rounded-xl border-0 shadow-none', adminGlassCard)}>
         <Table>
           <TableHeader>
             <TableRow>
@@ -209,7 +215,13 @@ export function LogsTable({
                   </TableCell>
 
                   <TableCell>
-                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                    <span
+                      className={cn(
+                        studentGlassPill,
+                        'px-2.5 py-0.5 text-xs font-medium tracking-normal text-blue-800 dark:text-blue-200',
+                        'border-slate-400/50 bg-white/[0.52] ring-white/65',
+                      )}
+                    >
                       {log.action.replace(/_/g, ' ')}
                     </span>
                   </TableCell>
@@ -240,6 +252,7 @@ export function LogsTable({
             <Button
               size="sm"
               variant="outline"
+              className={cn(adminGlassOutlineButton)}
               disabled={page <= 1}
               onClick={() => goToPage(page - 1)}
             >
@@ -252,6 +265,7 @@ export function LogsTable({
             <Button
               size="sm"
               variant="outline"
+              className={cn(adminGlassOutlineButton)}
               disabled={page >= totalPages}
               onClick={() => goToPage(page + 1)}
             >

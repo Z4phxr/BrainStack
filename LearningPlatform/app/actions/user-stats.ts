@@ -2,17 +2,20 @@
 
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import type { Payload } from 'payload'
+import { getOrderedStartedCourseIds } from '@/lib/started-courses'
 
 /**
  * Get aggregate learning stats for the current user (for dashboard widgets).
+ * Pass the same Payload instance the caller uses so started courses are resolved in one pass.
  */
-export async function getUserStats() {
+export async function getUserStats(payload: Payload) {
   const session = await auth()
   if (!session?.user?.id) {
     throw new Error('Unauthorized')
   }
 
-  const [completedLessonsCount, totalPointsEarned, courseCount] = await Promise.all([
+  const [completedLessonsCount, totalPointsEarned, startedCourseIds] = await Promise.all([
     prisma.lessonProgress.count({
       where: { userId: session.user.id, status: 'COMPLETED' },
     }),
@@ -20,14 +23,13 @@ export async function getUserStats() {
       where: { userId: session.user.id },
       _sum: { earnedPoints: true },
     }),
-    prisma.courseProgress.count({
-      where: { userId: session.user.id },
-    }),
+    getOrderedStartedCourseIds(session.user.id, payload),
   ])
 
   return {
     completedLessons: completedLessonsCount,
     totalPoints: totalPointsEarned._sum.earnedPoints || 0,
-    activeCourses: courseCount,
+    activeCourses: startedCourseIds.length,
+    startedCourseIds,
   }
 }

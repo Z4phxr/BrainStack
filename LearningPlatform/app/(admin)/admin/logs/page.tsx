@@ -34,10 +34,10 @@ export default async function LogsPage({ searchParams }: PageProps) {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-6xl space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Activity Logs</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">Activity Logs</h1>
+        <p className="mt-2 text-base text-muted-foreground md:text-lg">
           Platform activity log ({result.total.toLocaleString()} total{' '}
           {result.total === 1 ? 'entry' : 'entries'})
         </p>

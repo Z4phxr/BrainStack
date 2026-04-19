@@ -25,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle, XCircle, Loader2, ArrowRight, RotateCcw, Home, Eye } from 'lucide-react'
+import { studentGlassCard } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
 import { extractText } from '@/lib/lexical'
 import { evaluateTaskAnswer } from '@/lib/evaluate-task-answer'
@@ -65,7 +66,9 @@ interface AnswerResult {
 function RichText({ content }: { content: unknown }) {
   const text = extractText(content)
   if (!text) return null
-  return <p className="text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">{text}</p>
+  return (
+    <p className="whitespace-pre-wrap leading-relaxed text-gray-800 dark:text-gray-200">{text}</p>
+  )
 }
 
 // ─── PracticeTaskCard ─────────────────────────────────────────────────────────
@@ -106,10 +109,10 @@ function PracticeTaskCard({ task, index, total, onComplete }: PracticeTaskCardPr
   }
 
   return (
-    <Card className="w-full">
+    <Card className={cn('w-full border-0 shadow-none', studentGlassCard)}>
       <CardHeader>
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <CardTitle className="text-base font-semibold text-gray-700 dark:text-gray-300">
+          <CardTitle className="text-base font-semibold text-gray-900 dark:text-gray-100">
             Task {index + 1} of {total}
           </CardTitle>
           <div className="flex gap-1.5 flex-wrap">
@@ -120,9 +123,9 @@ function PracticeTaskCard({ task, index, total, onComplete }: PracticeTaskCardPr
         </div>
 
         {/* Progress bar */}
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-2">
+        <div className="mt-2 h-1.5 w-full rounded-full bg-slate-200/80 dark:bg-white/10">
           <div
-            className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300"
+            className="h-1.5 rounded-full bg-primary transition-all duration-300"
             style={{ width: `${((index + 1) / total) * 100}%` }}
           />
         </div>
@@ -142,12 +145,13 @@ function PracticeTaskCard({ task, index, total, onComplete }: PracticeTaskCardPr
                 {(task.choices ?? []).map((choice, i) => (
                   <button
                     key={choice.id ?? i}
+                    type="button"
                     onClick={() => setSelected(choice.text)}
                     className={cn(
-                      'w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors',
+                      'w-full rounded-xl border px-4 py-3 text-left text-sm shadow-sm backdrop-blur-md transition-colors',
                       selected === choice.text
-                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600',
+                        ? 'border-primary/50 bg-primary/15 text-primary dark:border-primary/45 dark:bg-primary/20 dark:text-gray-100'
+                        : 'border-slate-300/45 bg-white/[0.28] hover:border-slate-400/55 hover:bg-white/[0.38] dark:border-white/12 dark:bg-white/[0.06] dark:hover:border-white/18 dark:hover:bg-white/[0.1]',
                     )}
                   >
                     {choice.text}
@@ -164,10 +168,10 @@ function PracticeTaskCard({ task, index, total, onComplete }: PracticeTaskCardPr
                     type="button"
                     onClick={() => setSelected(opt)}
                     className={cn(
-                      'flex-1 px-4 py-3 rounded-lg border text-sm font-medium transition-colors',
+                      'flex-1 rounded-xl border px-4 py-3 text-sm font-medium shadow-sm backdrop-blur-md transition-colors',
                       selected === opt
-                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300',
+                        ? 'border-primary/50 bg-primary/15 text-primary dark:border-primary/45 dark:bg-primary/20 dark:text-gray-100'
+                        : 'border-slate-300/45 bg-white/[0.28] hover:border-slate-400/55 hover:bg-white/[0.38] dark:border-white/12 dark:bg-white/[0.06] dark:hover:border-white/18 dark:hover:bg-white/[0.1]',
                     )}
                   >
                     {opt === 'true' ? 'True' : 'False'}
@@ -182,15 +186,20 @@ function PracticeTaskCard({ task, index, total, onComplete }: PracticeTaskCardPr
                 onChange={(e) => setSelected(e.target.value)}
                 placeholder="Type your answer…"
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm
-                           bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className={cn(
+                  'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs',
+                  'ring-offset-background placeholder:text-muted-foreground',
+                  'focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                )}
               />
             )}
 
             <Button
+              type="button"
+              variant="hero"
+              className="auth-hero-cta"
               onClick={handleSubmit}
               disabled={!selected.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700"
             >
               Check Answer
             </Button>
@@ -267,11 +276,16 @@ function PracticeTaskCard({ task, index, total, onComplete }: PracticeTaskCardPr
 
             {/* Difficulty (open-ended only — practice does not persist; same prompt as lessons) */}
             {task.type === 'OPEN_ENDED' && difficultyRating == null && (
-              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-900/40">
-                <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
+              <div
+                className={cn(
+                  'mx-auto w-full max-w-md rounded-xl border border-dashed p-4 backdrop-blur-md sm:max-w-lg',
+                  'border-slate-400/50 bg-white/[0.22] dark:border-white/25 dark:bg-white/[0.08]',
+                )}
+              >
+                <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-white sm:text-base">
                   How difficult was this task?
                 </h4>
-                <p className="mb-3 text-xs text-gray-600 dark:text-gray-400">
+                <p className="mb-3 text-xs text-gray-600 dark:text-white/85 sm:text-sm">
                   Optional — helps tune recommendations. (Not saved in practice mode.)
                 </p>
                 <div className="grid grid-cols-5 gap-2">
@@ -280,7 +294,11 @@ function PracticeTaskCard({ task, index, total, onComplete }: PracticeTaskCardPr
                       key={n}
                       type="button"
                       onClick={() => setDifficultyRating(n)}
-                      className="rounded-lg border border-gray-300 py-2 text-sm font-medium transition-colors hover:border-indigo-400 hover:bg-indigo-50 dark:border-gray-600 dark:hover:border-indigo-500 dark:hover:bg-indigo-950/50"
+                      className={cn(
+                        'rounded-xl border py-2 text-sm font-semibold shadow-sm backdrop-blur-md transition-colors',
+                        'border-slate-300/45 bg-white/[0.28] text-gray-900 hover:border-primary/40 hover:bg-primary/10',
+                        'dark:border-white/25 dark:bg-white/[0.1] dark:text-white dark:hover:border-primary/40 dark:hover:bg-primary/20',
+                      )}
                     >
                       {n}
                     </button>
@@ -290,8 +308,10 @@ function PracticeTaskCard({ task, index, total, onComplete }: PracticeTaskCardPr
             )}
 
             <Button
+              type="button"
+              variant="hero"
+              className="auth-hero-cta gap-2"
               onClick={() => onComplete(result!)}
-              className="gap-2 bg-indigo-600 hover:bg-indigo-700"
             >
               Next Task <ArrowRight className="h-4 w-4" />
             </Button>
@@ -317,9 +337,9 @@ function Summary({ results, onRestart }: SummaryProps) {
   const pct = scored > 0 ? Math.round((correct / scored) * 100) : 0
 
   return (
-    <Card className="w-full max-w-lg mx-auto text-center">
+    <Card className={cn('mx-auto w-full max-w-lg border-0 text-center shadow-none', studentGlassCard)}>
       <CardHeader>
-        <CardTitle className="text-2xl">Session Complete!</CardTitle>
+        <CardTitle className="text-2xl text-gray-900 dark:text-gray-100">Session Complete!</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {scored > 0 ? (
@@ -369,13 +389,13 @@ function Summary({ results, onRestart }: SummaryProps) {
           ))}
         </div>
 
-        <div className="flex gap-3 justify-center pt-2">
-          <Button onClick={onRestart} variant="outline" className="gap-2">
-            <RotateCcw className="w-4 h-4" /> Try Again
+        <div className="flex flex-wrap justify-center gap-3 pt-2">
+          <Button type="button" onClick={onRestart} variant="outline" className="gap-2">
+            <RotateCcw className="h-4 w-4" /> Try Again
           </Button>
-          <Button asChild className="bg-indigo-600 hover:bg-indigo-700 gap-2">
+          <Button asChild variant="hero" className="auth-hero-cta gap-2">
             <Link href="/dashboard">
-              <Home className="w-4 h-4" /> Dashboard
+              <Home className="h-4 w-4" /> Dashboard
             </Link>
           </Button>
         </div>
@@ -480,46 +500,58 @@ export default function PracticePage() {
   // ── Render ─────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-        <p className="text-gray-500">Preparing your practice session…</p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center px-5 py-12">
+        <Card className={cn('border-0 shadow-none', studentGlassCard)}>
+          <CardContent className="flex flex-col items-center gap-4 px-10 py-10 sm:px-12">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-center text-gray-600 dark:text-gray-400">Preparing your practice session…</p>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="container mx-auto px-6 py-12 max-w-lg text-center space-y-6">
-        <p className="text-red-600 dark:text-red-400">{error}</p>
-        <div className="flex gap-3 justify-center">
-          <Button onClick={handleRestart} variant="outline">Try Again</Button>
-          <Button asChild className="bg-indigo-600 hover:bg-indigo-700">
-            <Link href="/dashboard">Go to Dashboard</Link>
-          </Button>
-        </div>
+      <div className="container mx-auto max-w-lg space-y-6 px-5 py-10 text-center md:px-6 md:py-12">
+        <Card className={cn('border-0 shadow-none', studentGlassCard)}>
+          <CardContent className="space-y-6 px-5 py-8 sm:px-6">
+            <p className="text-base text-red-600 dark:text-red-400">{error}</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Button type="button" onClick={handleRestart} variant="outline">
+                Try Again
+              </Button>
+              <Button asChild variant="hero" className="auth-hero-cta">
+                <Link href="/dashboard">Go to Dashboard</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   if (finished) {
     return (
-      <div className="container mx-auto px-6 py-12">
+      <div className="container mx-auto max-w-5xl px-5 py-7 md:px-6 md:py-8">
         <Summary results={results} onRestart={handleRestart} />
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-6 py-8 max-w-2xl">
+    <div className="container mx-auto max-w-2xl space-y-8 px-5 py-7 md:px-6 md:py-8">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Practice Session</h1>
-          <p className="text-sm text-gray-500 mt-1">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+        <div className="text-center sm:text-left">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">
+            Practice Session
+          </h1>
+          <p className="mt-2 text-base text-gray-600 dark:text-gray-400">
             Adaptive practice based on your weak areas
           </p>
         </div>
-        <Button asChild variant="ghost" size="sm">
+        <Button asChild variant="outline" size="sm" className="shrink-0 self-center sm:self-start">
           <Link href="/dashboard">← Dashboard</Link>
         </Button>
       </div>
@@ -532,9 +564,9 @@ export default function PracticePage() {
           onComplete={handleNext}
         />
       ) : (
-        <Card>
+        <Card className={cn('border-0 shadow-none', studentGlassCard)}>
           <CardContent className="flex items-center justify-center py-16">
-            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </CardContent>
         </Card>
       )}

@@ -20,7 +20,12 @@ export function AddCourseButton() {
   }
 
   return (
-    <Button onClick={handleCreate} disabled={loading} variant="default">
+    <Button
+      onClick={handleCreate}
+      disabled={loading}
+      variant="hero"
+      className="auth-hero-cta"
+    >
       <Plus className="mr-2 h-4 w-4" />
       Add Course
     </Button>

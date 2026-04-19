@@ -5,12 +5,20 @@ import { Check } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import Link from 'next/link'
 import Image from 'next/image'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { CourseHeroTitle } from '@/components/courses/course-hero-title'
+import { studentGlassCard, studentGlassPill } from '@/lib/student-glass-styles'
+import { cn } from '@/lib/utils'
+
+/** Avoid “Module 1: Module 1: …” when CMS titles already include a module prefix. */
+function moduleDisplayTitle(orderIndex: number, rawTitle?: string | null): string {
+  const rest = (rawTitle ?? '').trim().replace(/^module\s*\d+\s*:\s*/i, '').trim()
+  if (!rest) return `Module ${orderIndex + 1}`
+  return `Module ${orderIndex + 1}: ${rest}`
+}
 
 export default async function CoursePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -92,11 +100,11 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
-      {/* Course Header */}
-      <div className="mb-8 text-center">
+    <div className="container mx-auto max-w-5xl space-y-8 px-5 py-7 md:px-6 md:py-8">
+      {/* Hero — same liquid glass language as the student dashboard */}
+      <Card className={cn('overflow-hidden border-0 p-0 shadow-none', studentGlassCard)}>
         {course.coverImage && typeof course.coverImage === 'object' && (
-          <div className="relative h-64 w-full overflow-hidden rounded-lg mb-6">
+          <div className="relative h-52 w-full overflow-hidden sm:h-56 md:h-64">
             <Image
               src={`/api/media/serve/${encodeURIComponent(course.coverImage.filename)}`}
               alt={course.coverImage.alt || course.title}
@@ -106,33 +114,47 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
             />
           </div>
         )}
-        
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <Badge variant="secondary" className="text-sm">{course.level}</Badge>
-          <Badge variant="outline" className="text-sm">{typeof course.subject === 'string' ? course.subject : (course.subject as any)?.name ?? ''}</Badge>
-        </div>
 
-        <h1 className="text-4xl font-bold text-primary dark:text-white mb-4">{course.title}</h1>
-
-        {course.description && (
-          <div className="text-gray-700 dark:text-gray-200 prose max-w-none mx-auto">
-            {typeof course.description === 'string' 
-              ? <p>{course.description}</p>
-              : <div>Explore the full set of topics covered in this course.</div>}
+        <div className="space-y-4 px-5 pb-6 pt-5 text-center sm:px-6 sm:pt-6">
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {course.level ? (
+              <span className={cn(studentGlassPill, 'text-sm uppercase')}>{course.level}</span>
+            ) : null}
+            {typeof course.subject === 'string' && course.subject ? (
+              <span className={cn(studentGlassPill, 'text-sm font-medium normal-case tracking-tight')}>
+                {course.subject}
+              </span>
+            ) : (course.subject as { name?: string } | null)?.name ? (
+              <span className={cn(studentGlassPill, 'text-sm font-medium normal-case tracking-tight')}>
+                {(course.subject as { name?: string }).name}
+              </span>
+            ) : null}
           </div>
-        )}
-      </div>
 
-      <Separator className="my-8" />
+          <CourseHeroTitle>{course.title}</CourseHeroTitle>
 
-      {/* Modules and Lessons */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-primary dark:text-gray-100 text-center">Course modules</h2>
+          {course.description && (
+            <div className="mx-auto max-w-3xl text-base leading-relaxed text-gray-600 dark:text-gray-400 md:text-lg">
+              {typeof course.description === 'string' ? (
+                <p>{course.description}</p>
+              ) : (
+                <p>Explore the full set of topics covered in this course.</p>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Modules and lessons */}
+      <section className="space-y-5">
+        <h2 className="text-center text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">
+          Course modules
+        </h2>
 
         {modulesWithLessons.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-center text-gray-500 dark:text-gray-400">
+          <Card className={cn('border-0 shadow-none', studentGlassCard)}>
+            <CardContent className="px-5 py-10 text-center sm:px-6">
+              <p className="text-base text-gray-600 dark:text-gray-400 md:text-lg">
                 Course content is being prepared. Check back soon!
               </p>
             </CardContent>
@@ -140,28 +162,43 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
         ) : (
           <div className="space-y-4">
             {modulesWithLessons.map((courseModule, index) => (
-              <Card key={courseModule.id} className="block-contrast">
-                <CardHeader>
-                    <CardTitle className="text-xl text-primary dark:text-gray-100">
-                    Module {index + 1}: {courseModule.title ?? ''}
+              <Card
+                key={courseModule.id}
+                className={cn('gap-0 border-0 py-0 shadow-none sm:gap-0', studentGlassCard)}
+              >
+                <CardHeader className="space-y-1 px-5 pb-3 pt-5 sm:px-6 sm:pt-6">
+                  <CardTitle className="text-left text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100 md:text-2xl">
+                    {moduleDisplayTitle(index, String(courseModule.title ?? ''))}
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-2 px-5 pb-5 sm:px-6 sm:pb-6">
                   {courseModule.lessons.length === 0 ? (
-                    <p className="text-gray-500 text-sm dark:text-gray-400">No lessons available</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">No lessons available</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       {courseModule.lessons.map((lesson) => (
                         <Link
                           key={lesson.id}
                           href={`/courses/${slug}/lessons/${lesson.id}`}
-                          className="group block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                         >
-                          <div className="flex min-h-[3.25rem] items-center gap-3 rounded-lg border border-border/60 bg-muted/25 p-3 shadow-sm transition-[border-color,background-color,box-shadow] duration-200 group-hover:border-primary/35 group-hover:bg-muted/70 group-hover:shadow-md dark:border-white/10 dark:bg-white/[0.04] dark:shadow-none dark:group-hover:border-primary/45 dark:group-hover:bg-white/[0.09] dark:group-hover:shadow-lg dark:group-hover:shadow-black/25">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary transition-colors group-hover:bg-primary/15 dark:bg-primary/30 dark:text-white dark:group-hover:bg-primary/40">
+                          <div
+                            className={cn(
+                              'flex min-h-[3.25rem] items-center gap-3 rounded-xl border p-3 shadow-sm backdrop-blur-md transition-[border-color,background-color,box-shadow] duration-200',
+                              'border-slate-300/45 bg-white/[0.28] group-hover:border-slate-400/55 group-hover:bg-white/[0.38] group-hover:shadow-md',
+                              'dark:border-white/12 dark:bg-white/[0.06] dark:shadow-none dark:group-hover:border-white/18 dark:group-hover:bg-white/[0.1] dark:group-hover:shadow-lg dark:group-hover:shadow-black/20',
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition-colors',
+                                'bg-primary/12 text-primary group-hover:bg-primary/18',
+                                'dark:bg-primary/25 dark:text-white dark:group-hover:bg-primary/35',
+                              )}
+                            >
                               {lesson.order}
                             </div>
-                            <span className="min-w-0 flex-1 font-medium text-foreground dark:text-gray-100">
+                            <span className="min-w-0 flex-1 text-left font-medium text-gray-900 dark:text-gray-100">
                               {lesson.title}
                             </span>
                             {completedLessonIds.has(String(lesson.id)) && (
@@ -182,7 +219,7 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
             ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   )
 }
