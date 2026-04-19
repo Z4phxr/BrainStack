@@ -177,13 +177,16 @@ async function computePopularCourseIds(): Promise<string[]> {
   }
 
   const lessonIds = [...new Set(rows.map((r) => r.lessonId))]
+  if (lessonIds.length === 0) {
+    return extendPopularCourseIdsToLimit(payload, [], POPULAR_COURSE_LIMIT)
+  }
   const { docs: lessons } = await payload.find({
     collection: 'lessons',
     where: {
       id: { in: lessonIds },
       isPublished: { equals: true },
     },
-    limit: Math.max(lessonIds.length, 10_000),
+    limit: lessonIds.length,
     depth: 0,
   })
 
@@ -218,7 +221,7 @@ async function computePopularCourseIds(): Promise<string[]> {
       id: { in: courseIds },
       isPublished: { equals: true },
     },
-    limit: Math.max(courseIds.length, 10_000),
+    limit: courseIds.length,
     depth: 0,
   })
 

@@ -11,8 +11,9 @@ export default function useIsDark() {
         if (ls === 'light') return false
         if (ls === 'dark') return true
         return true
-      } catch (e) {
-        return false
+      } catch {
+        // Match root layout default (dark) if storage is unavailable
+        return true
       }
     }
 

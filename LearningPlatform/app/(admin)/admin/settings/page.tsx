@@ -8,10 +8,7 @@ import { getActivityLoggingSetting, setActivityLoggingSetting } from '@/app/(adm
 import { cn } from '@/lib/utils'
 import { adminGlassCard, adminGlassOutlineButton } from '@/lib/student-glass-styles'
 
-const STORAGE_KEY = 'theme'
-
 export default function AdminSettingsPage() {
-  const [isDark, setIsDark] = useState(false)
   const [activityLogging, setActivityLogging] = useState<boolean | null>(null)
   const [activityLoggingSaving, setActivityLoggingSaving] = useState(false)
   const [activityLoggingError, setActivityLoggingError] = useState('')
@@ -29,32 +26,6 @@ export default function AdminSettingsPage() {
       cancelled = true
     }
   }, [])
-
-  useEffect(() => {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
-    if (stored === 'dark') {
-      setIsDark(true)
-      document.documentElement.classList.add('dark')
-      return
-    }
-    if (stored === 'light') {
-      setIsDark(false)
-      document.documentElement.classList.remove('dark')
-      return
-    }
-
-    setIsDark(true)
-    document.documentElement.classList.add('dark')
-  }, [])
-
-  const toggleTheme = () => {
-    setIsDark((prev) => {
-      const next = !prev
-      document.documentElement.classList.toggle('dark', next)
-      localStorage.setItem(STORAGE_KEY, next ? 'dark' : 'light')
-      return next
-    })
-  }
 
   async function toggleActivityLogging() {
     if (activityLogging === null || activityLoggingSaving) return
