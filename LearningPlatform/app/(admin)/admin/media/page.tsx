@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { adminGlassCard } from '@/lib/student-glass-styles'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Image as ImageIcon, Video, FileText, ExternalLink } from 'lucide-react'
+import { Image as ImageIcon, Video, FileText, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { payloadTableExists } from '@/lib/payload-utils'
 import { ReloadButton } from '@/components/ui/reload-button'
@@ -15,6 +15,12 @@ import { MediaDeleteButton } from '@/components/admin/media-delete-button'
 import { MediaUploader } from '@/components/admin/media-uploader'
 
 export const dynamic = 'force-dynamic'
+
+const MEDIA_PER_PAGE = 20
+
+interface PageProps {
+  searchParams: Promise<{ page?: string }>
+}
 
 interface Media {
   id: number | string
@@ -156,10 +162,16 @@ async function getAllMediaUsage(mediaIds: Array<number | string>): Promise<Map<s
   return usageMap
 }
 
-export default async function AdminMediaPage() {
+export default async function AdminMediaPage({ searchParams }: PageProps) {
+  const sp = await searchParams
+  const requestedPage = Math.max(1, parseInt(sp.page || '1', 10) || 1)
+
   let media: Media[] = []
   let mediaWithUsage: Array<Media & { usage: MediaUsage }> = []
   let error: string | null = null
+  let totalDocs = 0
+  let page = requestedPage
+  let totalPages = 1
 
   try {
     // Check if table exists before querying
@@ -169,11 +181,27 @@ export default async function AdminMediaPage() {
     } else {
       const payload = await getPayload({ config })
 
-      const { docs: mediaData } = await payload.find({
+      let findResult = await payload.find({
         collection: 'media',
         sort: '-createdAt',
-        limit: 100,
+        limit: MEDIA_PER_PAGE,
+        page: requestedPage,
       })
+
+      totalDocs = typeof findResult.totalDocs === 'number' ? findResult.totalDocs : findResult.docs.length
+      totalPages = Math.max(1, Math.ceil(totalDocs / MEDIA_PER_PAGE))
+      page = Math.min(requestedPage, totalPages)
+
+      if (page !== requestedPage && totalDocs > 0) {
+        findResult = await payload.find({
+          collection: 'media',
+          sort: '-createdAt',
+          limit: MEDIA_PER_PAGE,
+          page,
+        })
+      }
+
+      const mediaData = findResult.docs
 
       // Cast to proper Media type
       media = mediaData.map((item) => {
@@ -189,8 +217,8 @@ export default async function AdminMediaPage() {
         }
       })
 
-      // PERFORMANCE FIX: Get usage stats for ALL media at once (not per-item)
-      // This reduces: 100 queries × 1000 lessons = 100,000 fetches → just 2 queries total!
+      // PERFORMANCE FIX: Get usage stats for items on this page at once (not per-item)
+      // Scans cached lessons/tasks/courses once; only resolves usage for visible media ids.
       const usageMap = await getAllMediaUsage(media.map(m => m.id))
       mediaWithUsage = media.map((item: Media) => ({
         ...item,
@@ -237,7 +265,10 @@ export default async function AdminMediaPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">Media library</h1>
           <p className="mt-2 text-base text-muted-foreground md:text-lg">
-            {!error && `All uploaded files • ${totalUsed} of ${media.length} in use`}
+            {!error &&
+              (totalDocs > 0
+                ? `All uploaded files • ${totalDocs.toLocaleString()} total • Page ${page} of ${totalPages} • ${totalUsed} in use on this page`
+                : 'All uploaded files')}
           </p>
         </div>
         <div className="flex shrink-0 items-center">
@@ -437,12 +468,54 @@ export default async function AdminMediaPage() {
             })}
           </div>
 
-          {/* Summary */}
+          {totalPages > 1 && (
+            <nav
+              className="flex flex-wrap items-center justify-center gap-2 py-4"
+              aria-label="Media library pagination"
+            >
+              {page <= 1 ? (
+                <span className="inline-flex items-center gap-1 rounded-md border border-transparent px-3 py-2 text-sm font-medium text-muted-foreground opacity-50">
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </span>
+              ) : (
+                <Link
+                  href={`/admin/media?page=${page - 1}`}
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Link>
+              )}
+              <span className="px-3 text-sm text-muted-foreground">
+                Page {page} of {totalPages}
+              </span>
+              {page >= totalPages ? (
+                <span className="inline-flex items-center gap-1 rounded-md border border-transparent px-3 py-2 text-sm font-medium text-muted-foreground opacity-50">
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </span>
+              ) : (
+                <Link
+                  href={`/admin/media?page=${page + 1}`}
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              )}
+            </nav>
+          )}
+
+          {/* Summary (current page only when paginated) */}
           <div className="text-sm text-muted-foreground text-center py-6 border-t">
-            <div className="flex items-center justify-center gap-8">
+            <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground/80">
+              {totalDocs > MEDIA_PER_PAGE ? 'This page' : 'Library'}
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-8">
               <div>
                 <span className="font-semibold text-foreground">{media.length}</span>
-                <span className="ml-1">total</span>
+                <span className="ml-1">shown</span>
               </div>
               <div className="h-4 w-px bg-[var(--border)]" />
               <div>

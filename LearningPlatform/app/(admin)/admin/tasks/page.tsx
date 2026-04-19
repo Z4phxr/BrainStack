@@ -46,6 +46,8 @@ interface TaskTag {
   id: string
   name: string
   slug: string
+  main?: boolean
+  _count?: { tasks?: number; flashcards?: number }
 }
 
 interface LessonRef {
@@ -86,6 +88,17 @@ function slugKey(text?: string) {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '')
+}
+
+function tagUsageTotalFromApi(t: TaskTag): number | null {
+  if (t._count == null) return null
+  return (t._count.tasks ?? 0) + (t._count.flashcards ?? 0)
+}
+
+function tagUsageTitle(t: TaskTag): string {
+  const tasks = t._count?.tasks ?? 0
+  const fc = t._count?.flashcards ?? 0
+  return `${tasks} task${tasks === 1 ? '' : 's'}, ${fc} flashcard${fc === 1 ? '' : 's'}`
 }
 
 // Extract numeric value from an id string (e.g. "tsk-123" -> 123).
@@ -156,8 +169,8 @@ export default function AdminTasksPage() {
   const tagSortButtons: Array<{ key: string; icon: React.ReactNode; title: string; onClick: () => void }> = [
     { key: 'name-asc',   icon: <ArrowUpAZ   className="h-4 w-4" />, title: 'A → Z', onClick: () => { setTagSortField('name'); setTagSortDir('asc') } },
     { key: 'name-desc',  icon: <ArrowDownAZ className="h-4 w-4" />, title: 'Z → A', onClick: () => { setTagSortField('name'); setTagSortDir('desc') } },
-    { key: 'count-desc', icon: <ArrowDown01 className="h-4 w-4" />, title: 'Most used first', onClick: () => { setTagSortField('count'); setTagSortDir('desc') } },
-    { key: 'count-asc',  icon: <ArrowUp01   className="h-4 w-4" />, title: 'Least used first', onClick: () => { setTagSortField('count'); setTagSortDir('asc') } },
+    { key: 'count-desc', icon: <ArrowDown01 className="h-4 w-4" />, title: 'Most appearances (tasks + flashcards)', onClick: () => { setTagSortField('count'); setTagSortDir('desc') } },
+    { key: 'count-asc',  icon: <ArrowUp01   className="h-4 w-4" />, title: 'Fewest appearances (tasks + flashcards)', onClick: () => { setTagSortField('count'); setTagSortDir('asc') } },
   ]
 
   // Edit dialog
@@ -198,7 +211,13 @@ export default function AdminTasksPage() {
         const tagsData = await tagsRes.json()
         // Keep full master list in state; UI toggle controls what is shown
         setMasterTags(
-          (tagsData.tags ?? []).map((t: any) => ({ id: t.id, name: t.name, slug: t.slug, main: t.main }))
+          (tagsData.tags ?? []).map((t: { id: string; name: string; slug: string; main?: boolean; _count?: { tasks?: number; flashcards?: number } }) => ({
+            id: t.id,
+            name: t.name,
+            slug: t.slug,
+            main: t.main,
+            _count: t._count,
+          })),
         )
       }
     } catch {
@@ -247,7 +266,7 @@ export default function AdminTasksPage() {
   // Apply the showAllTags toggle: if false, only display tags marked as main
   const visibleTags = useMemo<TaskTag[]>(() => {
     if (showAllTags) return allTags
-    return allTags.filter((t: any) => (t as any).main)
+    return allTags.filter((t) => t.main)
   }, [allTags, showAllTags])
 
   // ── Tag → task count (memoized to avoid O(tags × tasks) in JSX) ──────────────
@@ -270,8 +289,10 @@ export default function AdminTasksPage() {
         const cmp = a.name.localeCompare(b.name)
         return tagSortDir === 'asc' ? cmp : -cmp
       }
-      const ca = tagCounts.get(slugKey(a.slug || a.name)) ?? 0
-      const cb = tagCounts.get(slugKey(b.slug || b.name)) ?? 0
+      const ka = slugKey(a.slug || a.name)
+      const kb = slugKey(b.slug || b.name)
+      const ca = tagUsageTotalFromApi(a) ?? tagCounts.get(ka) ?? 0
+      const cb = tagUsageTotalFromApi(b) ?? tagCounts.get(kb) ?? 0
       if (ca === cb) return a.name.localeCompare(b.name)
       return tagSortDir === 'asc' ? ca - cb : cb - ca
     })
@@ -625,8 +646,13 @@ export default function AdminTasksPage() {
                           ? 'bg-primary/20 text-primary dark:bg-primary/30'
                           : 'bg-white/50 text-slate-700 dark:bg-white/10 dark:text-gray-200',
                       )}
+                      title={
+                        tagUsageTotalFromApi(tag) != null
+                          ? tagUsageTitle(tag)
+                          : `In loaded tasks: ${tagCounts.get(slugKey(tag.slug || tag.name)) ?? 0}`
+                      }
                     >
-                    {tagCounts.get(slugKey(tag.slug || tag.name)) ?? 0}
+                    {tagUsageTotalFromApi(tag) ?? tagCounts.get(slugKey(tag.slug || tag.name)) ?? 0}
                   </span>
                 </button>
               )

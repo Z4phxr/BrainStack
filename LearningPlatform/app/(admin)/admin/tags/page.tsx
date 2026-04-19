@@ -53,15 +53,27 @@ function slugify(text: string): string {
 
 // ─── Pill with inline edit/delete ────────────────────────────────────────────
 
+function tagUsageTotal(tag: MasterTag): number {
+  return (tag._count?.tasks ?? 0) + (tag._count?.flashcards ?? 0)
+}
+
+function tagUsageTitle(tag: MasterTag): string {
+  const t = tag._count?.tasks ?? 0
+  const f = tag._count?.flashcards ?? 0
+  return `${t} task${t === 1 ? '' : 's'}, ${f} flashcard${f === 1 ? '' : 's'}`
+}
+
 function TagPill({
   tag,
-  taskCount,
+  usageTotal,
+  usageTitle,
   onDelete,
   onRename,
   onToggleMain,
 }: {
   tag: MasterTag
-  taskCount: number
+  usageTotal: number
+  usageTitle: string
   onDelete: (tag: MasterTag) => void
   onRename: (tag: MasterTag, newName: string) => Promise<void>
   onToggleMain: (tag: MasterTag) => Promise<void>
@@ -148,7 +160,12 @@ function TagPill({
       {/* Name + count area */}
       <span className="flex items-center gap-2 px-3 py-1">
         <span className="max-w-[32rem] truncate">{tag.name}</span>
-        <span className={cn(studentGlassPill, 'py-0 text-xs normal-case tracking-tight')}>{taskCount}</span>
+        <span
+          className={cn(studentGlassPill, 'py-0 text-xs normal-case tracking-tight')}
+          title={usageTitle}
+        >
+          {usageTotal}
+        </span>
       </span>
 
       {/* Star button for main toggle */}
@@ -243,16 +260,6 @@ export default function AdminTagsPage() {
 
   useEffect(() => { void fetchTags() }, [fetchTags])
 
-  // ── Derive task counts ────────────────────────────────────────────────────────
-
-  const taskCounts = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const t of tags) {
-      m.set(t.id, t._count?.tasks ?? 0)
-    }
-    return m
-  }, [tags])
-
   // ── Filtered + sorted display list ─────────────────────────────────────────────
 
   const { mainTags, otherTags } = useMemo(() => {
@@ -262,8 +269,8 @@ export default function AdminTagsPage() {
     const sortFn = (a: MasterTag, b: MasterTag) => {
       if (sortKey === 'name-asc') return a.name.localeCompare(b.name)
       if (sortKey === 'name-desc') return b.name.localeCompare(a.name)
-      const ca = taskCounts.get(a.id) ?? 0
-      const cb = taskCounts.get(b.id) ?? 0
+      const ca = tagUsageTotal(a)
+      const cb = tagUsageTotal(b)
       if (sortKey === 'count-asc') return ca === cb ? a.name.localeCompare(b.name) : ca - cb
       // count-desc
       return ca === cb ? a.name.localeCompare(b.name) : cb - ca
@@ -273,7 +280,7 @@ export default function AdminTagsPage() {
     const other = filtered.filter((t) => !t.main).sort(sortFn)
 
     return { mainTags: main, otherTags: other }
-  }, [tags, search, sortKey, taskCounts])
+  }, [tags, search, sortKey])
 
   const displayTags = useMemo(() => [...mainTags, ...otherTags], [mainTags, otherTags])
 
@@ -392,8 +399,8 @@ export default function AdminTagsPage() {
   const sortButtons: Array<{ key: SortKey; icon: React.ReactNode; title: string }> = [
     { key: 'name-asc',   icon: <ArrowUpAZ   className="h-4 w-4" />, title: 'A → Z' },
     { key: 'name-desc',  icon: <ArrowDownAZ className="h-4 w-4" />, title: 'Z → A' },
-    { key: 'count-desc', icon: <ArrowDown01 className="h-4 w-4" />, title: 'Most used first' },
-    { key: 'count-asc',  icon: <ArrowUp01   className="h-4 w-4" />, title: 'Least used first' },
+    { key: 'count-desc', icon: <ArrowDown01 className="h-4 w-4" />, title: 'Most appearances (tasks + flashcards)' },
+    { key: 'count-asc',  icon: <ArrowUp01   className="h-4 w-4" />, title: 'Fewest appearances (tasks + flashcards)' },
   ]
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -558,7 +565,8 @@ export default function AdminTagsPage() {
                   <TagPill
                     key={tag.id}
                     tag={tag}
-                    taskCount={taskCounts.get(tag.id) ?? 0}
+                    usageTotal={tagUsageTotal(tag)}
+                    usageTitle={tagUsageTitle(tag)}
                     onDelete={setDeleteTarget}
                     onRename={handleRename}
                     onToggleMain={handleToggleMain}
@@ -584,7 +592,8 @@ export default function AdminTagsPage() {
                   <TagPill
                     key={tag.id}
                     tag={tag}
-                    taskCount={taskCounts.get(tag.id) ?? 0}
+                    usageTotal={tagUsageTotal(tag)}
+                    usageTitle={tagUsageTitle(tag)}
                     onDelete={setDeleteTarget}
                     onRename={handleRename}
                     onToggleMain={handleToggleMain}
@@ -667,8 +676,8 @@ export default function AdminTagsPage() {
                   >
                     <span className="flex items-center gap-2">
                       <span className="font-medium">{tag.name}</span>
-                      <span className="text-xs text-gray-500">
-                        {taskCounts.get(tag.id) ?? 0} tasks
+                      <span className="text-xs text-gray-500" title={tagUsageTitle(tag)}>
+                        {tagUsageTotal(tag)} uses
                       </span>
                     </span>
                     <Star className="h-4 w-4 text-gray-400" />

@@ -38,7 +38,7 @@ interface Tag {
   name: string
   slug: string
   main?: boolean
-  _count?: { flashcards: number }
+  _count?: { flashcards?: number; tasks?: number }
 }
 
 type FlashcardState = 'NEW' | 'LEARNING' | 'REVIEW' | 'RELEARNING' | 'MASTERED'
@@ -65,6 +65,18 @@ function truncate(text: string, max = 80): string {
   return text.length <= max ? text : text.slice(0, max).trimEnd() + '…'
 }
 
+function tagUsageTotal(tag: Tag): number {
+  return (tag._count?.tasks ?? 0) + (tag._count?.flashcards ?? 0)
+}
+
+function tagUsageTitle(tag: Tag): string {
+  const t = tag._count?.tasks ?? 0
+  const f = tag._count?.flashcards ?? 0
+  return `${t} task${t === 1 ? '' : 's'}, ${f} flashcard${f === 1 ? '' : 's'}`
+}
+
+const FLASHCARDS_PER_PAGE = 15
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminFlashcardsPage() {
@@ -75,6 +87,7 @@ export default function AdminFlashcardsPage() {
   const [tagSortField, setTagSortField] = useState<'name' | 'count'>('name')
   const [tagSortDir, setTagSortDir] = useState<'asc' | 'desc'>('asc')
   const [tagPage, setTagPage] = useState(1)
+  const [cardPage, setCardPage] = useState(1)
   const [sortKey, setSortKey] = useState<'newest' | 'oldest' | 'az' | 'za'>('newest')
   const [selectedDeckSlug, setSelectedDeckSlug] = useState<string | null>(null)
   const [deckOptions, setDeckOptions] = useState<Array<{ slug: string; name: string }>>([])
@@ -140,6 +153,10 @@ export default function AdminFlashcardsPage() {
   useEffect(() => {
     setTagPage(1)
   }, [showAllTags])
+
+  useEffect(() => {
+    setCardPage(1)
+  }, [debouncedSearch, selectedTagSlugs, selectedDeckSlug, sortKey])
 
   // ── Open dialogs ─────────────────────────────────────────────────────────────
 
@@ -222,6 +239,22 @@ export default function AdminFlashcardsPage() {
       return hay.includes(q)
     })
   }, [flashcards, debouncedSearch])
+
+  const sortedFlashcards = useMemo(() => {
+    const sorted = [...filteredFlashcards]
+    sorted.sort((a, b) => {
+      if (sortKey === 'newest') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      if (sortKey === 'oldest') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      if (sortKey === 'az') return a.question.localeCompare(b.question)
+      return b.question.localeCompare(a.question)
+    })
+    return sorted
+  }, [filteredFlashcards, sortKey])
+
+  useEffect(() => {
+    const tp = Math.max(1, Math.ceil(filteredFlashcards.length / FLASHCARDS_PER_PAGE))
+    setCardPage((p) => Math.min(p, tp))
+  }, [filteredFlashcards.length])
 
   const hasActiveFilters =
     selectedTagSlugs.size > 0 || Boolean(selectedDeckSlug) || Boolean(debouncedSearch.trim())
@@ -337,8 +370,8 @@ export default function AdminFlashcardsPage() {
                 [
                   { key: 'name-asc',   icon: <ArrowUpAZ   className="h-4 w-4" />, title: 'A → Z', onClick: () => { setTagSortField('name'); setTagSortDir('asc') } },
                   { key: 'name-desc',  icon: <ArrowDownAZ className="h-4 w-4" />, title: 'Z → A', onClick: () => { setTagSortField('name'); setTagSortDir('desc') } },
-                  { key: 'count-desc', icon: <ArrowDown01 className="h-4 w-4" />, title: 'Most used first', onClick: () => { setTagSortField('count'); setTagSortDir('desc') } },
-                  { key: 'count-asc',  icon: <ArrowUp01   className="h-4 w-4" />, title: 'Least used first', onClick: () => { setTagSortField('count'); setTagSortDir('asc') } },
+                  { key: 'count-desc', icon: <ArrowDown01 className="h-4 w-4" />, title: 'Most appearances (tasks + flashcards)', onClick: () => { setTagSortField('count'); setTagSortDir('desc') } },
+                  { key: 'count-asc',  icon: <ArrowUp01   className="h-4 w-4" />, title: 'Fewest appearances (tasks + flashcards)', onClick: () => { setTagSortField('count'); setTagSortDir('asc') } },
                 ] as Array<{ key: string; icon: React.ReactNode; title: string; onClick: () => void }>
               ).map(({ key, icon, title, onClick }) => (
                 <button
@@ -406,8 +439,8 @@ export default function AdminFlashcardsPage() {
                     const cmp = a.name.localeCompare(b.name)
                     return tagSortDir === 'asc' ? cmp : -cmp
                   }
-                  const ca = a._count?.flashcards ?? 0
-                  const cb = b._count?.flashcards ?? 0
+                  const ca = tagUsageTotal(a)
+                  const cb = tagUsageTotal(b)
                   if (ca === cb) return a.name.localeCompare(b.name)
                   return tagSortDir === 'asc' ? ca - cb : cb - ca
                 })
@@ -450,8 +483,9 @@ export default function AdminFlashcardsPage() {
                             ? 'bg-primary/20 text-primary dark:bg-primary/30'
                             : 'bg-white/50 text-slate-700 dark:bg-white/10 dark:text-gray-200',
                         )}
+                        title={tagUsageTitle(tag)}
                       >
-                        {tag._count.flashcards}
+                        {tagUsageTotal(tag)}
                       </span>
                     )}
                   </button>
@@ -548,16 +582,14 @@ export default function AdminFlashcardsPage() {
       {/* ── Flashcard grid ── */}
       {!loading && filteredFlashcards.length > 0 && (
         (() => {
-          const sorted = [...filteredFlashcards]
-          sorted.sort((a, b) => {
-            if (sortKey === 'newest') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            if (sortKey === 'oldest') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-            if (sortKey === 'az') return a.question.localeCompare(b.question)
-            return b.question.localeCompare(a.question)
-          })
+          const totalCardPages = Math.max(1, Math.ceil(sortedFlashcards.length / FLASHCARDS_PER_PAGE))
+          const safeCardPage = Math.min(cardPage, totalCardPages)
+          const startIdx = (safeCardPage - 1) * FLASHCARDS_PER_PAGE
+          const pageCards = sortedFlashcards.slice(startIdx, startIdx + FLASHCARDS_PER_PAGE)
           return (
+            <div className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {sorted.map((card) => (
+              {pageCards.map((card) => (
             <Card
               key={card.id}
               className={cn(
@@ -647,6 +679,37 @@ export default function AdminFlashcardsPage() {
               </CardContent>
             </Card>
           ))}
+            </div>
+
+            {totalCardPages > 1 && (
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className={cn(adminGlassOutlineButton)}
+                  disabled={safeCardPage <= 1}
+                  onClick={() => setCardPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="mr-1 h-4 w-4" />
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {safeCardPage} of {totalCardPages} ({sortedFlashcards.length} cards)
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className={cn(adminGlassOutlineButton)}
+                  disabled={safeCardPage >= totalCardPages}
+                  onClick={() => setCardPage((p) => Math.min(totalCardPages, p + 1))}
+                >
+                  Next
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
+            )}
             </div>
           )
         })()
