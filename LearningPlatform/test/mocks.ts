@@ -247,6 +247,16 @@ export const createMockPrisma = (overrides = {}) => {
       deleteMany: vi.fn(() => createMockResult({ count: 0 })),
     },
 
+    platformFlags: {
+      findUnique: vi.fn(() => createMockResult(null)),
+      upsert: vi.fn((args) =>
+        createMockResult({
+          id: args.where.id,
+          activityLoggingEnabled: args.create?.activityLoggingEnabled ?? args.update?.activityLoggingEnabled ?? true,
+        }),
+      ),
+    },
+
     // RevokedToken operations (JWT blocklist)
     revokedToken: {
       create:     vi.fn((args) => createMockResult({ id: 'mock-revoked-token-id', ...args.data })),

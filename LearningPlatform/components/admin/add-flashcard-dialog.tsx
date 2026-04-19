@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { X, ImageIcon, Plus, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { MediaPicker } from './media-picker'
+import { cn } from '@/lib/utils'
+import { adminGlassOutlineButton, adminGlassSheet, studentGlassPill } from '@/lib/student-glass-styles'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -329,16 +330,21 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
         role="dialog"
         aria-modal="true"
         aria-labelledby="flashcard-dialog-title"
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col overflow-hidden bg-white shadow-2xl dark:bg-gray-900"
+        className={cn(
+          'fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col overflow-hidden',
+          adminGlassSheet,
+        )}
       >
         {/* Header */}
-        <div className="flex flex-shrink-0 items-center justify-between border-b px-6 py-4 dark:border-gray-700">
-          <h2 id="flashcard-dialog-title" className="text-lg font-semibold">{titleText}</h2>
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200/60 px-6 py-4 dark:border-white/10">
+          <h2 id="flashcard-dialog-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            {titleText}
+          </h2>
           <button
             type="button"
             aria-label="Close"
             onClick={handleClose}
-            className="rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="rounded-full p-1 text-muted-foreground hover:bg-white/30 dark:hover:bg-white/10"
           >
             <X className="h-5 w-5" />
           </button>
@@ -485,14 +491,17 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
                       key={tag.id}
                       type="button"
                       onClick={() => toggleTag(tag.id)}
-                      className="rounded focus-visible:ring-2 focus-visible:ring-blue-500"
+                      className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                     >
-                      <Badge
-                        variant={selected ? 'default' : 'outline'}
-                        className="cursor-pointer select-none"
+                      <span
+                        className={cn(
+                          studentGlassPill,
+                          'cursor-pointer select-none normal-case tracking-tight',
+                          selected && 'ring-2 ring-primary/35',
+                        )}
                       >
                         {tag.name}
-                      </Badge>
+                      </span>
                     </button>
                   )
                 })}
@@ -512,6 +521,7 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
                 type="button"
                 size="sm"
                 variant="outline"
+                className={cn(adminGlassOutlineButton)}
                 disabled={!newTagName.trim() || creatingTag}
                 onClick={handleCreateTag}
               >
@@ -522,11 +532,17 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
         </form>
 
         {/* Footer */}
-        <div className="flex flex-shrink-0 items-center justify-end gap-3 border-t px-6 py-4 dark:border-gray-700">
-          <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
+        <div className="flex flex-shrink-0 items-center justify-end gap-3 border-t border-slate-200/60 px-6 py-4 dark:border-white/10">
+          <Button
+            type="button"
+            variant="outline"
+            className={cn(adminGlassOutlineButton)}
+            onClick={handleClose}
+            disabled={submitting}
+          >
             Cancel
           </Button>
-          <Button type="submit" form={formId} disabled={submitting}>
+          <Button type="submit" form={formId} variant="hero" className="auth-hero-cta" disabled={submitting}>
             {submitting ? (
               <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving…</>
             ) : (

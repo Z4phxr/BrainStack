@@ -106,9 +106,10 @@ This eliminates `unsafe-inline` from `script-src` — injected inline scripts wi
 
 ## Logging and Audit Trail
 
-- All authentication events are recorded to a persistent `activityLog` database table: `USER_REGISTERED`, `USER_LOGIN`, `USER_LOGOUT`, `USER_LOGIN_FAILED`.
+- Authentication events are written to the persistent `activity_logs` table when logging is **enabled**: `USER_REGISTERED`, `USER_LOGIN`, `USER_LOGOUT`, `USER_LOGIN_FAILED`.
 - Failed login attempts log the attempted email and user ID (when resolvable) without exposing password information.
-- All content CRUD operations (courses, modules, lessons, tasks, flashcards, tags, subjects, media) are also logged with actor identity and resource reference.
+- Content and admin operations (courses, modules, lessons, tasks, flashcards, tags, subjects, media, user Pro/role changes, etc.) are logged the same way **when enabled**.
+- Admins can **pause new activity log rows** under **Admin → Settings** (`platform_flags.activityLoggingEnabled` in Prisma). Existing rows stay; disabling only stops new inserts (`lib/activity-log.ts` + `lib/platform-flags.ts`).
 - Server-side logs never contain password hashes, session tokens, or secret keys.
 - Verbose health-check responses (`?verbose=1`) that expose database identity and environment metadata are restricted to authenticated admins.
 

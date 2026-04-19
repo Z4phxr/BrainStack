@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Trash2 } from 'lucide-react'
 import { deleteMedia } from '@/app/(admin)/admin/actions'
+import { cn } from '@/lib/utils'
+import { adminGlassOutlineButton } from '@/lib/student-glass-styles'
 
 interface MediaDeleteButtonProps {
   mediaId: string | number
@@ -37,13 +39,17 @@ export function MediaDeleteButton({ mediaId, filename, usageCount }: MediaDelete
   return (
     <Button
       type="button"
-      variant="ghost"
+      variant="outline"
       size="sm"
+      className={cn(
+        adminGlassOutlineButton,
+        'border-red-300/50 text-red-700 hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-950/30',
+      )}
       onClick={handleDelete}
       disabled={loading}
       title="Delete"
     >
-      <Trash2 className="h-4 w-4 text-red-500" />
+      <Trash2 className="h-4 w-4" />
     </Button>
   )
 }

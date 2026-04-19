@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
   Plus,
   Loader2,
@@ -15,13 +15,13 @@ import {
   Pencil,
   Trash2,
   Link2,
-  ArrowDownUp,
   ArrowUpAZ,
   ArrowDownAZ,
   ArrowUp01,
   ArrowDown01,
   ChevronLeft,
   ChevronRight,
+  Search,
 } from 'lucide-react'
 
 import { AddTaskDialog } from '@/components/admin/add-task-dialog'
@@ -29,8 +29,16 @@ import { DeleteTaskDialog } from '@/components/admin/delete-task-dialog'
 import { AssignToLessonDialog } from '@/components/admin/assign-to-lesson-dialog'
 import { deleteTask } from '@/app/(admin)/admin/actions'
 import { extractText } from '@/lib/lexical'
+import { cn } from '@/lib/utils'
+import {
+  adminGlassCard,
+  adminGlassIconToggleActive,
+  adminGlassIconToggleInactive,
+  adminGlassOutlineButton,
+  studentGlassPill,
+} from '@/lib/student-glass-styles'
 
-type SortKey = 'newest' | 'oldest' | 'az' | 'tagged' | 'id-asc' | 'id-desc'
+type SortKey = 'newest' | 'oldest' | 'az' | 'za' | 'tagged' | 'id-asc' | 'id-desc'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -97,11 +105,14 @@ function typeLabel(type: Task['type']): string {
   }
 }
 
-function typeBadgeClass(type: Task['type']): string {
+function typeBadgeAccent(type: Task['type']): string {
   switch (type) {
-    case 'MULTIPLE_CHOICE': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-    case 'OPEN_ENDED':      return 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
-    case 'TRUE_FALSE':      return 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+    case 'MULTIPLE_CHOICE':
+      return 'text-blue-800 dark:text-blue-200'
+    case 'OPEN_ENDED':
+      return 'text-violet-800 dark:text-violet-200'
+    case 'TRUE_FALSE':
+      return 'text-emerald-800 dark:text-emerald-200'
   }
 }
 
@@ -121,6 +132,11 @@ export default function AdminTasksPage() {
 
   // Tag filter (multi-select, AND logic)
   const [selectedTagSlugs, setSelectedTagSlugs] = useState<Set<string>>(new Set())
+
+  // Search (client-side: title, prompt text, id, lesson titles) + type filter (server-side via API)
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'' | Task['type']>('')
 
   // Sort
   const [sortKey, setSortKey] = useState<SortKey>('newest')
@@ -159,12 +175,20 @@ export default function AdminTasksPage() {
 
   // ── Data fetching ─────────────────────────────────────────────────────────────
 
-  const fetchData = useCallback(async (tagSlugsCsv?: string | null) => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true)
       setError('')
+      const params = new URLSearchParams()
+      if (selectedTagSlugs.size > 0) {
+        params.set('tagSlugs', Array.from(selectedTagSlugs).join(','))
+      }
+      if (typeFilter) {
+        params.set('type', typeFilter)
+      }
+      const qs = params.toString()
       const [tasksRes, tagsRes] = await Promise.all([
-        fetch(`/api/admin/tasks${tagSlugsCsv ? `?tagSlugs=${encodeURIComponent(tagSlugsCsv)}` : ''}`),
+        fetch(`/api/admin/tasks${qs ? `?${qs}` : ''}`),
         fetch('/api/tags'),
       ])
       if (!tasksRes.ok) throw new Error('Failed to load tasks')
@@ -182,13 +206,17 @@ export default function AdminTasksPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [selectedTagSlugs, typeFilter])
 
-  // Refetch when selectedTagSlugs changes: if any tags selected, ask server to filter (AND semantics).
   useEffect(() => {
-    const tagSlugsCsv = selectedTagSlugs.size > 0 ? Array.from(selectedTagSlugs).join(',') : null
-    void fetchData(tagSlugsCsv)
-  }, [fetchData, selectedTagSlugs])
+    const t = window.setTimeout(() => setDebouncedSearch(searchInput), 350)
+    return () => window.clearTimeout(t)
+  }, [searchInput])
+
+  // Refetch when tag or task-type filters change (search is applied client-side on the loaded list).
+  useEffect(() => {
+    void fetchData()
+  }, [fetchData])
 
   function toggleTagSlug(slug: string) {
     setSelectedTagSlugs((prev) => {
@@ -265,18 +293,28 @@ export default function AdminTasksPage() {
   // ── Filtered + sorted task list ───────────────────────────────────────────────
 
   const filteredTasks = useMemo<Task[]>(() => {
-    const list = selectedTagSlugs.size > 0
-      ? tasks.filter((t) =>
-          Array.from(selectedTagSlugs).every((slug) =>
-            t.tags?.some((tag) => slugKey(tag.slug) === slugKey(slug))
-          )
-        )
-      : [...tasks]
+    let list = [...tasks]
+    const q = debouncedSearch.trim().toLowerCase()
+    if (q.length > 0) {
+      list = list.filter((t) => {
+        const lessons = resolveLessons(t.lesson)
+        const hay = [
+          t.title ?? '',
+          extractText(t.prompt),
+          t.id,
+          ...lessons.map((l) => l.title ?? ''),
+        ]
+          .join('\n')
+          .toLowerCase()
+        return hay.includes(q)
+      })
+    }
 
     switch (sortKey) {
       case 'newest': list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); break
       case 'oldest': list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); break
       case 'az':     list.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? '')); break
+      case 'za':     list.sort((a, b) => (b.title ?? '').localeCompare(a.title ?? '')); break
       case 'tagged': list.sort((a, b) => (b.tags?.length ?? 0) - (a.tags?.length ?? 0)); break
       case 'id-desc': list.sort((a, b) => {
         const na = numericIdValue(a.id), nb = numericIdValue(b.id)
@@ -292,12 +330,22 @@ export default function AdminTasksPage() {
       }); break
     }
     return list
-  }, [tasks, selectedTagSlugs, sortKey])
+  }, [tasks, debouncedSearch, sortKey])
+
+  const hasActiveFilters =
+    selectedTagSlugs.size > 0 || Boolean(debouncedSearch.trim()) || Boolean(typeFilter)
+
+  function clearAllFilters() {
+    setSelectedTagSlugs(new Set())
+    setSearchInput('')
+    setDebouncedSearch('')
+    setTypeFilter('')
+  }
 
   // Reset page to 1 whenever filters/sort or underlying tasks change
   useEffect(() => {
     setCurrentPage(1)
-  }, [tasks, selectedTagSlugs, sortKey])
+  }, [tasks, debouncedSearch, typeFilter, selectedTagSlugs, sortKey])
 
   // Reset tag pagination when toggling between main/all tags
   useEffect(() => {
@@ -372,27 +420,24 @@ export default function AdminTasksPage() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-6xl space-y-8">
       {/* ── Page header ── */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">Tasks</h1>
+          <p className="mt-2 text-base text-gray-600 dark:text-gray-400 md:text-lg">
             Create, edit and organise standalone tasks. Tasks can be attached to lessons or kept free.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           {/* Sort dropdown */}
           <div className="relative">
             <label htmlFor="task-sort" className="sr-only">Sort tasks</label>
-            <div className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center">
-              <ArrowDownUp className="h-3.5 w-3.5 text-gray-400" />
-            </div>
             <select
               id="task-sort"
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value as SortKey)}
-              className="h-9 rounded-md border border-input bg-background pl-8 pr-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+              className="h-9 rounded-md border border-slate-300/50 bg-white/40 px-3 text-sm text-gray-900 shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-white/15 dark:bg-white/10 dark:text-gray-100"
             >
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
@@ -401,11 +446,66 @@ export default function AdminTasksPage() {
             </select>
           </div>
 
-          <Button onClick={() => { setEditTask(undefined); setEditDialogOpen(true) }}>
+          <Button
+            variant="hero"
+            className="auth-hero-cta"
+            onClick={() => {
+              setEditTask(undefined)
+              setEditDialogOpen(true)
+            }}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add Task
           </Button>
         </div>
+      </div>
+
+      {/* ── Search + task type ── */}
+      <div
+        className={cn(
+          'flex flex-col gap-3 rounded-xl border-0 p-4 shadow-none sm:flex-row sm:flex-wrap sm:items-end',
+          adminGlassCard,
+        )}
+      >
+        <div className="min-w-0 flex-1 space-y-1">
+          <label htmlFor="task-search" className="text-xs font-medium text-muted-foreground">
+            Search
+          </label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="task-search"
+              type="search"
+              placeholder="Title, question text, task id, lesson…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="border-slate-300/50 bg-white/50 pl-9 dark:border-white/15 dark:bg-white/10"
+              autoComplete="off"
+            />
+          </div>
+        </div>
+        <div className="w-full space-y-1 sm:w-52">
+          <label htmlFor="task-type-filter" className="text-xs font-medium text-muted-foreground">
+            Task type
+          </label>
+          <select
+            id="task-type-filter"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter((e.target.value || '') as '' | Task['type'])}
+            className="h-9 w-full rounded-md border border-slate-300/50 bg-white/40 px-3 text-sm text-gray-900 shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-white/15 dark:bg-white/10 dark:text-gray-100"
+          >
+            <option value="">All types</option>
+            <option value="MULTIPLE_CHOICE">Multiple choice</option>
+            <option value="OPEN_ENDED">Open-ended</option>
+            <option value="TRUE_FALSE">True / false</option>
+          </select>
+        </div>
+        {hasActiveFilters ? (
+          <Button type="button" variant="outline" size="sm" className={cn(adminGlassOutlineButton)} onClick={clearAllFilters}>
+            <X className="mr-1.5 h-4 w-4" />
+            Clear filters
+          </Button>
+        ) : null}
       </div>
 
       {/* ── Tags strip ── */}
@@ -417,7 +517,12 @@ export default function AdminTasksPage() {
               <span>Browse by tag</span>
             </div>
             <div className="flex items-center gap-1">
-                <Button size="sm" variant="outline" onClick={() => setShowAllTags((s) => !s)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={cn(adminGlassOutlineButton)}
+                  onClick={() => setShowAllTags((s) => !s)}
+                >
                   {showAllTags ? 'Show main tags' : 'Show all tags'}
                 </Button>
               <span className="mr-1 text-xs text-gray-400">Sort:</span>
@@ -434,12 +539,13 @@ export default function AdminTasksPage() {
                   type="button"
                   title={title}
                   onClick={onClick}
-                  className={`inline-flex h-8 w-8 items-center justify-center rounded-md border text-sm transition-colors ${
+                  className={cn(
+                    'inline-flex h-8 w-8 items-center justify-center rounded-md border text-sm transition-colors',
                     (tagSortField === 'name' && key.startsWith('name') && tagSortDir === (key.endsWith('asc') ? 'asc' : 'desc')) ||
-                    (tagSortField === 'count' && key.startsWith('count') && tagSortDir === (key.endsWith('asc') ? 'asc' : 'desc'))
-                      ? 'border-blue-400 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
-                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400'
-                  }`}
+                      (tagSortField === 'count' && key.startsWith('count') && tagSortDir === (key.endsWith('asc') ? 'asc' : 'desc'))
+                      ? adminGlassIconToggleActive
+                      : adminGlassIconToggleInactive,
+                  )}
                 >
                   {icon}
                 </button>
@@ -452,7 +558,11 @@ export default function AdminTasksPage() {
               type="button"
               onClick={() => setTagPage((p) => Math.max(1, p - 1))}
               disabled={tagPage === 1}
-              className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800"
+              className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-md border text-gray-600 transition-colors disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-400',
+                adminGlassIconToggleInactive,
+                'hover:text-foreground',
+              )}
               title="Previous tags"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -475,7 +585,10 @@ export default function AdminTasksPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedTagSlugs(new Set())}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                  className={cn(
+                    studentGlassPill,
+                    'cursor-pointer border-dashed opacity-95 hover:opacity-100',
+                  )}
                 >
                   <X className="h-3 w-3" />
                   Clear ({selectedTagSlugs.size})
@@ -494,14 +607,25 @@ export default function AdminTasksPage() {
                   key={tag.id}
                   type="button"
                   onClick={() => toggleTagSlug(slugKey(tag.slug))}
-                  className={
+                  className={cn(
+                    'inline-flex h-8 cursor-pointer items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors',
                     isActive
-                      ? 'inline-flex h-8 cursor-pointer items-center gap-2 rounded-full border border-blue-400 bg-blue-400 px-3 text-sm font-medium text-blue-50 dark:border-blue-600 dark:bg-blue-600 dark:text-white'
-                      : 'inline-flex h-8 cursor-pointer items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 text-sm font-medium text-blue-700 transition-colors hover:border-blue-400 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50'
-                  }
+                      ? 'border-primary/45 bg-primary/20 text-primary shadow-sm ring-1 ring-primary/20 dark:bg-primary/25 dark:text-primary'
+                      : cn(
+                          studentGlassPill,
+                          'h-8 border font-medium normal-case tracking-normal',
+                        ),
+                  )}
                 >
-                  <span className="truncate max-w-[28rem]">{tag.name}</span>
-                    <span className="ml-1 rounded-full bg-blue-200/60 px-1.5 py-0 text-xs text-blue-800 dark:bg-blue-800/60 dark:text-blue-200">
+                  <span className="max-w-[28rem] truncate">{tag.name}</span>
+                    <span
+                      className={cn(
+                        'ml-1 rounded-full px-1.5 py-0 text-xs',
+                        isActive
+                          ? 'bg-primary/20 text-primary dark:bg-primary/30'
+                          : 'bg-white/50 text-slate-700 dark:bg-white/10 dark:text-gray-200',
+                      )}
+                    >
                     {tagCounts.get(slugKey(tag.slug || tag.name)) ?? 0}
                   </span>
                 </button>
@@ -523,7 +647,11 @@ export default function AdminTasksPage() {
                 const totalPages = Math.max(1, Math.ceil(sortedTags.length / TAGS_PER_PAGE))
                 return tagPage >= totalPages
               })()}
-              className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800"
+              className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-md border text-gray-600 transition-colors disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-400',
+                adminGlassIconToggleInactive,
+                'hover:text-foreground',
+              )}
               title="Next tags"
             >
               <ChevronRight className="h-4 w-4" />
@@ -551,13 +679,29 @@ export default function AdminTasksPage() {
 
       {/* ── Empty state ── */}
       {!loading && filteredTasks.length === 0 && !error && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
+        <div
+          className={cn(
+            'flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-400/40 bg-white/[0.12] py-16 text-center backdrop-blur-md dark:border-white/20 dark:bg-white/[0.04]',
+          )}
+        >
           <ClipboardList className="mb-4 h-10 w-10 text-gray-300" />
-          {selectedTagSlugs.size > 0 ? (
+          {tasks.length > 0 ? (
             <>
-              <p className="text-sm font-medium text-gray-500">No tasks match the selected tags</p>
-              <Button className="mt-4" variant="outline" onClick={() => setSelectedTagSlugs(new Set())}>
-                Clear filter
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                No tasks match your search or filters
+              </p>
+              <p className="mt-1 max-w-md text-xs text-gray-400">
+                Try different keywords, clear the task type filter, or adjust tag filters.
+              </p>
+              <Button type="button" className={cn('mt-4', adminGlassOutlineButton)} variant="outline" onClick={clearAllFilters}>
+                Clear filters
+              </Button>
+            </>
+          ) : hasActiveFilters ? (
+            <>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No tasks match the selected filters</p>
+              <Button type="button" className={cn('mt-4', adminGlassOutlineButton)} variant="outline" onClick={clearAllFilters}>
+                Clear filters
               </Button>
             </>
           ) : (
@@ -566,7 +710,14 @@ export default function AdminTasksPage() {
               <p className="mt-1 text-xs text-gray-400">
                 Click &ldquo;Add Task&rdquo; to create your first one.
               </p>
-              <Button className="mt-4" onClick={() => { setEditTask(undefined); setEditDialogOpen(true) }}>
+              <Button
+                className="auth-hero-cta mt-4"
+                variant="hero"
+                onClick={() => {
+                  setEditTask(undefined)
+                  setEditDialogOpen(true)
+                }}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Task
               </Button>
@@ -585,12 +736,22 @@ export default function AdminTasksPage() {
                 <span>–{Math.min(currentPage * PAGE_SIZE, filteredTasks.length)}</span>
               )} of {filteredTasks.length}
             </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage(1)}>First</Button>
-              <Button size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>Prev</Button>
-              <div className="text-sm text-gray-500">Page {currentPage} of {totalPages}</div>
-              <Button size="sm" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
-              <Button size="sm" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(totalPages)}>Last</Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" className={cn(adminGlassOutlineButton)} disabled={currentPage <= 1} onClick={() => setCurrentPage(1)}>
+                First
+              </Button>
+              <Button size="sm" variant="outline" className={cn(adminGlassOutlineButton)} disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
+                Prev
+              </Button>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Page {currentPage} of {totalPages}
+              </div>
+              <Button size="sm" variant="outline" className={cn(adminGlassOutlineButton)} disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
+                Next
+              </Button>
+              <Button size="sm" variant="outline" className={cn(adminGlassOutlineButton)} disabled={currentPage >= totalPages} onClick={() => setCurrentPage(totalPages)}>
+                Last
+              </Button>
             </div>
           </div>
 
@@ -600,7 +761,11 @@ export default function AdminTasksPage() {
             const lessons = resolveLessons(task.lesson)
 
             return (
-              <Card key={task.id} className="relative flex flex-col" data-testid={`task-card-${task.id}`}>
+              <Card
+                key={task.id}
+                className={cn('relative flex flex-col border-0 shadow-none', adminGlassCard)}
+                data-testid={`task-card-${task.id}`}
+              >
                 <CardContent className="flex flex-1 flex-col gap-3 p-4">
                   {/* Question preview */}
                   <div>
@@ -615,7 +780,7 @@ export default function AdminTasksPage() {
                   {/* Type + points */}
                   <div className="flex items-center gap-2">
                     <span
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${typeBadgeClass(task.type)}`}
+                      className={cn(studentGlassPill, 'font-semibold normal-case tracking-tight', typeBadgeAccent(task.type))}
                     >
                       {typeLabel(task.type)}
                     </span>
@@ -631,16 +796,17 @@ export default function AdminTasksPage() {
                           type="button"
                           onClick={() => toggleTagSlug(slugKey(tag.slug))}
                         >
-                          <Badge
-                            variant="secondary"
-                            className={`cursor-pointer text-xs transition-colors ${
+                          <span
+                            className={cn(
+                              studentGlassPill,
+                              'cursor-pointer text-xs transition-colors',
                               selectedTagSlugs.has(slugKey(tag.slug))
-                                ? 'bg-blue-200 text-blue-800 dark:bg-blue-800/60 dark:text-blue-200'
-                                : 'hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/40 dark:hover:text-blue-300'
-                            }`}
+                                ? 'ring-2 ring-primary/35'
+                                : 'opacity-90 hover:opacity-100',
+                            )}
                           >
                             {tag.name}
-                          </Badge>
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -723,12 +889,22 @@ export default function AdminTasksPage() {
         </div>
 
           {/* Bottom pagination controls */}
-          <div className="mt-4 flex items-center justify-center gap-3">
-            <Button size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage(1)}>First</Button>
-            <Button size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>Prev</Button>
-            <div className="text-sm text-gray-500">Page {currentPage} of {totalPages}</div>
-            <Button size="sm" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
-            <Button size="sm" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(totalPages)}>Last</Button>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+            <Button size="sm" variant="outline" className={cn(adminGlassOutlineButton)} disabled={currentPage <= 1} onClick={() => setCurrentPage(1)}>
+              First
+            </Button>
+            <Button size="sm" variant="outline" className={cn(adminGlassOutlineButton)} disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
+              Prev
+            </Button>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              Page {currentPage} of {totalPages}
+            </div>
+            <Button size="sm" variant="outline" className={cn(adminGlassOutlineButton)} disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
+              Next
+            </Button>
+            <Button size="sm" variant="outline" className={cn(adminGlassOutlineButton)} disabled={currentPage >= totalPages} onClick={() => setCurrentPage(totalPages)}>
+              Last
+            </Button>
           </div>
 
         </div>

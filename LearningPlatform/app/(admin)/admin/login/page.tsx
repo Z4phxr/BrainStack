@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+import { adminGlassCard } from '@/lib/student-glass-styles'
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -41,10 +43,11 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4">
-      <Card className="w-full max-w-md">
+    <div className="relative isolate flex min-h-dvh items-center justify-center px-4">
+      <div className="student-app-shell-bg" aria-hidden />
+      <Card className={cn('relative z-[1] w-full max-w-md border-0 shadow-none', adminGlassCard)}>
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Admin sign in</CardTitle>
+          <CardTitle className="text-center text-2xl font-bold text-gray-900 dark:text-gray-100">Admin sign in</CardTitle>
           <CardDescription className="text-center">
             Use your admin credentials to continue
           </CardDescription>
@@ -86,7 +89,7 @@ export default function AdminLoginPage() {
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" variant="hero" className="auth-hero-cta w-full" disabled={isLoading}>
               {isLoading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>

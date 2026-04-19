@@ -1,7 +1,8 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
+import { adminGlassOutlineButton, studentGlassPill } from '@/lib/student-glass-styles'
 import { Trash2, ChevronUp, ChevronDown, Pencil } from 'lucide-react'
 import { deleteTask } from '@/app/(admin)/admin/actions'
 import { extractText } from '@/lib/lexical'
@@ -43,18 +44,29 @@ export function TasksList({ tasks, onEdit }: { tasks: Task[]; onEdit?: (task: Ta
   return (
     <div className="space-y-3">
       {tasks.map((task) => (
-        <div key={task.id} className="rounded-lg border dark:border-gray-700 p-4 block-bg">
+        <div
+          key={task.id}
+          className={cn(
+            'rounded-xl border p-4 shadow-sm backdrop-blur-md',
+            'border-slate-300/45 bg-white/[0.28] dark:border-white/12 dark:bg-white/[0.06] dark:shadow-none',
+          )}
+        >
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">
+                <span className={cn(studentGlassPill, 'normal-case')}>
                   {task.type === 'MULTIPLE_CHOICE' && 'Multiple choice'}
                   {task.type === 'OPEN_ENDED' && 'Open-ended'}
                   {task.type === 'TRUE_FALSE' && 'True/False'}
-                </Badge>
-                <Badge variant={task.isPublished ? 'default' : 'secondary'} className="text-xs">
+                </span>
+                <span
+                  className={cn(
+                    studentGlassPill,
+                    task.isPublished ? 'text-emerald-800 dark:text-emerald-200' : 'opacity-90',
+                  )}
+                >
                   {task.isPublished ? 'Published' : 'Draft'}
-                </Badge>
+                </span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">{task.points} pts</span>
               </div>
 

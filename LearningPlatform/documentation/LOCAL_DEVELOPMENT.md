@@ -52,5 +52,8 @@ docker compose --env-file .env up --build
 
 | URL | Purpose |
 |-----|---------|
-| `http://localhost:3000` | Student-facing application |
+| `http://localhost:3000` | Student-facing application (landing) |
+| `http://localhost:3000/login` | Sign in |
+| `http://localhost:3000/dashboard` | Signed-in learner home (courses in progress, practice, flashcards) |
+| `http://localhost:3000/courses` | Full published course catalog (filters, search, sort, pagination) |
 | `http://localhost:3000/admin` | Payload CMS admin panel |

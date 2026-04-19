@@ -10,16 +10,12 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Loader2, Save, RotateCcw } from 'lucide-react'
 import { LessonReadingSizeSettings } from '@/components/settings/lesson-reading-size'
 import ThemeToggle from '@/components/theme-toggle'
+import { studentGlassCard } from '@/lib/student-glass-styles'
+import { cn } from '@/lib/utils'
 
 interface Settings {
   id:                 string
@@ -164,7 +160,7 @@ export default function FlashcardSettingsPage() {
 
       setMessage({ type: 'success', text: 'Settings saved successfully!' })
     } catch {
-      setMessage({ type: 'error', text: 'Network error — please try again.' })
+      setMessage({ type: 'error', text: 'Network error. Please try again.' })
     } finally {
       setSaving(false)
     }
@@ -183,7 +179,7 @@ export default function FlashcardSettingsPage() {
 
   return (
     <div className="container mx-auto px-5 py-7 md:px-6 md:py-8">
-      <div className="mx-auto w-full max-w-5xl space-y-10">
+      <div className="mx-auto w-full max-w-5xl space-y-8">
         <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
           <Link
             href="/dashboard"
@@ -194,14 +190,6 @@ export default function FlashcardSettingsPage() {
           </Link>
         </div>
 
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">
-            Settings
-          </h1>
-          <p className="mt-2 text-base leading-relaxed text-gray-600 dark:text-gray-400 md:text-lg">
-            Reading, appearance, and flashcard spaced repetition. SRS changes apply to new study sessions.
-          </p>
-        </div>
 
         <section aria-labelledby="settings-reading-heading" className="space-y-4">
           <div>
@@ -212,31 +200,18 @@ export default function FlashcardSettingsPage() {
               Reading & appearance
             </h2>
             <p className="mt-2 text-base leading-relaxed text-gray-600 dark:text-gray-400 md:text-lg">
-              Lesson text size and light or dark theme. Text size and theme preference are stored in this browser.
+                How large lesson theory and Markdown text blocks appear. 
             </p>
           </div>
           <div className="space-y-4 md:space-y-5">
             <LessonReadingSizeSettings />
-            <Card>
-              <CardHeader>
-                <CardTitle>Color theme</CardTitle>
-                <CardDescription>
-                  Switch between light and dark. Same control as in the top navigation bar.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-wrap items-center gap-4">
-                <ThemeToggle />
-                <p className="text-sm text-muted-foreground">
-                  Tap the sun or moon icon to toggle.
-                </p>
-              </CardContent>
-            </Card>
+           
           </div>
         </section>
 
         <section
           aria-labelledby="settings-srs-heading"
-          className="space-y-4 border-t border-border pt-10"
+          className="space-y-4 border-t border-slate-200/80 pt-8 dark:border-white/10 md:pt-10"
         >
           <div>
             <h2
@@ -246,7 +221,7 @@ export default function FlashcardSettingsPage() {
               Spaced repetition (SRS)
             </h2>
             <p className="mt-2 text-base leading-relaxed text-gray-600 dark:text-gray-400 md:text-lg">
-              Fine-tune how flashcards are scheduled in SRS mode. These values are saved to your account.
+              Fine-tune how flashcards are scheduled in SRS mode. Changes apply to new study sessions.
             </p>
           </div>
 
@@ -258,12 +233,14 @@ export default function FlashcardSettingsPage() {
           )}
 
           {!loading && (
-            <form onSubmit={handleSave} className="space-y-8">
-              <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  Daily Limits
-                </h3>
-                <div className="grid gap-6 sm:grid-cols-2">
+            <form onSubmit={handleSave} className="space-y-6 md:space-y-8">
+              <Card className={cn('border-0 shadow-none', studentGlassCard)}>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    Daily limits
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-6 pt-0 sm:grid-cols-2">
                   {FIELDS.filter((f) => f.key === 'newCardsPerDay' || f.key === 'maxReviews').map((field) => (
                     <FormField
                       key={field.key}
@@ -272,14 +249,16 @@ export default function FlashcardSettingsPage() {
                       onChange={(v) => setField(field.key, v as never)}
                     />
                   ))}
-                </div>
-              </section>
+                </CardContent>
+              </Card>
 
-              <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  Learning Steps
-                </h3>
-                <div className="grid gap-6 sm:grid-cols-2">
+              <Card className={cn('border-0 shadow-none', studentGlassCard)}>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    Learning steps
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-6 pt-0 sm:grid-cols-2">
                   {FIELDS.filter((f) =>
                     f.key === 'learningSteps' ||
                     f.key === 'relearningSteps' ||
@@ -293,14 +272,16 @@ export default function FlashcardSettingsPage() {
                       onChange={(v) => setField(field.key, v as never)}
                     />
                   ))}
-                </div>
-              </section>
+                </CardContent>
+              </Card>
 
-              <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                  Algorithm Tuning
-                </h3>
-                <div className="grid gap-6 sm:grid-cols-2">
+              <Card className={cn('border-0 shadow-none', studentGlassCard)}>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    Algorithm tuning
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-6 pt-0 sm:grid-cols-2">
                   {FIELDS.filter((f) =>
                     f.key === 'startingEase' || f.key === 'masteredThreshold'
                   ).map((field) => (
@@ -311,8 +292,8 @@ export default function FlashcardSettingsPage() {
                       onChange={(v) => setField(field.key, v as never)}
                     />
                   ))}
-                </div>
-              </section>
+                </CardContent>
+              </Card>
 
               {message && (
                 <div className={
@@ -324,21 +305,22 @@ export default function FlashcardSettingsPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-between">
-                <button
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={handleReset}
-                  className="flex items-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                  className="border-slate-300/60 bg-white/20 backdrop-blur-sm dark:border-white/20 dark:bg-white/5"
                 >
                   <RotateCcw className="h-4 w-4" />
                   Reset to defaults
-                </button>
+                </Button>
 
-                <Button type="submit" disabled={saving}>
+                <Button type="submit" variant="hero" className="auth-hero-cta" disabled={saving}>
                   {saving ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving…</>
                   ) : (
-                    <><Save className="mr-2 h-4 w-4" />Save Settings</>
+                    <><Save className="mr-2 h-4 w-4" />Save settings</>
                   )}
                 </Button>
               </div>

@@ -21,6 +21,8 @@ import { ModulesList } from './modules-list'
 import { MediaPicker } from './media-picker'
 import { FormError, FieldError } from '@/components/ui/form-error'
 import { ZodError } from 'zod'
+import { cn } from '@/lib/utils'
+import { adminGlassCard, adminGlassOutlineButton } from '@/lib/student-glass-styles'
 
 interface Course {
   id: string
@@ -225,22 +227,22 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-4xl space-y-8">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" asChild>
+          <Button variant="outline" size="icon" className={cn(adminGlassOutlineButton)} asChild>
             <Link href="/admin/dashboard">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{course.title}</h1>
-            <p className="text-gray-600 dark:text-gray-400">Edit course and manage modules</p>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">{course.title}</h1>
+            <p className="mt-1 text-base text-gray-600 dark:text-gray-400 md:text-lg">Edit course and manage modules</p>
           </div>
         </div>
         <Button
           variant="outline"
-          className="text-red-600 hover:text-red-700 dark:text-red-400"
+          className="border-red-300/50 text-red-700 hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-950/30"
           onClick={async () => {
             if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) return
             setLoading(true)
@@ -261,9 +263,9 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
       </div>
 
       {/* Course Info */}
-      <Card>
+      <Card className={cn('border-0 shadow-none', adminGlassCard)}>
         <CardHeader>
-          <CardTitle>Basic information</CardTitle>
+          <CardTitle className="text-gray-900 dark:text-gray-100">Basic information</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleUpdateCourse} className="space-y-6">
@@ -337,13 +339,20 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="default" onClick={() => setShowCoverPicker(true)} disabled={loading}>
+                  <Button
+                    type="button"
+                    variant="hero"
+                    className="auth-hero-cta"
+                    onClick={() => setShowCoverPicker(true)}
+                    disabled={loading}
+                  >
                     {coverMediaId ? 'Change image' : 'Choose image'}
                   </Button>
                   {coverMediaId ? (
                     <Button
                       type="button"
-                      variant="default"
+                      variant="outline"
+                      className={cn(adminGlassOutlineButton)}
                       disabled={loading}
                       onClick={() => {
                         setCoverMediaId('')
@@ -360,8 +369,8 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
             <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:gap-3">
               <Button
                 type="button"
-                variant="default"
-                className="min-h-10 flex-1"
+                variant="outline"
+                className={cn('min-h-10 flex-1', adminGlassOutlineButton)}
                 disabled={loading || course.id === 'new'}
                 onClick={async () => {
                   setLoading(true)
@@ -380,8 +389,8 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
               {course.id !== 'new' ? (
                 <Button
                   type="button"
-                  variant="default"
-                  className="min-h-10 flex-1"
+                  variant="outline"
+                  className={cn('min-h-10 flex-1', adminGlassOutlineButton)}
                   disabled={loading}
                   title="Publish this course and every module, lesson, and task under it"
                   onClick={async () => {
@@ -406,7 +415,7 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
                   Publish all
                 </Button>
               ) : null}
-              <Button type="submit" disabled={loading} variant="default" className="min-h-10 flex-1">
+              <Button type="submit" disabled={loading} variant="hero" className="auth-hero-cta min-h-10 flex-1">
                 <Save className="mr-2 h-4 w-4" />
                 Save changes
               </Button>
@@ -416,11 +425,11 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
       </Card>
 
       {/* Modules */}
-      <Card>
+      <Card className={cn('border-0 shadow-none', adminGlassCard)}>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Modules ({modules.length})</CardTitle>
-            <Button onClick={() => setShowAddModule(!showAddModule)} size="sm">
+            <CardTitle className="text-gray-900 dark:text-gray-100">Modules ({modules.length})</CardTitle>
+            <Button variant="hero" className="auth-hero-cta" onClick={() => setShowAddModule(!showAddModule)} size="sm">
               <Plus className="mr-2 h-4 w-4" />
               Add module
             </Button>
@@ -428,7 +437,10 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
         </CardHeader>
         <CardContent className="space-y-4">
           {showAddModule && (
-            <form onSubmit={handleAddModule} className="rounded-lg border dark:border-gray-700 block-bg p-4 space-y-4">
+            <form
+              onSubmit={handleAddModule}
+              className="space-y-4 rounded-xl border border-slate-300/40 bg-white/[0.22] p-4 backdrop-blur-md dark:border-white/12 dark:bg-white/[0.08]"
+            >
               {moduleError && <FormError message={moduleError} />}
               
               <div>
@@ -443,12 +455,13 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
                 {moduleFieldErrors.title && <FieldError message={moduleFieldErrors.title} />}
               </div>
               <div className="flex gap-2">
-                <Button type="submit" disabled={loading}>
+                <Button type="submit" variant="hero" className="auth-hero-cta" disabled={loading}>
                   Add
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
+                  className={cn(adminGlassOutlineButton)}
                   onClick={() => {
                     setShowAddModule(false)
                     setModuleError('')

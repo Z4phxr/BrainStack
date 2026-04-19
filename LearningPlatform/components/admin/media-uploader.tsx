@@ -3,13 +3,15 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { MediaPicker } from './media-picker'
+import { Upload } from 'lucide-react'
 
 export function MediaUploader() {
   const [open, setOpen] = useState(false)
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} className="ml-4">
+      <Button variant="hero" className="auth-hero-cta" onClick={() => setOpen(true)}>
+        <Upload className="mr-2 h-4 w-4" />
         Upload media
       </Button>
 
@@ -17,7 +19,6 @@ export function MediaUploader() {
         open={open}
         onClose={() => setOpen(false)}
         onSelect={() => {
-          // After upload/select, refresh the page to show new media in the server-rendered list
           setOpen(false)
           if (typeof window !== 'undefined') window.location.reload()
         }}

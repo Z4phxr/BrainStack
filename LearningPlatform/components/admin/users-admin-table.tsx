@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -11,6 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
+import { adminGlassCard, adminGlassOutlineButton, studentGlassPill } from '@/lib/student-glass-styles'
 
 type UserRow = {
   id: string
@@ -23,13 +24,18 @@ type UserRow = {
 
 const PAGE_SIZE = 20
 
-export function UsersAdminTable() {
+interface UsersAdminTableProps {
+  currentUserId: string | null
+}
+
+export function UsersAdminTable({ currentUserId }: UsersAdminTableProps) {
   const [page, setPage] = useState(1)
   const [users, setUsers] = useState<UserRow[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [pendingId, setPendingId] = useState<string | null>(null)
+  /** `${userId}:pro` | `${userId}:role` while a PATCH is in flight */
+  const [pendingKey, setPendingKey] = useState<string | null>(null)
 
   const load = useCallback(async (p: number) => {
     setLoading(true)
@@ -62,24 +68,41 @@ export function UsersAdminTable() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  const togglePro = async (userId: string, next: boolean) => {
-    setPendingId(userId)
+  const patchUser = async (
+    userId: string,
+    slot: 'pro' | 'role',
+    body: Record<string, unknown>,
+  ) => {
+    setPendingKey(`${userId}:${slot}`)
     try {
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPro: next }),
+        body: JSON.stringify(body),
       })
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string
+        isPro?: boolean
+        role?: string
+      }
       if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string }
         setError(data.error ?? 'Update failed')
         return
       }
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, isPro: next } : u)))
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id !== userId) return u
+          return {
+            ...u,
+            ...(typeof data.isPro === 'boolean' ? { isPro: data.isPro } : {}),
+            ...(typeof data.role === 'string' ? { role: data.role } : {}),
+          }
+        }),
+      )
     } catch {
       setError('Network error')
     } finally {
-      setPendingId(null)
+      setPendingKey(null)
     }
   }
 
@@ -91,7 +114,7 @@ export function UsersAdminTable() {
         </p>
       ) : null}
 
-      <div className="rounded-lg border dark:border-gray-700">
+      <div className={cn('overflow-hidden rounded-xl border-0 shadow-none', adminGlassCard)}>
         <Table>
           <TableHeader>
             <TableRow>
@@ -100,7 +123,7 @@ export function UsersAdminTable() {
               <TableHead>Role</TableHead>
               <TableHead>Pro</TableHead>
               <TableHead>Joined</TableHead>
-              <TableHead className="text-right">Access</TableHead>
+              <TableHead className="min-w-[220px] text-right">Credentials</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -124,11 +147,18 @@ export function UsersAdminTable() {
                     {u.name ?? '—'}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={u.role === 'ADMIN' ? 'default' : 'secondary'}>{u.role}</Badge>
+                    <span
+                      className={cn(
+                        studentGlassPill,
+                        u.role === 'ADMIN' ? 'text-primary' : 'opacity-90',
+                      )}
+                    >
+                      {u.role}
+                    </span>
                   </TableCell>
                   <TableCell>
                     {u.isPro ? (
-                      <Badge className="bg-violet-600 hover:bg-violet-600">Pro</Badge>
+                      <span className={cn(studentGlassPill, 'text-violet-900 dark:text-violet-200')}>Pro</span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
@@ -137,15 +167,40 @@ export function UsersAdminTable() {
                     {new Date(u.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={pendingId === u.id}
-                      onClick={() => togglePro(u.id, !u.isPro)}
-                    >
-                      {u.isPro ? 'Revoke Pro' : 'Grant Pro'}
-                    </Button>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className={cn(adminGlassOutlineButton)}
+                        disabled={pendingKey === `${u.id}:pro`}
+                        onClick={() => patchUser(u.id, 'pro', { isPro: !u.isPro })}
+                      >
+                        {u.isPro ? 'Revoke Pro' : 'Grant Pro'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className={cn(adminGlassOutlineButton)}
+                        disabled={
+                          pendingKey === `${u.id}:role` ||
+                          (u.role === 'ADMIN' && u.id === currentUserId)
+                        }
+                        title={
+                          u.role === 'ADMIN' && u.id === currentUserId
+                            ? 'You cannot remove your own admin role'
+                            : undefined
+                        }
+                        onClick={() =>
+                          patchUser(u.id, 'role', {
+                            role: u.role === 'ADMIN' ? 'STUDENT' : 'ADMIN',
+                          })
+                        }
+                      >
+                        {u.role === 'ADMIN' ? 'Revoke admin' : 'Grant admin'}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -163,6 +218,7 @@ export function UsersAdminTable() {
             type="button"
             variant="outline"
             size="sm"
+            className={cn(adminGlassOutlineButton)}
             disabled={page <= 1 || loading}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
@@ -172,6 +228,7 @@ export function UsersAdminTable() {
             type="button"
             variant="outline"
             size="sm"
+            className={cn(adminGlassOutlineButton)}
             disabled={page >= totalPages || loading}
             onClick={() => setPage((p) => p + 1)}
           >

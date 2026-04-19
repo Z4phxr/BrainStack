@@ -1,13 +1,14 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { Plus, Trash2, CheckCircle, Circle, Eye, Edit, ArrowUp, ArrowDown, Pencil, Check, X } from 'lucide-react'
 import { deleteModule, toggleModulePublish, createLesson, deleteLesson, moveLesson, updateModule, moveModule } from '@/app/(admin)/admin/actions'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
+import { adminGlassCard, adminGlassOutlineButton, studentGlassPill } from '@/lib/student-glass-styles'
 
 interface Lesson {
   id: string
@@ -138,9 +139,9 @@ export function ModulesList({ modules, courseId }: { modules: Module[]; courseId
   return (
     <div className="space-y-4">
       {modules.map((courseModule, index) => (
-        <div key={courseModule.id} className="rounded-lg border dark:border-gray-700">
+        <div key={courseModule.id} className={cn('overflow-hidden rounded-xl border-0 shadow-none', adminGlassCard)}>
           {/* Module Header */}
-          <div className="flex items-center justify-between border-b dark:border-gray-700 block-bg p-4">
+          <div className="flex items-center justify-between border-b border-slate-200/40 bg-white/[0.12] p-4 backdrop-blur-sm dark:border-white/10 dark:bg-white/[0.06]">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <span className="shrink-0 text-sm font-medium text-gray-500 dark:text-gray-400">
                 Module {index + 1}
@@ -189,9 +190,14 @@ export function ModulesList({ modules, courseId }: { modules: Module[]; courseId
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Badge variant={courseModule.isPublished ? 'default' : 'secondary'} className="text-xs">
+                  <span
+                    className={cn(
+                      studentGlassPill,
+                      courseModule.isPublished ? 'text-emerald-800 dark:text-emerald-200' : 'opacity-90',
+                    )}
+                  >
                     {courseModule.isPublished ? 'Published' : 'Draft'}
-                  </Badge>
+                  </span>
                 </>
               )}
             </div>
@@ -239,7 +245,8 @@ export function ModulesList({ modules, courseId }: { modules: Module[]; courseId
               </Button>
               <Button
                 size="sm"
-                variant={courseModule.isPublished ? 'secondary' : 'default'}
+                variant={courseModule.isPublished ? 'outline' : 'hero'}
+                className={courseModule.isPublished ? cn(adminGlassOutlineButton) : 'auth-hero-cta'}
                 onClick={() => handleTogglePublish(courseModule.id, courseModule.isPublished)}
                 disabled={loading === courseModule.id}
               >
@@ -276,6 +283,7 @@ export function ModulesList({ modules, courseId }: { modules: Module[]; courseId
               <Button
                 size="sm"
                 variant="outline"
+                className={cn(adminGlassOutlineButton)}
                 onClick={() => setShowAddLesson(showAddLesson === courseModule.id ? null : courseModule.id)}
               >
                 <Plus className="mr-2 h-3 w-3" />
@@ -285,7 +293,7 @@ export function ModulesList({ modules, courseId }: { modules: Module[]; courseId
 
             {/* Add Lesson Form */}
             {showAddLesson === courseModule.id && (
-              <div className="mb-3 rounded-lg border dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20 p-3">
+              <div className="mb-3 rounded-xl border border-slate-300/40 bg-white/[0.22] p-3 backdrop-blur-md dark:border-white/12 dark:bg-white/[0.08]">
                 <div className="flex gap-2">
                   <Input
                     placeholder="New lesson title..."
@@ -302,6 +310,8 @@ export function ModulesList({ modules, courseId }: { modules: Module[]; courseId
                   />
                   <Button
                     size="sm"
+                    variant="hero"
+                    className="auth-hero-cta"
                     onClick={() => handleAddLesson(courseModule.id)}
                     disabled={loading === courseModule.id}
                   >
@@ -310,6 +320,7 @@ export function ModulesList({ modules, courseId }: { modules: Module[]; courseId
                   <Button
                     size="sm"
                     variant="outline"
+                    className={cn(adminGlassOutlineButton)}
                     onClick={() => {
                       setShowAddLesson(null)
                       setNewLessonTitle('')
@@ -331,19 +342,24 @@ export function ModulesList({ modules, courseId }: { modules: Module[]; courseId
                 {courseModule.lessons?.map((lesson, lessonIndex) => (
                   <div
                     key={lesson.id}
-                    className="flex items-center justify-between rounded-lg border dark:border-gray-700 block-contrast p-3 hover:shadow-sm"
+                    className={cn(
+                      'flex items-center justify-between rounded-xl border p-3 shadow-sm backdrop-blur-md',
+                      'border-slate-300/45 bg-white/[0.28] dark:border-white/12 dark:bg-white/[0.06] dark:shadow-none',
+                    )}
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                         #{lessonIndex + 1}
                       </span>
                       <span className="font-medium dark:text-gray-100">{lesson.title}</span>
-                      <Badge
-                        variant={lesson.isPublished ? 'default' : 'secondary'}
-                        className="text-xs"
+                      <span
+                        className={cn(
+                          studentGlassPill,
+                          lesson.isPublished ? 'text-emerald-800 dark:text-emerald-200' : 'opacity-90',
+                        )}
                       >
                         {lesson.isPublished ? 'Published' : 'Draft'}
-                      </Badge>
+                      </span>
                     </div>
 
                     <div className="flex gap-1">

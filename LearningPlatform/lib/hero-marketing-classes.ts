@@ -24,10 +24,13 @@ export function heroMarketingGlassText(isDark: boolean): string {
 
 export const heroMarketingTitleFont = 'font-hero font-extrabold tracking-tight'
 
-/** Login/register inputs in dark mode: glass text + visible caret (`text-transparent` otherwise hides caret). */
+const authDarkAutofillText =
+  '[&:-webkit-autofill]:![-webkit-text-fill-color:rgb(248,250,252)] [&:-webkit-autofill:hover]:![-webkit-text-fill-color:rgb(248,250,252)] [&:-webkit-autofill:focus]:![-webkit-text-fill-color:rgb(248,250,252)] [&:-webkit-autofill:active]:![-webkit-text-fill-color:rgb(248,250,252)]'
+
+/** Login/register inputs in dark mode: glass text, visible caret, WebKit autofill text (Chrome ignores `color` until edit). */
 export function heroMarketingAuthInputClass(isDark: boolean): string {
   return isDark
-    ? cn('bg-transparent caret-white', heroMarketingGlassText(true))
+    ? cn('bg-transparent caret-white placeholder:text-white/60', heroMarketingGlassText(true), authDarkAutofillText)
     : 'bg-transparent text-slate-900 placeholder:text-slate-500'
 }
 

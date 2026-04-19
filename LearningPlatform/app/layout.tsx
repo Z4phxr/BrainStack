@@ -43,16 +43,21 @@ export default async function RootLayout({
   // later applies a real nonce). `headers().get` may return null during
   // certain server-rendering scenarios, so prefer `undefined` over an
   // empty string to avoid emitting an empty attribute.
-  const _hdr = (await headers()).get('x-nonce')
-  const nonce = _hdr ?? undefined
+  const rawNonce = (await headers()).get('x-nonce')
+  // Never pass '' — React/Next can serialize that as nonce="" and mismatch a later render that has a real nonce.
+  const nonce = typeof rawNonce === 'string' && rawNonce.length > 0 ? rawNonce : undefined
 
-  const themeInitScript = `(function(){try{var k='theme';var v=localStorage.getItem(k);if(v==='dark'){document.documentElement.classList.add('dark');}else if(v==='light'){document.documentElement.classList.remove('dark');}else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.classList.add('dark');}}catch(e){} })()`
+  const themeInitScript = `(function(){try{var k='theme';var v=localStorage.getItem(k);var r=document.documentElement;if(v==='dark'){r.classList.add('dark');}else if(v==='light'){r.classList.remove('dark');}else{r.classList.add('dark');}}catch(e){try{document.documentElement.classList.add('dark');}catch(_){}} })()`
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Explicit favicon link to ensure the app/favicon.ico is used */}
         <link rel="icon" href="/favicon.ico" />
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script
+          suppressHydrationWarning
+          {...(nonce ? { nonce } : {})}
+          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} antialiased`}

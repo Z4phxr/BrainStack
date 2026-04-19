@@ -158,6 +158,33 @@
   background-color: var(--block-contrast) !important;
 }
 
+/* Student shell: quiet static gradient only (LiquidEther stays on home + auth).
+   Light: off-white base + soft tinted “liquid” pools (still bright) so backdrop-blur on
+   glass cards has depth to refract—mirrors dark-mode richness without lowering luminance much.
+   Background lives on a fixed layer so long pages (e.g. lessons) do not “drag” the pools upward
+   while scrolling, which read as a moving band/shadow under the nav. */
+.student-app-shell-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(75% 48% at 12% -5%, rgba(199, 210, 254, 0.38) 0%, transparent 58%),
+    radial-gradient(65% 42% at 96% 8%, rgba(186, 230, 253, 0.34) 0%, transparent 52%),
+    radial-gradient(95% 55% at 48% 100%, rgba(224, 231, 255, 0.32) 0%, transparent 55%),
+    radial-gradient(90% 50% at 50% 0%, rgba(248, 250, 252, 0.5) 0%, transparent 50%),
+    linear-gradient(168deg, #eef1f8 0%, #e7edf6 30%, #e2e9f3 55%, #ebeff8 100%);
+}
+.dark .student-app-shell-bg {
+  background: linear-gradient(165deg, #0c0e12 0%, #111620 50%, #15192a 100%);
+}
+.student-app-shell {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 /* Override common utility background classes in dark mode so external
    components (e.g. embedded admin UI) don't show bright white bars.
    This maps Tailwind's bg-white/bg-gray-* to our unified two-tone colors

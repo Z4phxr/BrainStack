@@ -13,10 +13,25 @@ Detailed feature reference for content authoring, publishing controls, lesson/ta
 | Spaced repetition | Full SM-2 algorithm - NEW / LEARNING / REVIEW / RELEARNING / MASTERED states |
 | Flashcard decks | Admin-defined decks with optional tag scope and deck-based study filtering |
 | Pro features | Pro lesson assistant and admin-controlled user Pro entitlement |
-| Audit trail | Persistent activity log for every admin action, viewable and filterable in the panel |
+| Audit trail | Activity log (append-only); new events can be paused in **Admin → Settings**; `/admin/logs` remains filterable for existing rows |
 | Media | S3-compatible object storage with signed URL delivery and usage tracking |
 | Security | JWT revocation, rate limiting, per-request CSP nonces, Zod validation throughout |
 | Progress tracking | Per-user lesson completion and task grading stored at every granularity level |
+
+## Student app (`/dashboard`, `/courses`)
+
+Signed-in learners use the student layout (navbar, theme). Highlights:
+
+- **Dashboard (`/dashboard`)**  
+  - **Your courses** lists only courses where the learner has at least one **published** lesson in `IN_PROGRESS` or `COMPLETED` (from `LessonProgress`, resolved through Payload lessons). If none, a prompt links to the catalog.  
+  - **Most popular** shows up to five courses ranked by **distinct learners** (same lesson-progress rule), then fills any remaining slots with the **newest published** courses so the strip stays full. Results are cached briefly server-side.  
+  - A **Explore all courses** promo card (same centered column as the rest of the dashboard) links to `/courses`.  
+  - Stat cards include **Active courses**: count of distinct started courses (same definition as Your courses), not a raw count of every `CourseProgress` row.
+
+- **Course catalog (`/courses`)**  
+  - Centered title and subtitle.  
+  - **GET** form (shareable URLs): **search** by course title (substring), **filter** by level (Beginner / Intermediate / Advanced) and **subject**, **sort** by last updated, created date, or title (asc/desc).  
+  - **Pagination**: 15 published courses per page.
 
 ## Admin Panel
 
@@ -27,14 +42,14 @@ The sidebar provides access to:
 - **Dashboard** - high-level admin overview
 - **Lessons** - build lesson content using the block-based editor
 - **Courses and Modules** - managed through lesson/curriculum editing flows in admin tools
-- **Tasks** - create questions with prompts, answer choices, solutions, point values, and tag annotations
+- **Tasks** - create questions with prompts, answer choices, solutions, point values, and tag annotations; list supports **search** (debounced, question/title/id/lessons) and **task type** filter via `GET /api/admin/tasks?type=…`
 - **Subjects** - top-level topic taxonomy
 - **Tags** - canonical knowledge tags shared across tasks and flashcards; power the recommendation engine
-- **Flashcards** - create study cards linked to tags for the SRS system
+- **Flashcards** - create study cards linked to tags for the SRS system; admin list supports **search** (debounced, question/answer/deck/tags/id) alongside deck and tag filters
 - **Flashcard Decks** - create named decks, connect tags, and organize study sets
-- **Users** - list users and manage Pro entitlement (`isPro`) from admin tools
+- **Users** - list users; **Credentials** column toggles **Pro** and **admin** role (`PATCH /api/admin/users/:id`); self–admin demotion is blocked
 - **Media** - upload and manage images and files backed by S3-compatible object storage
-- **Settings** - admin personalization (theme, reading-size preferences)
+- **Settings** - theme, reading-size preferences, **activity log on/off**, and related controls
 - **AI Agent** - draft and full AI course generation workspace
 - **Logs** - full audit trail of every administrative action
 
@@ -126,7 +141,7 @@ BrainStack includes Pro-gated capabilities on top of the core learning flow:
 
 - **Lesson Assistant API** (`POST /api/lesson-assistant`) for contextual AI help during lessons.
 - **Pro guardrails** via `requireProUser()` and rate limiting on assistant usage.
-- **Admin Pro management** via `/api/admin/users` and `PATCH /api/admin/users/[id]` (`isPro` toggle).
+- **Admin user management** via `/api/admin/users` and `PATCH /api/admin/users/[id]` (`isPro` and/or `role`).
 
 ## Flashcard Decks
 

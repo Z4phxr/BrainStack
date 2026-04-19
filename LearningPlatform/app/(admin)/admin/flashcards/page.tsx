@@ -1,12 +1,35 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Plus, Trash2, Pencil, Loader2, BookOpen, Tag as TagIcon, ArrowUpAZ, ArrowDownAZ, ArrowUp01, ArrowDown01, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  Loader2,
+  BookOpen,
+  Tag as TagIcon,
+  ArrowUpAZ,
+  ArrowDownAZ,
+  ArrowUp01,
+  ArrowDown01,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  X,
+} from 'lucide-react'
 import { FlashcardDialog, type FlashcardInitialData } from '@/components/admin/add-flashcard-dialog'
+import { cn } from '@/lib/utils'
+import {
+  adminGlassCard,
+  adminGlassIconToggleActive,
+  adminGlassIconToggleInactive,
+  adminGlassOutlineButton,
+  studentGlassPill,
+} from '@/lib/student-glass-styles'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,6 +81,9 @@ export default function AdminFlashcardsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
 
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
   // Dialog
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editData, setEditData] = useState<FlashcardInitialData | undefined>(undefined)
@@ -67,13 +93,17 @@ export default function AdminFlashcardsPage() {
 
   // ── Data fetching ────────────────────────────────────────────────────────────
 
-  const fetchData = useCallback(async (tagSlugsCsv?: string | null, deckSlug?: string | null) => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true)
       setError('')
       const params = new URLSearchParams()
-      if (tagSlugsCsv) params.set('tagSlugs', tagSlugsCsv)
-      if (deckSlug) params.set('deckSlug', deckSlug)
+      if (selectedTagSlugs.size > 0) {
+        params.set('tagSlugs', Array.from(selectedTagSlugs).join(','))
+      }
+      if (selectedDeckSlug) {
+        params.set('deckSlug', selectedDeckSlug)
+      }
       const qs = params.toString()
       const [fcRes, tagRes, deckRes] = await Promise.all([
         fetch(`/api/flashcards${qs ? `?${qs}` : ''}`),
@@ -95,12 +125,16 @@ export default function AdminFlashcardsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [selectedTagSlugs, selectedDeckSlug])
 
   useEffect(() => {
-    const tagSlugsCsv = selectedTagSlugs.size > 0 ? Array.from(selectedTagSlugs).join(',') : null
-    void fetchData(tagSlugsCsv, selectedDeckSlug)
-  }, [fetchData, selectedTagSlugs, selectedDeckSlug])
+    const t = window.setTimeout(() => setDebouncedSearch(searchInput), 350)
+    return () => window.clearTimeout(t)
+  }, [searchInput])
+
+  useEffect(() => {
+    void fetchData()
+  }, [fetchData])
 
   // Reset tag pagination when toggling between main/all tags
   useEffect(() => {
@@ -171,57 +205,119 @@ export default function AdminFlashcardsPage() {
     })
   }
 
+  const filteredFlashcards = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase()
+    if (!q) return flashcards
+    return flashcards.filter((card) => {
+      const hay = [
+        card.question,
+        card.answer,
+        card.id,
+        card.deck?.name ?? '',
+        card.deck?.slug ?? '',
+        ...(card.tags ?? []).map((t) => `${t.name} ${t.slug}`),
+      ]
+        .join('\n')
+        .toLowerCase()
+      return hay.includes(q)
+    })
+  }, [flashcards, debouncedSearch])
+
+  const hasActiveFilters =
+    selectedTagSlugs.size > 0 || Boolean(selectedDeckSlug) || Boolean(debouncedSearch.trim())
+
+  function clearAllFilters() {
+    setSelectedTagSlugs(new Set())
+    setSelectedDeckSlug(null)
+    setSearchInput('')
+    setDebouncedSearch('')
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-      {/* ── Page header ── */}
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-6xl space-y-8">
+      {/* ── Page header: title block, then toolbar (filters + primary CTA) ── */}
+      <div className="space-y-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Flashcards</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">Flashcards</h1>
+          <p className="mt-2 text-base text-gray-600 dark:text-gray-400 md:text-lg">
             Create, edit and organise flashcards. Students study them in their dashboard.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <label htmlFor="flashcard-deck-filter" className="sr-only">Filter by deck</label>
-            <select
-              id="flashcard-deck-filter"
-              value={selectedDeckSlug ?? ''}
-              onChange={(e) => setSelectedDeckSlug(e.target.value || null)}
-              className="h-9 min-w-[10rem] rounded-md border border-input bg-background px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
-            >
-              <option value="">All decks</option>
-              {deckOptions.map((d) => (
-                <option key={d.slug} value={d.slug}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="relative">
-            <label htmlFor="flashcard-sort" className="sr-only">Sort flashcards</label>
-            <div className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center">
-              <svg className="h-3.5 w-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            <div className="relative">
+              <label htmlFor="flashcard-deck-filter" className="sr-only">Filter by deck</label>
+              <select
+                id="flashcard-deck-filter"
+                value={selectedDeckSlug ?? ''}
+                onChange={(e) => setSelectedDeckSlug(e.target.value || null)}
+                className="h-9 min-w-[10rem] rounded-md border border-slate-300/50 bg-white/40 px-3 text-sm text-gray-900 shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-white/15 dark:bg-white/10 dark:text-gray-100"
+              >
+                <option value="">All decks</option>
+                {deckOptions.map((d) => (
+                  <option key={d.slug} value={d.slug}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
             </div>
-            <select
-              id="flashcard-sort"
-              value={sortKey}
-              onChange={(e) => setSortKey(e.target.value as 'newest' | 'oldest' | 'az' | 'za')}
-              className="h-9 rounded-md border border-input bg-background pl-8 pr-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
-            >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="az">A → Z</option>
-              <option value="za">Z → A</option>
-            </select>
+            <div className="relative">
+              <label htmlFor="flashcard-sort" className="sr-only">Sort flashcards</label>
+              <div className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center">
+                <svg className="h-3.5 w-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>
+              </div>
+              <select
+                id="flashcard-sort"
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value as 'newest' | 'oldest' | 'az' | 'za')}
+                className="h-9 rounded-md border border-slate-300/50 bg-white/40 pl-8 pr-3 text-sm text-gray-900 shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-white/15 dark:bg-white/10 dark:text-gray-100"
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="az">A → Z</option>
+                <option value="za">Z → A</option>
+              </select>
+            </div>
           </div>
-          <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Flashcard
+          <Button variant="hero" className="auth-hero-cta w-full sm:w-auto sm:shrink-0" onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Flashcard
           </Button>
         </div>
+      </div>
+
+      {/* ── Search ── */}
+      <div
+        className={cn(
+          'flex flex-col gap-3 rounded-xl border-0 p-4 shadow-none sm:flex-row sm:flex-wrap sm:items-end',
+          adminGlassCard,
+        )}
+      >
+        <div className="min-w-0 flex-1 space-y-1">
+          <label htmlFor="flashcard-search" className="text-xs font-medium text-muted-foreground">
+            Search
+          </label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="flashcard-search"
+              type="search"
+              placeholder="Question, answer, deck, tags, id…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="border-slate-300/50 bg-white/50 pl-9 dark:border-white/15 dark:bg-white/10"
+              autoComplete="off"
+            />
+          </div>
+        </div>
+        {hasActiveFilters ? (
+          <Button type="button" variant="outline" size="sm" className={cn(adminGlassOutlineButton)} onClick={clearAllFilters}>
+            <X className="mr-1.5 h-4 w-4" />
+            Clear filters
+          </Button>
+        ) : null}
       </div>
 
       {/* ── Tags strip ── */}
@@ -233,7 +329,7 @@ export default function AdminFlashcardsPage() {
               <span>Browse by tag</span>
             </div>
             <div className="flex items-center gap-1">
-                <Button size="sm" variant="outline" onClick={() => setShowAllTags((s) => !s)}>
+                <Button size="sm" variant="outline" className={cn(adminGlassOutlineButton)} onClick={() => setShowAllTags((s) => !s)}>
                   {showAllTags ? 'Show main tags' : 'Show all tags'}
                 </Button>
               <span className="mr-1 text-xs text-gray-400">Sort:</span>
@@ -250,12 +346,13 @@ export default function AdminFlashcardsPage() {
                   type="button"
                   title={title}
                   onClick={onClick}
-                  className={`inline-flex h-8 w-8 items-center justify-center rounded-md border text-sm transition-colors ${
+                  className={cn(
+                    'inline-flex h-8 w-8 items-center justify-center rounded-md border text-sm transition-colors',
                     (tagSortField === 'name' && key.startsWith('name') && tagSortDir === (key.endsWith('asc') ? 'asc' : 'desc')) ||
-                    (tagSortField === 'count' && key.startsWith('count') && tagSortDir === (key.endsWith('asc') ? 'asc' : 'desc'))
-                      ? 'border-blue-400 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
-                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400'
-                  }`}
+                      (tagSortField === 'count' && key.startsWith('count') && tagSortDir === (key.endsWith('asc') ? 'asc' : 'desc'))
+                      ? adminGlassIconToggleActive
+                      : adminGlassIconToggleInactive,
+                  )}
                 >
                   {icon}
                 </button>
@@ -268,7 +365,11 @@ export default function AdminFlashcardsPage() {
               type="button"
               onClick={() => setTagPage((p) => Math.max(1, p - 1))}
               disabled={tagPage === 1}
-              className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800"
+              className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-md border text-gray-600 transition-colors disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-400',
+                adminGlassIconToggleInactive,
+                'hover:text-foreground',
+              )}
               title="Previous tags"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -291,7 +392,7 @@ export default function AdminFlashcardsPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedTagSlugs(new Set())}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                  className={cn(studentGlassPill, 'cursor-pointer border-dashed opacity-95 hover:opacity-100')}
                 >
                   <span className="mr-1 text-xs">Clear</span>
                   <span className="text-xs text-gray-500">({selectedTagSlugs.size})</span>
@@ -333,14 +434,23 @@ export default function AdminFlashcardsPage() {
                   <button
                     key={tag.id}
                     onClick={() => toggleTagSlug(tag.slug)}
-                    className={isActive
-                      ? 'inline-flex h-8 cursor-pointer items-center gap-2 rounded-full border border-blue-400 bg-blue-400 px-3 text-sm font-medium text-blue-50 dark:border-blue-600 dark:bg-blue-600 dark:text-white'
-                      : 'inline-flex h-8 cursor-pointer items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 text-sm font-medium text-blue-700 transition-colors hover:border-blue-400 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50'
-                    }
+                    className={cn(
+                      'inline-flex h-8 cursor-pointer items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'border-primary/45 bg-primary/20 text-primary shadow-sm ring-1 ring-primary/20 dark:bg-primary/25'
+                        : cn(studentGlassPill, 'h-8 border font-medium normal-case tracking-normal'),
+                    )}
                   >
-                    <span className="truncate max-w-[18rem]">{tag.name}</span>
+                    <span className="max-w-[18rem] truncate">{tag.name}</span>
                     {tag._count !== undefined && (
-                      <span className="ml-1 rounded-full bg-blue-200/60 px-1.5 py-0 text-xs text-blue-800 dark:bg-blue-800/60 dark:text-blue-200">
+                      <span
+                        className={cn(
+                          'ml-1 rounded-full px-1.5 py-0 text-xs',
+                          isActive
+                            ? 'bg-primary/20 text-primary dark:bg-primary/30'
+                            : 'bg-white/50 text-slate-700 dark:bg-white/10 dark:text-gray-200',
+                        )}
+                      >
                         {tag._count.flashcards}
                       </span>
                     )}
@@ -365,7 +475,11 @@ export default function AdminFlashcardsPage() {
                 const totalPages = Math.max(1, Math.ceil(arr.length / TAGS_PER_PAGE))
                 return tagPage >= totalPages
               })()}
-              className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800"
+              className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-md border text-gray-600 transition-colors disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-400',
+                adminGlassIconToggleInactive,
+                'hover:text-foreground',
+              )}
               title="Next tags"
             >
               <ChevronRight className="h-4 w-4" />
@@ -390,24 +504,51 @@ export default function AdminFlashcardsPage() {
       )}
 
       {/* ── Empty state ── */}
-      {!loading && flashcards.length === 0 && !error && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
+      {!loading && filteredFlashcards.length === 0 && !error && (
+        <div
+          className={cn(
+            'flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-400/40 bg-white/[0.12] py-16 text-center backdrop-blur-md dark:border-white/20 dark:bg-white/[0.04]',
+          )}
+        >
           <BookOpen className="mb-4 h-10 w-10 text-gray-300" />
-          <p className="text-sm font-medium text-gray-500">No flashcards yet</p>
-          <p className="mt-1 text-xs text-gray-400">
-            Click &ldquo;Add Flashcard&rdquo; to create your first one.
-          </p>
-          <Button className="mt-4" onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Flashcard
-          </Button>
+          {flashcards.length > 0 ? (
+            <>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                No flashcards match your search or filters
+              </p>
+              <p className="mt-1 max-w-md text-xs text-gray-400">
+                Try different keywords, pick &ldquo;All decks&rdquo;, or clear tag filters.
+              </p>
+              <Button type="button" className={cn('mt-4', adminGlassOutlineButton)} variant="outline" onClick={clearAllFilters}>
+                Clear filters
+              </Button>
+            </>
+          ) : hasActiveFilters ? (
+            <>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No flashcards match the selected filters</p>
+              <Button type="button" className={cn('mt-4', adminGlassOutlineButton)} variant="outline" onClick={clearAllFilters}>
+                Clear filters
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-gray-500">No flashcards yet</p>
+              <p className="mt-1 text-xs text-gray-400">
+                Click &ldquo;Add Flashcard&rdquo; to create your first one.
+              </p>
+              <Button className="auth-hero-cta mt-4" variant="hero" onClick={openCreate}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Flashcard
+              </Button>
+            </>
+          )}
         </div>
       )}
 
       {/* ── Flashcard grid ── */}
-      {!loading && flashcards.length > 0 && (
+      {!loading && filteredFlashcards.length > 0 && (
         (() => {
-          const sorted = [...flashcards]
+          const sorted = [...filteredFlashcards]
           sorted.sort((a, b) => {
             if (sortKey === 'newest') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             if (sortKey === 'oldest') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -417,7 +558,13 @@ export default function AdminFlashcardsPage() {
           return (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {sorted.map((card) => (
-            <Card key={card.id} className="relative flex flex-col">
+            <Card
+              key={card.id}
+              className={cn(
+                'relative flex flex-col gap-0 overflow-hidden border-0 py-0 shadow-none',
+                adminGlassCard,
+              )}
+            >
               <CardContent className="flex flex-1 flex-col gap-3 p-4">
                 {/* Question */}
                 <div>
@@ -440,9 +587,7 @@ export default function AdminFlashcardsPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                    {card.deck?.name ?? 'Deck'}
-                  </span>
+                  <span className={cn(studentGlassPill, 'normal-case')}>{card.deck?.name ?? 'Deck'}</span>
                 </div>
 
                 {/* Tags */}
@@ -450,47 +595,46 @@ export default function AdminFlashcardsPage() {
                   <div className="flex flex-wrap gap-1">
                     {card.tags.map((tag) => (
                       <Link key={tag.id} href={`/admin/flashcards/tags/${tag.slug}`}>
-                        <Badge
-                          variant="secondary"
-                          className="cursor-pointer text-xs hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/40 dark:hover:text-blue-300"
-                        >
+                        <span className={cn(studentGlassPill, 'cursor-pointer text-xs normal-case tracking-tight hover:opacity-100')}>
                           {tag.name}
-                        </Badge>
+                        </span>
                       </Link>
                     ))}
                   </div>
                 )}
 
-                {/* Footer row */}
-                <div className="mt-auto flex items-center justify-between pt-2">
-                  <div className="flex items-center gap-2">
-                    {/* State badge */}
-                    <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                {/* Footer row — full width so layout doesn’t leave an empty “strip” beside actions */}
+                <div className="mt-auto flex w-full min-w-0 flex-wrap items-center justify-between gap-2 border-t border-slate-200/40 pt-3 dark:border-white/10">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span
+                      className={cn(
+                        studentGlassPill,
+                        'py-0.5 text-[10px] font-semibold uppercase tracking-wide opacity-90',
+                      )}
+                    >
                       {card.state}
                     </span>
                     {card.interval > 0 && (
-                      <span className="text-xs text-gray-400">{card.interval}d</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">{card.interval}d</span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1">
-                    {/* Edit */}
+                  <div className="flex shrink-0 items-center gap-1">
                     <button
                       type="button"
                       aria-label="Edit flashcard"
                       onClick={() => openEdit(card)}
-                      className="rounded p-1 text-gray-400 hover:text-blue-500"
+                      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-white/30 hover:text-primary dark:hover:bg-white/10"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
 
-                    {/* Delete */}
                     <button
                       type="button"
                       aria-label="Delete flashcard"
                       disabled={deletingId === card.id}
                       onClick={() => handleDelete(card.id)}
-                      className="rounded p-1 text-gray-400 hover:text-red-500 disabled:opacity-50"
+                      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
                     >
                       {deletingId === card.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -512,7 +656,9 @@ export default function AdminFlashcardsPage() {
       <FlashcardDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        onSaved={fetchData}
+        onSaved={() => {
+          void fetchData()
+        }}
         initialData={editData}
       />
     </div>

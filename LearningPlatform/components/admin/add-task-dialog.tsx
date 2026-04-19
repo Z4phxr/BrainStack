@@ -11,6 +11,8 @@ import { MediaPicker } from './media-picker'
 import Image from 'next/image'
 import { FormError, FieldError } from '@/components/ui/form-error'
 import { ZodError } from 'zod'
+import { cn } from '@/lib/utils'
+import { adminGlassCard, adminGlassOutlineButton } from '@/lib/student-glass-styles'
 
 interface AddTaskDialogProps {
   open: boolean
@@ -304,7 +306,7 @@ export function AddTaskDialog({ open, onClose, lessonId = '', nextOrder = 1, ini
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl max-h-[90vh] rounded-lg block-contrast shadow-xl flex flex-col">
+      <div className={cn('flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden shadow-2xl', adminGlassCard)}>
           <div className="flex items-center justify-between p-6 border-b shrink-0">
           <h2 className="text-xl font-bold">{editingId ? 'Edit task' : 'Add task'}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -634,7 +636,7 @@ export function AddTaskDialog({ open, onClose, lessonId = '', nextOrder = 1, ini
                         key={id}
                         type="button"
                         onClick={() => setSelectedTagIds((s) => s.filter((x) => x !== id))}
-                        className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-3 py-1 text-sm text-white"
+                        className="inline-flex items-center gap-2 rounded-full border border-primary/35 bg-primary/90 px-3 py-1 text-sm font-medium text-primary-foreground shadow-sm backdrop-blur-sm dark:bg-primary/80"
                       >
                         <span>{t.name}</span>
                         <span className="text-xs opacity-80">×</span>
@@ -722,11 +724,11 @@ export function AddTaskDialog({ open, onClose, lessonId = '', nextOrder = 1, ini
           </form>
         </div>
 
-          <div className="border-t p-4 shrink-0 flex gap-3">
-          <Button type="submit" form="task-form" disabled={loading}>
+          <div className="flex shrink-0 gap-3 border-t border-slate-200/60 p-4 dark:border-white/10">
+          <Button type="submit" form="task-form" variant="hero" className="auth-hero-cta" disabled={loading}>
             {loading ? (editingId ? 'Saving...' : 'Adding...') : (editingId ? 'Save changes' : 'Add task')}
           </Button>
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" className={cn(adminGlassOutlineButton)} onClick={onClose}>
             Cancel
           </Button>
         </div>

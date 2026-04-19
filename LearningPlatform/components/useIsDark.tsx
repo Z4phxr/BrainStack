@@ -8,21 +8,15 @@ export default function useIsDark() {
     const getTheme = () => {
       try {
         const ls = localStorage.getItem('theme')
-        const hasClass = document.documentElement.classList.contains('dark')
-        const prefers = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-        return ls === 'dark' || (ls == null && (prefers || hasClass)) || hasClass
+        if (ls === 'light') return false
+        if (ls === 'dark') return true
+        return true
       } catch (e) {
         return false
       }
     }
 
     setIsDark(getTheme())
-
-    const mq: MediaQueryList | null = typeof window !== 'undefined' && window.matchMedia
-      ? window.matchMedia('(prefers-color-scheme: dark)')
-      : null
-    const onChange = () => setIsDark(getTheme())
-    mq?.addEventListener?.('change', onChange)
 
     // Update when localStorage changes in other tabs
     const onStorage = (e: StorageEvent) => {
@@ -35,7 +29,6 @@ export default function useIsDark() {
     window.addEventListener('theme-change', onThemeChange as EventListener)
 
     return () => {
-      mq?.removeEventListener?.('change', onChange)
       window.removeEventListener('storage', onStorage)
       window.removeEventListener('theme-change', onThemeChange as EventListener)
     }

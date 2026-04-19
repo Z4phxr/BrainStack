@@ -18,6 +18,13 @@ import {
   Search,
   Star,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import {
+  adminGlassIconToggleActive,
+  adminGlassIconToggleInactive,
+  adminGlassOutlineButton,
+  studentGlassPill,
+} from '@/lib/student-glass-styles'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,11 +100,13 @@ function TagPill({
   }
 
   const pillBase =
-    'inline-flex items-center gap-0 rounded-full border border-blue-200 bg-blue-50 text-sm font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+    'inline-flex items-center gap-0 rounded-full border border-slate-300/55 bg-white/[0.42] text-sm font-medium text-slate-800 shadow-sm backdrop-blur-md ring-1 ring-white/50 dark:border-white/20 dark:bg-white/[0.12] dark:text-gray-100 dark:ring-white/10'
+
+  const pillDivider = 'border-l border-slate-300/50 dark:border-white/15'
 
   if (editing) {
     return (
-      <div className={`${pillBase} overflow-hidden pr-0.5`}>
+      <div className={cn(pillBase, 'overflow-hidden pr-0.5')}>
         <input
           ref={inputRef}
           value={value}
@@ -110,7 +119,10 @@ function TagPill({
           type="button"
           onClick={() => void commitEdit()}
           disabled={saving}
-          className="flex h-8 w-8 items-center justify-center border-l border-blue-200 bg-blue-100 text-blue-700 hover:bg-green-100 hover:text-green-700 dark:border-blue-700 dark:bg-blue-900/50 dark:hover:bg-green-900/30"
+          className={cn(
+            'flex h-8 w-8 items-center justify-center bg-emerald-500/15 text-emerald-800 transition-colors hover:bg-emerald-500/25 dark:text-emerald-200',
+            pillDivider,
+          )}
           title="Save"
         >
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
@@ -119,7 +131,10 @@ function TagPill({
           type="button"
           onClick={cancelEdit}
           disabled={saving}
-          className="flex h-8 w-8 items-center justify-center rounded-r-full border-l border-blue-200 bg-blue-50 text-blue-500 hover:bg-red-100 hover:text-red-600 dark:border-blue-700 dark:bg-blue-900/30 dark:hover:bg-red-900/30"
+          className={cn(
+            'flex h-8 w-8 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:bg-red-500/15 hover:text-red-700 dark:hover:bg-red-950/40 dark:hover:text-red-300',
+            pillDivider,
+          )}
           title="Cancel"
         >
           <X className="h-3.5 w-3.5" />
@@ -129,13 +144,11 @@ function TagPill({
   }
 
   return (
-    <div className={`${pillBase} overflow-hidden`}>
+    <div className={cn(pillBase, 'overflow-hidden')}>
       {/* Name + count area */}
       <span className="flex items-center gap-2 px-3 py-1">
         <span className="max-w-[32rem] truncate">{tag.name}</span>
-        <span className="rounded-full bg-blue-200/60 px-1.5 text-xs text-blue-800 dark:bg-blue-800/60 dark:text-blue-200">
-          {taskCount}
-        </span>
+        <span className={cn(studentGlassPill, 'py-0 text-xs normal-case tracking-tight')}>{taskCount}</span>
       </span>
 
       {/* Star button for main toggle */}
@@ -143,13 +156,15 @@ function TagPill({
         type="button"
         onClick={() => void onToggleMain(tag)}
         title={tag.main ? 'Remove from main tags' : 'Add to main tags'}
-        className={`flex h-8 w-8 items-center justify-center border-l border-blue-200 transition-colors dark:border-blue-700 ${
+        className={cn(
+          'flex h-8 w-8 items-center justify-center transition-colors',
+          pillDivider,
           tag.main
-            ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50'
-            : 'bg-blue-50 text-gray-400 hover:bg-blue-100 hover:text-yellow-500 dark:bg-blue-900/30 dark:hover:bg-blue-900/50'
-        }`}
+            ? 'bg-amber-400/20 text-amber-800 hover:bg-amber-400/30 dark:text-amber-200'
+            : 'text-muted-foreground hover:bg-white/40 hover:text-amber-600 dark:hover:bg-white/10',
+        )}
       >
-        <Star className={`h-3.5 w-3.5 ${tag.main ? 'fill-current' : ''}`} />
+        <Star className={cn('h-3.5 w-3.5', tag.main && 'fill-current')} />
       </button>
 
       {/* Edit button */}
@@ -157,7 +172,10 @@ function TagPill({
         type="button"
         onClick={startEdit}
         title="Rename tag"
-        className="flex h-8 w-8 items-center justify-center border-l border-blue-200 bg-blue-50 text-blue-500 transition-colors hover:bg-blue-100 hover:text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
+        className={cn(
+          'flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-white/45 hover:text-foreground dark:hover:bg-white/10',
+          pillDivider,
+        )}
       >
         <Pencil className="h-3.5 w-3.5" />
       </button>
@@ -167,7 +185,10 @@ function TagPill({
         type="button"
         onClick={() => onDelete(tag)}
         title="Delete tag"
-        className="flex h-8 w-8 items-center justify-center rounded-r-full border-l border-blue-200 bg-blue-50 text-blue-500 transition-colors hover:bg-destructive hover:text-white dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+        className={cn(
+          'flex h-8 w-8 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground',
+          pillDivider,
+        )}
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
@@ -378,16 +399,16 @@ export default function AdminTagsPage() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-6xl space-y-8">
       {/* ── Page header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tags</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">Tags</h1>
+          <p className="mt-2 text-base text-gray-600 dark:text-gray-400 md:text-lg">
             Manage tags used to organise tasks and flashcards.
           </p>
         </div>
-        <Button onClick={() => { setCreating(true); setCreateError(''); setNewTagName('') }}>
+        <Button variant="hero" className="auth-hero-cta" onClick={() => { setCreating(true); setCreateError(''); setNewTagName('') }}>
           <Plus className="mr-2 h-4 w-4" />
           New Tag
         </Button>
@@ -397,7 +418,7 @@ export default function AdminTagsPage() {
       {creating && (
         <form
           onSubmit={(e) => void handleCreate(e)}
-          className="flex flex-wrap items-end gap-3 rounded-lg border border-blue-200 bg-blue-50/50 px-4 py-3 dark:border-blue-800 dark:bg-blue-900/20"
+          className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-300/45 bg-white/[0.28] px-4 py-3 shadow-sm backdrop-blur-md dark:border-white/12 dark:bg-white/[0.06]"
         >
           <div className="flex flex-col gap-1">
             <label htmlFor="new-tag-name" className="text-xs font-medium text-gray-500">
@@ -413,7 +434,7 @@ export default function AdminTagsPage() {
             />
             {createError && <p className="text-xs text-red-500">{createError}</p>}
           </div>
-          <Button type="submit" size="sm" disabled={createLoading}>
+          <Button type="submit" size="sm" variant="hero" className="auth-hero-cta" disabled={createLoading}>
             {createLoading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-2 h-3.5 w-3.5" />}
             Save
           </Button>
@@ -421,6 +442,7 @@ export default function AdminTagsPage() {
             type="button"
             size="sm"
             variant="outline"
+            className={cn(adminGlassOutlineButton)}
             onClick={() => { setCreating(false); setCreateError(''); setNewTagName('') }}
           >
             Cancel
@@ -450,11 +472,10 @@ export default function AdminTagsPage() {
               type="button"
               title={title}
               onClick={() => setSortKey(key)}
-              className={`inline-flex h-8 w-8 items-center justify-center rounded-md border text-sm transition-colors ${
-                sortKey === key
-                  ? 'border-blue-400 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
-                  : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400'
-              }`}
+              className={cn(
+                'inline-flex h-8 w-8 items-center justify-center rounded-md border text-sm transition-colors',
+                sortKey === key ? adminGlassIconToggleActive : adminGlassIconToggleInactive,
+              )}
             >
               {icon}
             </button>
@@ -488,12 +509,16 @@ export default function AdminTagsPage() {
 
       {/* ── Empty state ──────────────────────────────────────────────────────── */}
       {!loading && displayTags.length === 0 && !error && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
+        <div
+          className={cn(
+            'flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-400/40 bg-white/[0.12] py-16 text-center backdrop-blur-md dark:border-white/20 dark:bg-white/[0.04]',
+          )}
+        >
           <TagIcon className="mb-4 h-10 w-10 text-gray-300" />
           {search ? (
             <>
               <p className="text-sm font-medium text-gray-500">No tags matching &ldquo;{search}&rdquo;</p>
-              <Button className="mt-4" variant="outline" onClick={() => setSearch('')}>
+              <Button className={cn('mt-4', adminGlassOutlineButton)} variant="outline" onClick={() => setSearch('')}>
                 Clear search
               </Button>
             </>
@@ -501,7 +526,7 @@ export default function AdminTagsPage() {
             <>
               <p className="text-sm font-medium text-gray-500">No tags yet</p>
               <p className="mt-1 text-xs text-gray-400">Click &ldquo;New Tag&rdquo; to add one.</p>
-              <Button className="mt-4" onClick={() => { setCreating(true); setNewTagName('') }}>
+              <Button className="auth-hero-cta mt-4" variant="hero" onClick={() => { setCreating(true); setNewTagName('') }}>
                 <Plus className="mr-2 h-4 w-4" />
                 New Tag
               </Button>
@@ -521,7 +546,7 @@ export default function AdminTagsPage() {
                 Main Tags
               </h2>
               {mainTags.length === 0 && (
-                <Button size="sm" variant="outline" onClick={() => setShowAddMainDialog(true)}>
+                <Button size="sm" variant="outline" className={cn(adminGlassOutlineButton)} onClick={() => setShowAddMainDialog(true)}>
                   <Plus className="mr-2 h-3.5 w-3.5" />
                   Add tags as main
                 </Button>
@@ -541,7 +566,7 @@ export default function AdminTagsPage() {
                 ))}
               </div>
             ) : (
-              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50/50 px-4 py-8 text-center dark:border-gray-700 dark:bg-gray-900/30">
+              <div className="rounded-xl border border-dashed border-slate-400/40 bg-white/[0.12] px-4 py-8 text-center backdrop-blur-md dark:border-white/15 dark:bg-white/[0.05]">
                 <p className="text-sm text-gray-500">No main tags yet. Click "Add tags as main" to mark important tags.</p>
               </div>
             )}

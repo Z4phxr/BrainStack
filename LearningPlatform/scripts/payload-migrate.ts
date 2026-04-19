@@ -218,6 +218,21 @@ async function migratePayload() {
     } catch (tagsErr) {
       console.warn('[WARNING] Failed to ensure tasks_tags columns:', tagsErr)
     }
+
+    // Courses: attribution columns (Payload collection expects these; see 2026-04-19 migration).
+    try {
+      console.log('[INFO] Ensuring courses has last_updated_by and created_via columns...')
+      await pool.query(
+        `ALTER TABLE IF EXISTS "payload"."courses" ADD COLUMN IF NOT EXISTS "last_updated_by" varchar;`,
+      )
+      await pool.query(
+        `ALTER TABLE IF EXISTS "payload"."courses" ADD COLUMN IF NOT EXISTS "created_via" varchar;`,
+      )
+      console.log('[SUCCESS] courses.last_updated_by + courses.created_via ensured')
+    } catch (coursesErr) {
+      console.warn('[WARNING] Failed to ensure courses attribution columns:', coursesErr)
+    }
+
     const privileges = await pool.query(`
       SELECT 
         pg_catalog.has_schema_privilege(current_user, 'payload', 'USAGE') as usage,

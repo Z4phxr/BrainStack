@@ -4,6 +4,7 @@ import { toSlug } from '@/lib/utils'
 import { requireAuth } from '@/lib/auth-helpers'
 import { isCardDue, parseSettings, getCardUrgency } from '@/lib/srs'
 import { getUserWeakTags } from '@/lib/analytics'
+import { getSortedFreeStudyCardsForUser } from '@/lib/flashcards-study-free'
 
 /**
  * GET /api/flashcards/study
@@ -44,6 +45,11 @@ export async function GET(req: Request) {
     const tagSlug   = searchParams.get('tagSlug') ?? undefined
     const subject   = searchParams.get('subject') ?? undefined
     const deckSlugQ = searchParams.get('deckSlug')?.trim() || undefined
+
+    if (mode === 'free' && !tagSlug && !subject && !deckSlugQ) {
+      const sorted = await getSortedFreeStudyCardsForUser(user.id)
+      return NextResponse.json({ cards: sorted, mode, total: sorted.length })
+    }
 
     // Kick off weak-tag fetch in parallel with settings  failure is graceful.
     const weakTagsPromise = getUserWeakTags(user.id).catch(() => [])
@@ -161,7 +167,7 @@ export async function GET(req: Request) {
     }
 
     if (mode === 'free') {
-      // Free learn: return every card in the set, sorted by urgency + weak bonus
+      // Filtered free learn (tag / subject / deck): same ordering as unfiltered free mode.
       const sorted = sortWithWeakBonus(mergedCards)
       return NextResponse.json({ cards: sorted, mode, total: sorted.length })
     }

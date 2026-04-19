@@ -2,8 +2,9 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { unstable_cache } from 'next/cache'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
+import { adminGlassCard, studentGlassPill } from '@/lib/student-glass-styles'
 import { payloadTableExists } from '@/lib/payload-utils'
 import { ReloadButton } from '@/components/ui/reload-button'
 import { LessonActions } from '@/components/admin/lesson-actions'
@@ -79,16 +80,14 @@ export default async function AdminLessonsPage() {
   }
 
   return (
-    <div className="space-y-6 text-foreground">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Lessons</h1>
-          <p className="text-muted-foreground mt-1">All lessons in the system</p>
-        </div>
+    <div className="mx-auto max-w-6xl space-y-8 text-foreground">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">Lessons</h1>
+        <p className="mt-2 text-base text-muted-foreground md:text-lg">All lessons in the system</p>
       </div>
 
       {error ? (
-        <Card>
+        <Card className={cn('border-0 shadow-none', adminGlassCard)}>
           <CardContent className="py-12">
             <div className="text-center space-y-4">
               <p className="text-red-600 font-medium">{error}</p>
@@ -97,7 +96,7 @@ export default async function AdminLessonsPage() {
           </CardContent>
         </Card>
       ) : lessons.length === 0 ? (
-        <Card>
+        <Card className={cn('border-0 shadow-none', adminGlassCard)}>
           <CardContent className="py-12">
             <p className="text-center text-muted-foreground">
               No lessons yet. Create a course and add lessons.
@@ -111,15 +110,23 @@ export default async function AdminLessonsPage() {
             const courseModule = isModule(lesson.module) ? lesson.module : null
             
             return (
-                <Card key={lesson.id} className="hover:shadow-md transition-shadow block-contrast">
+                <Card
+                  key={lesson.id}
+                  className={cn('overflow-hidden border-0 shadow-none transition-shadow hover:shadow-md', adminGlassCard)}
+                >
                 <CardHeader className="py-4">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="mb-2 flex items-center gap-3">
                         <h3 className="text-lg font-semibold text-foreground">{lesson.title}</h3>
-                        <Badge variant={lesson.isPublished ? 'default' : 'secondary'} className="text-xs">
+                        <span
+                          className={cn(
+                            studentGlassPill,
+                            lesson.isPublished ? 'text-emerald-800 dark:text-emerald-200' : 'opacity-90',
+                          )}
+                        >
                           {lesson.isPublished ? 'Published' : 'Draft'}
-                        </Badge>
+                        </span>
                       </div>
                       
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">

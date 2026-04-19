@@ -24,13 +24,16 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      <AdminSidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <AdminTopbar user={session.user} />
-        <main className="flex-1 overflow-y-auto p-6 text-base leading-relaxed">
-          {children}
-        </main>
+    <div className="relative isolate h-dvh max-h-dvh w-full overflow-hidden">
+      <div className="student-app-shell-bg" aria-hidden />
+      <div className="relative z-[1] flex h-dvh max-h-dvh w-full flex-row overflow-hidden bg-transparent">
+        <AdminSidebar />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <AdminTopbar user={session.user} />
+          <main className="min-h-0 flex-1 overflow-y-auto px-5 py-6 text-base leading-relaxed md:px-8 md:py-8">
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   )

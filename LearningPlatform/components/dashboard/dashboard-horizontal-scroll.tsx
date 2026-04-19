@@ -124,42 +124,41 @@ export function DashboardHorizontalScroll({
     return <div className={cn('w-full min-w-0', className)}>{scrollPane}</div>
   }
 
+  /** Full-width track (aligns with other dashboard cards); arrows sit outside via translate. */
+  const arrowBtn =
+    'auth-hero-cta h-9 w-9 sm:h-10 sm:w-10 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0'
+
   return (
-    <div className={cn('relative w-full min-w-0', className)}>
+    <div className={cn('relative w-full min-w-0 overflow-visible', className)}>
       {scrollPane}
       {hasOverflow ? (
         <>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className={cn(
-              'absolute left-0 top-1/2 z-10 h-9 w-9 -translate-y-1/2 bg-background/95 shadow-sm backdrop-blur-sm sm:h-10 sm:w-10',
-              // Outline buttons lift on hover; that overrides -translate-y-1/2 and shifts these controls.
-              'motion-safe:hover:-translate-y-1/2 motion-safe:active:-translate-y-1/2',
-              'hover:shadow-sm dark:hover:shadow-sm',
-            )}
-            disabled={!canScrollLeft}
-            aria-label="Scroll left"
-            onClick={() => scrollByDir(-1)}
-          >
-            <ChevronLeft className="size-5" />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className={cn(
-              'absolute right-0 top-1/2 z-10 h-9 w-9 -translate-y-1/2 bg-background/95 shadow-sm backdrop-blur-sm sm:h-10 sm:w-10',
-              'motion-safe:hover:-translate-y-1/2 motion-safe:active:-translate-y-1/2',
-              'hover:shadow-sm dark:hover:shadow-sm',
-            )}
-            disabled={!canScrollRight}
-            aria-label="Scroll right"
-            onClick={() => scrollByDir(1)}
-          >
-            <ChevronRight className="size-5" />
-          </Button>
+          <div className="pointer-events-none absolute left-0 top-1/2 z-10 -translate-y-1/2 -translate-x-[calc(100%+0.5rem)] sm:-translate-x-[calc(100%+0.625rem)]">
+            <Button
+              type="button"
+              variant="hero"
+              size="icon"
+              className={cn(arrowBtn, 'pointer-events-auto')}
+              disabled={!canScrollLeft}
+              aria-label="Scroll left"
+              onClick={() => scrollByDir(-1)}
+            >
+              <ChevronLeft className="size-5" />
+            </Button>
+          </div>
+          <div className="pointer-events-none absolute right-0 top-1/2 z-10 -translate-y-1/2 translate-x-[calc(100%+0.5rem)] sm:translate-x-[calc(100%+0.625rem)]">
+            <Button
+              type="button"
+              variant="hero"
+              size="icon"
+              className={cn(arrowBtn, 'pointer-events-auto')}
+              disabled={!canScrollRight}
+              aria-label="Scroll right"
+              onClick={() => scrollByDir(1)}
+            >
+              <ChevronRight className="size-5" />
+            </Button>
+          </div>
         </>
       ) : null}
     </div>

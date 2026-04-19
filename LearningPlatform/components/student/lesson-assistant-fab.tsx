@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { studentGlassCard } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
 import type { LessonAssistantModelPreset } from '@/lib/lesson-assistant-models'
 import { TheoryMarkdown } from '@/components/student/markdown-theory-body'
@@ -152,7 +153,8 @@ export function LessonAssistantShell({
 
           <aside
             className={cn(
-              'flex w-full min-w-0 flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm dark:border-gray-700',
+              'flex w-full min-w-0 flex-col gap-3 rounded-xl border-0 p-4 shadow-none',
+              studentGlassCard,
               'min-h-0 max-h-[min(90dvh,40rem)] md:max-h-[calc(100dvh-5.5rem)]',
               'md:sticky md:top-6',
             )}
@@ -229,7 +231,13 @@ export function LessonAssistantShell({
                 </p>
               </div>
 
-              <Button type="button" onClick={() => void submit()} disabled={loading || !question.trim()} className="w-full">
+              <Button
+                type="button"
+                variant="hero"
+                className="auth-hero-cta w-full"
+                onClick={() => void submit()}
+                disabled={loading || !question.trim()}
+              >
                 {loading ? 'Thinking…' : 'Ask'}
               </Button>
 

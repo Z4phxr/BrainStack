@@ -2,6 +2,8 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { unstable_cache } from 'next/cache'
 import { Card, CardContent } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+import { adminGlassCard } from '@/lib/student-glass-styles'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Image as ImageIcon, Video, FileText, ExternalLink } from 'lucide-react'
@@ -27,8 +29,10 @@ interface Media {
 interface MediaUsage {
   lessonsCount: number
   tasksCount: number
+  coursesCount: number
   lessonRefs: Array<{ id: number; title: string }>
   taskRefs: Array<{ id: number; lessonId: number; lessonTitle: string }>
+  courseRefs: Array<{ id: number | string; title: string }>
 }
 
 type LessonDoc = {
@@ -37,18 +41,26 @@ type LessonDoc = {
   theoryBlocks?: Array<Record<string, unknown>>
 }
 
-// PERFORMANCE: Cache the two heavy collection scans (1000 lessons + 5000 tasks).
-// These don't change on every page load — revalidate every 30 s is plenty.
-const getCachedLessonsAndTasks = unstable_cache(
+function coverMediaIdFromCourse(course: Record<string, unknown>): string {
+  const ci = course.coverImage
+  if (ci == null || ci === '') return ''
+  if (typeof ci === 'number' || typeof ci === 'string') return String(ci)
+  if (typeof ci === 'object' && ci !== null && 'id' in ci) return String((ci as { id: unknown }).id)
+  return ''
+}
+
+// PERFORMANCE: Cache heavy collection scans — revalidate every 30 s.
+const getCachedLessonsTasksCourses = unstable_cache(
   async () => {
     const payload = await getPayload({ config })
-    const [lessonsResult, tasksResult] = await Promise.all([
+    const [lessonsResult, tasksResult, coursesResult] = await Promise.all([
       payload.find({ collection: 'lessons', limit: 1000, depth: 0 }),
-      payload.find({ collection: 'tasks',   limit: 5000, depth: 1 }),
+      payload.find({ collection: 'tasks', limit: 5000, depth: 1 }),
+      payload.find({ collection: 'courses', limit: 500, depth: 0 }),
     ])
-    return { lessons: lessonsResult.docs, tasks: tasksResult.docs }
+    return { lessons: lessonsResult.docs, tasks: tasksResult.docs, courses: coursesResult.docs }
   },
-  ['admin-media-usage-data'],
+  ['admin-media-usage-data-v2'],
   { revalidate: 30 },
 )
 
@@ -62,13 +74,14 @@ async function getAllMediaUsage(mediaIds: Array<number | string>): Promise<Map<s
     usageMap.set(String(id), {
       lessonsCount: 0,
       tasksCount: 0,
+      coursesCount: 0,
       lessonRefs: [],
       taskRefs: [],
+      courseRefs: [],
     })
   }
 
-  // Use the cached fetch — avoids re-querying 1000 lessons + 5000 tasks on every page render
-  const { lessons, tasks } = await getCachedLessonsAndTasks()
+  const { lessons, tasks, courses } = await getCachedLessonsTasksCourses()
   
   // Build lesson usage map
   for (const lesson of lessons as LessonDoc[]) {
@@ -126,7 +139,20 @@ async function getAllMediaUsage(mediaIds: Array<number | string>): Promise<Map<s
       }
     }
   }
-  
+
+  for (const course of courses as Array<Record<string, unknown>>) {
+    const coverId = coverMediaIdFromCourse(course)
+    if (!coverId || !usageMap.has(coverId)) continue
+    const usage = usageMap.get(coverId)!
+    usage.coursesCount++
+    if (usage.courseRefs.length < 3) {
+      usage.courseRefs.push({
+        id: course.id as number | string,
+        title: String(course.title ?? 'Course'),
+      })
+    }
+  }
+
   return usageMap
 }
 
@@ -171,8 +197,10 @@ export default async function AdminMediaPage() {
         usage: usageMap.get(String(item.id)) || {
           lessonsCount: 0,
           tasksCount: 0,
+          coursesCount: 0,
           lessonRefs: [],
           taskRefs: [],
+          courseRefs: [],
         },
       }))
     }
@@ -199,26 +227,26 @@ export default async function AdminMediaPage() {
     return 'other'
   }
 
-  const totalUsed = mediaWithUsage.filter(m => 
-    m.usage.lessonsCount > 0 || m.usage.tasksCount > 0
+  const totalUsed = mediaWithUsage.filter(
+    (m) => m.usage.lessonsCount > 0 || m.usage.tasksCount > 0 || m.usage.coursesCount > 0,
   ).length
 
   return (
-    <div className="space-y-6 text-foreground">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-6xl space-y-8 text-foreground">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Media library</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">Media library</h1>
+          <p className="mt-2 text-base text-muted-foreground md:text-lg">
             {!error && `All uploaded files • ${totalUsed} of ${media.length} in use`}
           </p>
         </div>
-        <div className="flex items-center">
+        <div className="flex shrink-0 items-center">
           <MediaUploader />
         </div>
       </div>
 
       {error ? (
-        <Card>
+        <Card className={cn('border-0 shadow-none', adminGlassCard)}>
           <CardContent className="py-12">
             <div className="text-center space-y-4">
               <p className="text-red-600 font-medium">{error}</p>
@@ -227,10 +255,10 @@ export default async function AdminMediaPage() {
           </CardContent>
         </Card>
       ) : media.length === 0 ? (
-        <Card>
+        <Card className={cn('border-0 shadow-none', adminGlassCard)}>
           <CardContent className="py-12">
             <div className="flex flex-col items-center text-center">
-              <ImageIcon className="h-16 w-16 text-muted-foreground mb-4" />
+              <ImageIcon className="mb-4 h-16 w-16 text-muted-foreground" />
               <p className="text-lg font-medium text-foreground mb-2">
                 No media yet
               </p>
@@ -245,16 +273,22 @@ export default async function AdminMediaPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {mediaWithUsage.map((item) => {
               const mediaType = getMediaType(item.mimeType)
-              const isUsed = item.usage.lessonsCount > 0 || item.usage.tasksCount > 0
+              const isUsed =
+                item.usage.lessonsCount > 0 || item.usage.tasksCount > 0 || item.usage.coursesCount > 0
+              const usageTotal =
+                item.usage.lessonsCount + item.usage.tasksCount + item.usage.coursesCount
 
               return (
-                <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow block-contrast">
+                <Card
+                  key={item.id}
+                  className={cn('overflow-hidden border-0 shadow-none transition-shadow hover:shadow-lg', adminGlassCard)}
+                >
                   {/* Preview */}
                   <a
                     href={`/api/media/serve/${encodeURIComponent(item.filename)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block relative h-36 w-full overflow-hidden block-bg"
+                    className="relative block h-36 w-full overflow-hidden bg-slate-100/80 dark:bg-black/40"
                   >
                     {mediaType === 'image' && (
                       <Image
@@ -312,11 +346,7 @@ export default async function AdminMediaPage() {
 
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">Actions</span>
-                      <MediaDeleteButton
-                        mediaId={item.id}
-                        filename={item.filename}
-                        usageCount={item.usage.lessonsCount + item.usage.tasksCount}
-                      />
+                      <MediaDeleteButton mediaId={item.id} filename={item.filename} usageCount={usageTotal} />
                     </div>
 
                     {/* File info */}
@@ -338,6 +368,12 @@ export default async function AdminMediaPage() {
                             ❓ {item.usage.tasksCount} {item.usage.tasksCount === 1 ? 'task' : 'tasks'}
                           </Badge>
                         )}
+                        {item.usage.coursesCount > 0 && (
+                          <Badge variant="outline" className="text-xs">
+                            🎓 {item.usage.coursesCount}{' '}
+                            {item.usage.coursesCount === 1 ? 'course cover' : 'course covers'}
+                          </Badge>
+                        )}
                         {!isUsed && (
                           <Badge variant="secondary" className="text-xs text-muted-foreground">
                             Unused
@@ -346,10 +382,23 @@ export default async function AdminMediaPage() {
                       </div>
 
                       {/* References */}
-                      {(item.usage.lessonRefs.length > 0 || item.usage.taskRefs.length > 0) && (
+                      {(item.usage.lessonRefs.length > 0 ||
+                        item.usage.taskRefs.length > 0 ||
+                        item.usage.courseRefs.length > 0) && (
                         <div className="space-y-1">
                           <p className="text-xs font-medium text-foreground">Used in:</p>
-                          
+
+                          {item.usage.courseRefs.map((ref) => (
+                            <Link
+                              key={`course-${ref.id}`}
+                              href={`/admin/courses/${ref.id}/edit`}
+                              className="flex items-center gap-2 text-xs text-foreground hover:underline"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              <span className="truncate">Course cover: {ref.title}</span>
+                            </Link>
+                          ))}
+
                           {item.usage.lessonRefs.map((ref) => (
                             <Link
                               key={`lesson-${ref.id}`}
@@ -372,9 +421,9 @@ export default async function AdminMediaPage() {
                             </Link>
                           ))}
 
-                          {item.usage.lessonsCount + item.usage.tasksCount > 3 && (
+                          {usageTotal > 3 && (
                             <p className="text-xs text-muted-foreground italic">
-                              ...and {item.usage.lessonsCount + item.usage.tasksCount - 3} more
+                              ...and {usageTotal - 3} more
                             </p>
                           )}
                         </div>

@@ -374,11 +374,14 @@ async function findOrCreateCourse(payload, courseData, subjectId, { dryRun, skip
       ? baseData
       : { ...baseData, coverImage }
 
+  /** Create: mark import origin. Update: omit createdVia/lastUpdatedBy so admin edits stay attributed. */
+  const createPayload = { ...coursePayload, createdVia: 'import' }
+
   const result = await syncCreateOrUpdate(
     payload,
     'courses',
     { slug: { equals: courseData.slug } },
-    coursePayload,
+    createPayload,
     coursePayload,
     { dryRun },
   )

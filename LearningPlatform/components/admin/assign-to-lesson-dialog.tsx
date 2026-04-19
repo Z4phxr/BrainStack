@@ -12,6 +12,8 @@ import {
   FileText,
   Loader2,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { adminGlassCard, adminGlassOutlineButton } from '@/lib/student-glass-styles'
 
 // ─── Module-level cache (survives re-renders, cleared on page navigation) ───────
 interface LessonItem { id: string; title: string }
@@ -171,7 +173,7 @@ export function AssignToLessonDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-lg block-contrast shadow-xl flex flex-col max-h-[80vh]">
+      <div className={cn('flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden shadow-2xl', adminGlassCard)}>
         {/* Header */}
         <div className="flex items-center justify-between border-b p-4 dark:border-gray-700 shrink-0">
           <div>
@@ -304,17 +306,14 @@ export function AssignToLessonDialog({
         </div>
 
         {/* Footer */}
-        <div className="border-t dark:border-gray-700 p-4 shrink-0 space-y-2">
+        <div className="shrink-0 space-y-2 border-t border-slate-200/60 p-4 dark:border-white/10">
           <p className="text-xs text-gray-500">
             {selectedCount === 0
               ? 'No lessons selected — task will become standalone.'
               : `${selectedCount} lesson${selectedCount !== 1 ? 's' : ''} selected.`}
           </p>
           <div className="flex gap-3">
-            <Button
-              disabled={saving}
-              onClick={handleAssign}
-            >
+            <Button variant="hero" className="auth-hero-cta" disabled={saving} onClick={handleAssign}>
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -324,7 +323,7 @@ export function AssignToLessonDialog({
                 'Save assignments'
               )}
             </Button>
-            <Button variant="outline" onClick={onClose} disabled={saving}>
+            <Button variant="outline" className={cn(adminGlassOutlineButton)} onClick={onClose} disabled={saving}>
               Cancel
             </Button>
           </div>

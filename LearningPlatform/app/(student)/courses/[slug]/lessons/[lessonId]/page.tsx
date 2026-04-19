@@ -4,9 +4,7 @@ import { notFound } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
 import Link from 'next/link'
 import { TheoryBlocksRenderer } from '@/components/student/theory-blocks-renderer'
 import { LessonLegacyContent } from '@/components/student/lesson-legacy-content'
@@ -18,6 +16,8 @@ import { prisma } from '@/lib/prisma'
 import { markLessonComplete } from '@/app/actions/progress'
 import { lessonWithPopulatedTheoryImages } from '@/lib/populate-lesson-theory-images'
 import { LessonAssistantShell, THEORY_ROOT_ID } from '@/components/student/lesson-assistant-fab'
+import { studentGlassCard, studentGlassPill } from '@/lib/student-glass-styles'
+import { cn } from '@/lib/utils'
 
 export default async function LessonPage({
   params,
@@ -140,6 +140,16 @@ export default async function LessonPage({
   const currentIndex = orderedLessons.findIndex((l: any) => String(l.id) === String(lessonId))
   const prevLesson = currentIndex > 0 ? orderedLessons[currentIndex - 1] : null
   const nextLesson = currentIndex >= 0 && currentIndex < orderedLessons.length - 1 ? orderedLessons[currentIndex + 1] : null
+
+  const courseDoc = course as { level?: string; subject?: string | { name?: string } | null } | null
+  const courseLevelStr = courseDoc?.level ? String(courseDoc.level) : ''
+  const courseSubjectStr =
+    typeof courseDoc?.subject === 'string'
+      ? courseDoc.subject
+      : courseDoc?.subject && typeof courseDoc.subject === 'object'
+        ? String(courseDoc.subject.name ?? '')
+        : ''
+
   const lessonHeader = (
     <>
       {/* Breadcrumb */}
@@ -157,12 +167,26 @@ export default async function LessonPage({
 
       {/* Lesson Header */}
       <div>
-        <h1 className="text-4xl font-bold text-foreground mb-4">{lesson.title}</h1>
-        {courseModule && (
-          <Badge variant="outline" className="text-sm">
-            {courseModule.title}
-          </Badge>
-        )}
+        <h1 className="mb-4 text-balance text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">
+          {lesson.title}
+        </h1>
+        {(courseLevelStr || courseSubjectStr || courseModule) ? (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {courseLevelStr ? (
+              <span className={cn(studentGlassPill, 'text-sm uppercase')}>{courseLevelStr}</span>
+            ) : null}
+            {courseSubjectStr ? (
+              <span className={cn(studentGlassPill, 'max-w-full text-sm font-medium normal-case tracking-tight')}>
+                {courseSubjectStr}
+              </span>
+            ) : null}
+            {courseModule ? (
+              <span className={cn(studentGlassPill, 'max-w-full text-sm font-medium normal-case tracking-tight')}>
+                {String(courseModule.title ?? '')}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         {isAdmin && isPreview && (
           <div className="mt-4 flex flex-wrap gap-2">
             <Link href={`/admin/lessons/${lessonId}/builder`}>
@@ -181,10 +205,10 @@ export default async function LessonPage({
   )
 
   const lessonBody = (
-    <>
+    <div className="space-y-8">
       {/* Lesson Content */}
       {(lesson.theoryBlocks && lesson.theoryBlocks.length > 0) || lesson.content ? (
-        <Card className="mb-8 gap-0 py-0 shadow-sm">
+        <Card className={cn('gap-0 border-0 py-0 shadow-none', studentGlassCard)}>
           <CardContent className="px-5 py-7 sm:px-7 sm:py-8 md:px-9">
             <div id={THEORY_ROOT_ID} className="min-w-0">
               {lesson.theoryBlocks && lesson.theoryBlocks.length > 0 ? (
@@ -199,16 +223,24 @@ export default async function LessonPage({
 
       {/* Attachments */}
       {lesson.attachments && lesson.attachments.length > 0 && (
-        <Card className="mb-8">
+        <Card className={cn('border-0 shadow-none', studentGlassCard)}>
           <CardHeader>
-            <CardTitle className="text-xl text-foreground">Downloadable materials</CardTitle>
+            <CardTitle className="text-xl text-gray-900 dark:text-gray-100">Downloadable materials</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {(lesson.attachments as Array<{ description?: string }>).map((attachment, index) => (
-                <div key={index} className="flex items-center justify-between p-3 block-bg rounded-lg">
+                <div
+                  key={index}
+                  className={cn(
+                    'flex items-center justify-between rounded-xl border p-3',
+                    'border-slate-300/45 bg-white/[0.22] backdrop-blur-md dark:border-white/12 dark:bg-white/[0.06]',
+                  )}
+                >
                   <span className="text-sm text-foreground">{attachment.description || `Attachment ${index + 1}`}</span>
-                  <Button variant="outline" size="sm">Download</Button>
+                  <Button variant="outline" size="sm">
+                    Download
+                  </Button>
                 </div>
               ))}
             </div>
@@ -216,22 +248,22 @@ export default async function LessonPage({
         </Card>
       )}
 
-      <Separator className="my-8" />
-
       {/* Tasks */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-foreground">Practice tasks</h2>
+      <div className="space-y-5">
+        <h2 className="text-center text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">
+          Practice tasks
+        </h2>
 
         {tasks.length === 0 ? (
-            <Card>
-            <CardContent className="pt-6">
-              <p className="text-center text-muted-foreground">
+          <Card className={cn('border-0 shadow-none', studentGlassCard)}>
+            <CardContent className="px-5 py-10 sm:px-6">
+              <p className="text-center text-base text-gray-600 dark:text-gray-400 md:text-lg">
                 No tasks for this lesson
               </p>
               {!isAdmin && hasNoTasks && !isLessonCompleted && (
-                <div className="flex justify-center">
+                <div className="mt-6 flex justify-center">
                   <form action={markCompleteAction}>
-                    <Button type="submit" className="bg-green-600 hover:bg-green-700">
+                    <Button type="submit" variant="hero" className="auth-hero-cta">
                       Mark lesson as complete
                     </Button>
                   </form>
@@ -261,32 +293,40 @@ export default async function LessonPage({
       </div>
 
       {/* Navigation */}
-      <div className="mt-8 flex justify-between">
+      <div className="flex flex-col justify-between gap-4 pt-2 sm:flex-row sm:items-center">
         <Link href={`/courses/${slug}`}>
-          <Button variant="outline">← Back to course</Button>
+          <Button variant="outline" className="w-full sm:w-auto">
+            ← Back to course
+          </Button>
         </Link>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           {prevLesson ? (
             <Link href={`/courses/${slug}/lessons/${String(prevLesson.id)}`}>
-              <Button variant="outline">← Previous</Button>
+              <Button variant="outline" className="min-w-[8.5rem]">
+                ← Previous
+              </Button>
             </Link>
           ) : (
-            <Button variant="outline" disabled>← Previous</Button>
+            <Button variant="outline" disabled className="min-w-[8.5rem]">
+              ← Previous
+            </Button>
           )}
 
           {nextLesson ? (
             <Link href={`/courses/${slug}/lessons/${String(nextLesson.id)}`}>
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white dark:text-white">
-                {'Next lesson →'}
+              <Button variant="hero" className="auth-hero-cta min-w-[8.5rem]">
+                Next lesson →
               </Button>
             </Link>
           ) : (
-            <Button disabled className="bg-gray-400 text-white">Next →</Button>
+            <Button variant="outline" disabled className="min-w-[8.5rem]">
+              Next →
+            </Button>
           )}
         </div>
       </div>
-    </>
+    </div>
   )
 
   return (

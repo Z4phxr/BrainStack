@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { logger } from '@/lib/logger'
 import type { Prisma } from '@prisma/client'
+import { getActivityLoggingEnabled } from '@/lib/platform-flags'
 
 export const ActivityAction = {
   USER_REGISTERED:     'USER_REGISTERED',
@@ -42,6 +43,8 @@ export const ActivityAction = {
   USER_PRO_LESSON_ASSISTANT: 'USER_PRO_LESSON_ASSISTANT',
   /** Admin changed a user's Pro flag (metadata: targetUserId, isPro). */
   ADMIN_USER_PRO_UPDATED: 'ADMIN_USER_PRO_UPDATED',
+  /** Admin changed a user's role (metadata: targetUserId, role). */
+  ADMIN_USER_ROLE_UPDATED: 'ADMIN_USER_ROLE_UPDATED',
 } as const
 
 export type ActivityActionType = (typeof ActivityAction)[keyof typeof ActivityAction]
@@ -61,20 +64,25 @@ export interface LogActivityParams {
  * interrupts the primary operation.
  */
 export function logActivity(params: LogActivityParams): void {
-  prisma.activityLog
-    .create({
-      data: {
-        action:       params.action,
-        actorUserId:  params.actorUserId  ?? null,
-        actorEmail:   params.actorEmail   ?? null,
-        resourceType: params.resourceType ?? null,
-        resourceId:   params.resourceId   ?? null,
-        metadata:     params.metadata != null
-                        ? (params.metadata as Prisma.InputJsonValue)
-                        : undefined,
-      },
+  void getActivityLoggingEnabled()
+    .catch(() => true)
+    .then((enabled) => {
+      if (!enabled) return
+      return prisma.activityLog
+        .create({
+          data: {
+            action:       params.action,
+            actorUserId:  params.actorUserId  ?? null,
+            actorEmail:   params.actorEmail   ?? null,
+            resourceType: params.resourceType ?? null,
+            resourceId:   params.resourceId   ?? null,
+            metadata:     params.metadata != null
+                            ? (params.metadata as Prisma.InputJsonValue)
+                            : undefined,
+          },
+        })
+        .catch((err: unknown) =>
+          logger.warning('Failed to write activity log', { err: String(err) })
+        )
     })
-    .catch((err: unknown) =>
-      logger.warning('Failed to write activity log', { err: String(err) })
-    )
 }

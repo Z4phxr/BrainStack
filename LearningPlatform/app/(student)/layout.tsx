@@ -18,17 +18,21 @@ export default async function StudentLayout({
   const pathname = headersList.get('x-pathname') ?? ''
   const isFullscreen = pathname.startsWith('/dashboard/flashcards/study')
 
+  if (isFullscreen) {
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="min-w-0 overflow-x-hidden text-base leading-relaxed">{children}</main>
+      </div>
+    )
+  }
+
   return (
-    <>
-      {!isFullscreen && <Navbar />}
-      <main
-        className={cn(
-          'min-h-screen bg-background text-base leading-relaxed',
-          isFullscreen && 'min-w-0 overflow-x-hidden',
-        )}
-      >
-        {children}
-      </main>
-    </>
-  );
+    <div className="relative isolate min-h-dvh w-full">
+      <div className="student-app-shell-bg" aria-hidden />
+      <div className="student-app-shell">
+        <Navbar />
+        <main className="text-base leading-relaxed">{children}</main>
+      </div>
+    </div>
+  )
 }
