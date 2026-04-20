@@ -30,8 +30,9 @@ services:
       # starts first (avoids healthcheck failures when import is slow); then remove when done.
       CONTENT_IMPORT: "${CONTENT_IMPORT:-}"
       CONTENT_IMPORT_DEFERRED: "${CONTENT_IMPORT_DEFERRED:-}"
-      # When "1", course import creates only new slugs; existing courses keep CMS edits (see .env.example).
-      CONTENT_IMPORT_SKIP_EXISTING_COURSES: "${CONTENT_IMPORT_SKIP_EXISTING_COURSES:-}"
+      # Safety default: preserve admin edits on existing courses during imports.
+      # Set CONTENT_IMPORT_SKIP_EXISTING_COURSES=0 in .env if you intentionally want imports to overwrite existing course trees.
+      CONTENT_IMPORT_SKIP_EXISTING_COURSES: "${CONTENT_IMPORT_SKIP_EXISTING_COURSES:-1}"
       NODE_ENV: "production"
       PORT: "3000"
       # Optional: Pro lesson assistant (Claude). Set in .env; omit to disable (API returns 503).

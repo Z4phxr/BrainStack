@@ -34,15 +34,30 @@ Options:
  * Sorted .js files directly under a data folder (no subfolders), excluding dotfiles.
  */
 function scanDataJsFiles(dataDir) {
-  if (!fs.existsSync(dataDir)) {
-    return []
+  const dirs = Array.isArray(dataDir) ? dataDir : [dataDir]
+  const files = []
+
+  for (const dir of dirs) {
+    if (!fs.existsSync(dir)) {
+      continue
+    }
+
+    const names = fs.readdirSync(dir)
+    const jsFiles = names
+      .filter((n) => n.endsWith('.js') && !n.startsWith('.'))
+      .sort((a, b) => a.localeCompare(b))
+      .map((n) => path.join(dir, n))
+
+    files.push(...jsFiles)
   }
 
-  const names = fs.readdirSync(dataDir)
-  return names
-    .filter((n) => n.endsWith('.js') && !n.startsWith('.'))
-    .sort((a, b) => a.localeCompare(b))
-    .map((n) => path.join(dataDir, n))
+  return files.sort((a, b) => a.localeCompare(b))
+}
+
+function getImportDataDirs(appRoot, kind) {
+  const dataDir = path.join(appRoot, 'scripts/imports/data', kind)
+  const privateDir = path.join(appRoot, 'scripts/imports/data-private', kind)
+  return [dataDir, privateDir]
 }
 
 function isLexicalRichText(value) {
@@ -219,6 +234,7 @@ module.exports = {
   parseRunnerArgs,
   printRunnerHelp,
   scanDataJsFiles,
+  getImportDataDirs,
   isLexicalRichText,
   textToLexical,
   normalizeWhitespace,

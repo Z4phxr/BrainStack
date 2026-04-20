@@ -3,8 +3,8 @@
 
 Besides the admin UI, you can load **tags, full courses (subject -> modules -> lessons -> tasks), extra modules on an existing course, and flashcard decks/cards** from import data files. Imports are **idempotent**: re-running updates matching records (slugs/order keys) instead of duplicating everything.
 
-Add **`.js` files** under `scripts/imports/data/` (CommonJS: `module.exports = ...`).
-Each runner picks up every top-level `*.js` in its folder (non-recursive), **sorted by filename**.
+Add **`.js` files** under `scripts/imports/data/` (public) or `scripts/imports/data-private/` (local-only, gitignored) using CommonJS exports (`module.exports = ...`).
+Each runner picks up every top-level `*.js` in matching public + private folders (non-recursive), **sorted by filename**.
 
 ## Why This Workflow Is Recommended
 
@@ -41,6 +41,9 @@ Run order in full pipeline: **tags -> courses -> standalone modules -> flashcard
 | **Course tree** (Payload) | `scripts/imports/data/courses/` | One object `{ subject, course, modules }` per file |
 | **Extra modules** (Payload) | `scripts/imports/data/modules/` | `{ courseSlug, module }` or `{ courseSlug, modules: [...] }` |
 | **Flashcards** (Prisma) | `scripts/imports/data/flashcards/` | Either `[{ question, answer, tagSlugs? }]` or `{ deck?, cards: [...] }` |
+
+Private/local-only equivalents are also scanned automatically:
+`scripts/imports/data-private/tags/`, `scripts/imports/data-private/courses/`, `scripts/imports/data-private/modules/`, `scripts/imports/data-private/flashcards/`.
 
 Tasks reference tags by **slug**; import tags before courses/flashcards that use them.
 Course `level`: `BEGINNER` | `INTERMEDIATE` | `ADVANCED`.
@@ -181,7 +184,8 @@ Rebuild or mount `scripts/imports` if you change data files; see `LOCAL_DEVELOPM
 
 - Course/module/lesson/task import defaults to published unless explicitly set `isPublished: false`.
 - Course import upserts by slug; modules upsert by `(course, order)`; lessons by `(course, module, order)`; tasks by `(lesson, order, type)`.
-- `CONTENT_IMPORT_SKIP_EXISTING_COURSES=true` skips updates/sync for courses that already exist by slug.
+- `CONTENT_IMPORT_SKIP_EXISTING_COURSES=true` skips updates/sync for courses that already exist by slug (recommended to preserve admin edits).
+- Docker Compose defaults this flag to `1` for safety. Set `CONTENT_IMPORT_SKIP_EXISTING_COURSES=0` in `.env` only when you intentionally want imports to overwrite existing course trees.
 - Theory `image` block value `__IMPORT_PLACEHOLDER_IMAGE__` resolves to a bundled placeholder media entry automatically.
 - Course `coverImage` supports:
   - omitted: no change

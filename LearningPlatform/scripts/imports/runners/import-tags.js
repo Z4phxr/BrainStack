@@ -1,10 +1,10 @@
 const path = require('path')
-const { loadEnv, scanDataJsFiles, parseRunnerArgs, printRunnerHelp } = require('../helpers/utils')
+const { loadEnv, scanDataJsFiles, parseRunnerArgs, printRunnerHelp, getImportDataDirs } = require('../helpers/utils')
 const { createPrismaClient } = require('../helpers/prisma-client')
 const { importTagsFromList } = require('../helpers/tags')
 
 const APP_ROOT = path.join(__dirname, '../../..')
-const DATA_DIR = path.join(__dirname, '../data/tags')
+const DATA_DIRS = getImportDataDirs(APP_ROOT, 'tags')
 
 async function run() {
   loadEnv(APP_ROOT)
@@ -15,9 +15,9 @@ async function run() {
   }
 
   const { prisma, disconnect } = createPrismaClient()
-  const files = scanDataJsFiles(DATA_DIR)
+  const files = scanDataJsFiles(DATA_DIRS)
   if (files.length === 0) {
-    console.log(`[INFO] No tag data files found in ${DATA_DIR}`)
+    console.log(`[INFO] No tag data files found in: ${DATA_DIRS.join(', ')}`)
     await disconnect()
     return 0
   }
