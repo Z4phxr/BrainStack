@@ -59,6 +59,23 @@ interface Flashcard {
   deck: { id: string; name: string; slug: string }
 }
 
+interface DeckRow {
+  id: string
+  name: string
+  slug: string
+  courseId?: string | null
+  moduleId?: string | null
+  parentDeckId?: string | null
+  parentDeck?: { id: string; name: string; slug: string } | null
+  _count?: { flashcards?: number; childDecks?: number }
+}
+
+interface CourseHierarchy {
+  id: string
+  title: string
+  modules: Array<{ id: string; title: string }>
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function truncate(text: string, max = 80): string {
@@ -90,9 +107,22 @@ export default function AdminFlashcardsPage() {
   const [cardPage, setCardPage] = useState(1)
   const [sortKey, setSortKey] = useState<'newest' | 'oldest' | 'az' | 'za'>('newest')
   const [selectedDeckSlug, setSelectedDeckSlug] = useState<string | null>(null)
-  const [deckOptions, setDeckOptions] = useState<Array<{ slug: string; name: string }>>([])
+  const [deckOptions, setDeckOptions] = useState<Array<{ id: string; slug: string; name: string }>>([])
+  const [deckRows, setDeckRows] = useState<DeckRow[]>([])
+  const [courses, setCourses] = useState<CourseHierarchy[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
+
+  // Create deck dialog
+  const [deckDialogOpen, setDeckDialogOpen] = useState(false)
+  const [deckSubmitting, setDeckSubmitting] = useState(false)
+  const [deckType, setDeckType] = useState<'MAIN' | 'SUBDECK'>('MAIN')
+  const [deckName, setDeckName] = useState('')
+  const [deckSlug, setDeckSlug] = useState('')
+  const [deckDescription, setDeckDescription] = useState('')
+  const [deckCourseId, setDeckCourseId] = useState('')
+  const [deckParentId, setDeckParentId] = useState('')
+  const [deckModuleId, setDeckModuleId] = useState('')
 
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -131,14 +161,26 @@ export default function AdminFlashcardsPage() {
       setFlashcards(cards)
       // Keep full tag list in state; UI decides which to show via toggle
       setAllTags(tagData.tags ?? [])
-      const dlist = deckData.decks ?? []
-      setDeckOptions(dlist.map((d: { slug: string; name: string }) => ({ slug: d.slug, name: d.name })))
+      const dlist: DeckRow[] = deckData.decks ?? []
+      setDeckRows(dlist)
+      setDeckOptions(dlist.map((d) => ({ id: d.id, slug: d.slug, name: d.name })))
     } catch {
       setError('Could not load data. Please try again.')
     } finally {
       setLoading(false)
     }
   }, [selectedTagSlugs, selectedDeckSlug])
+
+  const fetchCoursesHierarchy = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/courses-hierarchy')
+      if (!res.ok) return
+      const data = await res.json()
+      setCourses(data.courses ?? [])
+    } catch {
+      // Best-effort only, deck dialog can still work with plain IDs.
+    }
+  }, [])
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSearch(searchInput), 350)
@@ -148,6 +190,10 @@ export default function AdminFlashcardsPage() {
   useEffect(() => {
     void fetchData()
   }, [fetchData])
+
+  useEffect(() => {
+    void fetchCoursesHierarchy()
+  }, [fetchCoursesHierarchy])
 
   // Reset tag pagination when toggling between main/all tags
   useEffect(() => {
@@ -266,6 +312,97 @@ export default function AdminFlashcardsPage() {
     setDebouncedSearch('')
   }
 
+  const courseById = useMemo(() => {
+    const map = new Map<string, CourseHierarchy>()
+    for (const course of courses) map.set(course.id, course)
+    return map
+  }, [courses])
+
+  const moduleById = useMemo(() => {
+    const map = new Map<string, { id: string; title: string; courseId: string }>()
+    for (const course of courses) {
+      for (const mod of course.modules ?? []) {
+        map.set(mod.id, { id: mod.id, title: mod.title, courseId: course.id })
+      }
+    }
+    return map
+  }, [courses])
+
+  const mainDeckOptions = useMemo(
+    () => deckRows.filter((d) => !d.parentDeckId && !!d.courseId),
+    [deckRows],
+  )
+
+  const availableModulesForCourse = useMemo(
+    () => (deckCourseId ? courseById.get(deckCourseId)?.modules ?? [] : []),
+    [courseById, deckCourseId],
+  )
+
+  const subdecksByMain = useMemo(() => {
+    const grouped = new Map<string, DeckRow[]>()
+    for (const deck of deckRows) {
+      if (!deck.parentDeckId) continue
+      const arr = grouped.get(deck.parentDeckId) ?? []
+      arr.push(deck)
+      grouped.set(deck.parentDeckId, arr)
+    }
+    for (const arr of grouped.values()) {
+      arr.sort((a, b) => a.name.localeCompare(b.name))
+    }
+    return grouped
+  }, [deckRows])
+
+  function openDeckDialog() {
+    setDeckDialogOpen(true)
+    setDeckType('MAIN')
+    setDeckName('')
+    setDeckSlug('')
+    setDeckDescription('')
+    setDeckCourseId(courses[0]?.id ?? '')
+    setDeckParentId('')
+    setDeckModuleId('')
+  }
+
+  async function submitDeckCreate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!deckName.trim()) return
+    setDeckSubmitting(true)
+    setError('')
+    try {
+      const payload: Record<string, unknown> = {
+        name: deckName.trim(),
+        slug: deckSlug.trim() || undefined,
+        description: deckDescription.trim() || null,
+        type: deckType,
+        courseId: deckCourseId || undefined,
+      }
+      if (deckType === 'SUBDECK') {
+        payload.parentDeckId = deckParentId || undefined
+        payload.moduleId = deckModuleId || undefined
+      }
+      const res = await fetch('/api/flashcard-decks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        const message =
+          data?.issues && typeof data.issues === 'object'
+            ? Object.values(data.issues).flat().filter(Boolean)[0]
+            : data?.error
+        setError(typeof message === 'string' ? message : 'Could not create deck.')
+        return
+      }
+      setDeckDialogOpen(false)
+      await Promise.all([fetchData(), fetchCoursesHierarchy()])
+    } catch {
+      setError('Network error while creating deck.')
+    } finally {
+      setDeckSubmitting(false)
+    }
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -286,12 +423,16 @@ export default function AdminFlashcardsPage() {
                 id="flashcard-deck-filter"
                 value={selectedDeckSlug ?? ''}
                 onChange={(e) => setSelectedDeckSlug(e.target.value || null)}
-                className="h-9 min-w-[10rem] rounded-md border border-slate-300/50 bg-white/40 px-3 text-sm text-gray-900 shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-white/15 dark:bg-white/10 dark:text-gray-100"
+                className="h-9 min-w-[10rem] rounded-md border border-slate-300/50 bg-white/40 px-3 text-sm text-gray-900 shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-white/15 dark:bg-white/10 dark:text-gray-100 [&>option]:bg-white [&>option]:text-gray-900 dark:[&>option]:bg-gray-900 dark:[&>option]:text-gray-100"
               >
                 <option value="">All decks</option>
                 {deckOptions.map((d) => (
                   <option key={d.slug} value={d.slug}>
-                    {d.name}
+                    {(() => {
+                      const full = deckRows.find((x) => x.id === d.id)
+                      const courseTitle = full?.courseId ? courseById.get(full.courseId)?.title : ''
+                      return `${d.name}${courseTitle ? ` (${courseTitle})` : ''}`
+                    })()}
                   </option>
                 ))}
               </select>
@@ -305,7 +446,7 @@ export default function AdminFlashcardsPage() {
                 id="flashcard-sort"
                 value={sortKey}
                 onChange={(e) => setSortKey(e.target.value as 'newest' | 'oldest' | 'az' | 'za')}
-                className="h-9 rounded-md border border-slate-300/50 bg-white/40 pl-8 pr-3 text-sm text-gray-900 shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-white/15 dark:bg-white/10 dark:text-gray-100"
+                className="h-9 rounded-md border border-slate-300/50 bg-white/40 pl-8 pr-3 text-sm text-gray-900 shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-white/15 dark:bg-white/10 dark:text-gray-100 [&>option]:bg-white [&>option]:text-gray-900 dark:[&>option]:bg-gray-900 dark:[&>option]:text-gray-100"
               >
                 <option value="newest">Newest first</option>
                 <option value="oldest">Oldest first</option>
@@ -314,10 +455,16 @@ export default function AdminFlashcardsPage() {
               </select>
             </div>
           </div>
-          <Button variant="hero" className="auth-hero-cta w-full sm:w-auto sm:shrink-0" onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Flashcard
-          </Button>
+          <div className="flex w-full gap-2 sm:w-auto">
+            <Button variant="outline" className={cn(adminGlassOutlineButton, 'w-full sm:w-auto')} onClick={openDeckDialog}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Deck
+            </Button>
+            <Button variant="hero" className="auth-hero-cta w-full sm:w-auto sm:shrink-0" onClick={openCreate}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Flashcard
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -352,6 +499,53 @@ export default function AdminFlashcardsPage() {
           </Button>
         ) : null}
       </div>
+
+      {/* ── Deck hierarchy ── */}
+      {mainDeckOptions.length > 0 && (
+        <div
+          className={cn(
+            'space-y-3 rounded-xl border-0 p-4 shadow-none',
+            adminGlassCard,
+          )}
+        >
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Deck hierarchy
+          </h2>
+          <div className="space-y-2.5">
+            {mainDeckOptions
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((mainDeck) => {
+                const courseTitle = mainDeck.courseId ? (courseById.get(mainDeck.courseId)?.title ?? 'Unknown course') : 'No course'
+                const children = subdecksByMain.get(mainDeck.id) ?? []
+                return (
+                  <div
+                    key={mainDeck.id}
+                    className="rounded-xl border border-slate-300/45 bg-white/[0.22] p-3 dark:border-white/12 dark:bg-white/[0.06]"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={cn(studentGlassPill, 'normal-case tracking-tight')}>{mainDeck.name}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{courseTitle}</span>
+                      <span className="text-xs text-gray-400">
+                        {mainDeck._count?.flashcards ?? 0} cards · {children.length} subdecks
+                      </span>
+                    </div>
+                    {children.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {children.map((subdeck) => (
+                          <span key={subdeck.id} className={cn(studentGlassPill, 'text-xs normal-case tracking-tight')}>
+                            {subdeck.name}
+                            {' · '}
+                            {subdeck.moduleId ? (moduleById.get(subdeck.moduleId)?.title ?? 'Unknown module') : 'No module'}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      )}
 
       {/* ── Tags strip ── */}
       {allTags.length > 0 && (
@@ -713,6 +907,155 @@ export default function AdminFlashcardsPage() {
             </div>
           )
         })()
+      )}
+
+      {deckDialogOpen && (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setDeckDialogOpen(false)} aria-hidden />
+          <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col overflow-hidden border-l border-slate-200/60 bg-white/90 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/90">
+            <form onSubmit={submitDeckCreate} className="flex h-full flex-col">
+              <div className="flex items-center justify-between border-b border-slate-200/60 px-5 py-4 dark:border-white/10">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Create Deck</h2>
+                <button
+                  type="button"
+                  onClick={() => setDeckDialogOpen(false)}
+                  className="rounded-md p-1 text-gray-500 hover:bg-black/5 dark:hover:bg-white/10"
+                  aria-label="Close deck dialog"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+                <label className="block space-y-1 text-sm">
+                  <span className="font-medium text-gray-700 dark:text-gray-200">Deck type</span>
+                  <select
+                    value={deckType}
+                    onChange={(e) => {
+                      const next = e.target.value as 'MAIN' | 'SUBDECK'
+                      setDeckType(next)
+                      if (next === 'MAIN') {
+                        setDeckParentId('')
+                        setDeckModuleId('')
+                      }
+                    }}
+                    className="h-10 w-full rounded-md border border-slate-300/50 bg-white/60 px-3 text-sm dark:border-white/15 dark:bg-white/10 [&>option]:bg-white [&>option]:text-gray-900 dark:[&>option]:bg-gray-900 dark:[&>option]:text-gray-100"
+                  >
+                    <option value="MAIN">Main deck (course level)</option>
+                    <option value="SUBDECK">Subdeck (module level)</option>
+                  </select>
+                </label>
+
+                <label className="block space-y-1 text-sm">
+                  <span className="font-medium text-gray-700 dark:text-gray-200">Name</span>
+                  <Input value={deckName} onChange={(e) => setDeckName(e.target.value)} required />
+                </label>
+
+                <label className="block space-y-1 text-sm">
+                  <span className="font-medium text-gray-700 dark:text-gray-200">Slug (optional)</span>
+                  <Input value={deckSlug} onChange={(e) => setDeckSlug(e.target.value)} placeholder="auto-generated from name" />
+                </label>
+
+                <label className="block space-y-1 text-sm">
+                  <span className="font-medium text-gray-700 dark:text-gray-200">Description</span>
+                  <Input value={deckDescription} onChange={(e) => setDeckDescription(e.target.value)} />
+                </label>
+
+                <label className="block space-y-1 text-sm">
+                  <span className="font-medium text-gray-700 dark:text-gray-200">Course</span>
+                  <select
+                    value={deckCourseId}
+                    onChange={(e) => {
+                      const nextCourseId = e.target.value
+                      setDeckCourseId(nextCourseId)
+                      if (deckType === 'SUBDECK') {
+                        setDeckParentId('')
+                        setDeckModuleId('')
+                      }
+                    }}
+                    className="h-10 w-full rounded-md border border-slate-300/50 bg-white/60 px-3 text-sm dark:border-white/15 dark:bg-white/10 [&>option]:bg-white [&>option]:text-gray-900 dark:[&>option]:bg-gray-900 dark:[&>option]:text-gray-100"
+                    required
+                  >
+                    <option value="" disabled>
+                      Select course
+                    </option>
+                    {courses.map((course) => (
+                      <option key={course.id} value={course.id}>
+                        {course.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {deckType === 'SUBDECK' && (
+                  <>
+                    <label className="block space-y-1 text-sm">
+                      <span className="font-medium text-gray-700 dark:text-gray-200">Parent main deck</span>
+                      <select
+                        value={deckParentId}
+                        onChange={(e) => setDeckParentId(e.target.value)}
+                        className="h-10 w-full rounded-md border border-slate-300/50 bg-white/60 px-3 text-sm dark:border-white/15 dark:bg-white/10 [&>option]:bg-white [&>option]:text-gray-900 dark:[&>option]:bg-gray-900 dark:[&>option]:text-gray-100"
+                        required
+                      >
+                        <option value="" disabled>
+                          Select main deck
+                        </option>
+                        {mainDeckOptions
+                          .filter((d) => d.courseId === deckCourseId)
+                          .map((deck) => (
+                            <option key={deck.id} value={deck.id}>
+                              {deck.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+
+                    <label className="block space-y-1 text-sm">
+                      <span className="font-medium text-gray-700 dark:text-gray-200">Module</span>
+                      <select
+                        value={deckModuleId}
+                        onChange={(e) => setDeckModuleId(e.target.value)}
+                        className="h-10 w-full rounded-md border border-slate-300/50 bg-white/60 px-3 text-sm dark:border-white/15 dark:bg-white/10 [&>option]:bg-white [&>option]:text-gray-900 dark:[&>option]:bg-gray-900 dark:[&>option]:text-gray-100"
+                        required
+                      >
+                        <option value="" disabled>
+                          Select module
+                        </option>
+                        {availableModulesForCourse.map((mod) => (
+                          <option key={mod.id} value={mod.id}>
+                            {mod.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-slate-200/60 px-5 py-4 dark:border-white/10">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(adminGlassOutlineButton)}
+                  onClick={() => setDeckDialogOpen(false)}
+                  disabled={deckSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" variant="hero" className="auth-hero-cta" disabled={deckSubmitting}>
+                  {deckSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating…
+                    </>
+                  ) : (
+                    'Create deck'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </>
       )}
 
       {/* ── Dialog (create + edit) ── */}

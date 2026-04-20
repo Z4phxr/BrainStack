@@ -3,10 +3,12 @@ import { requireAuth } from '@/lib/auth-helpers'
 import { getFlashcardDashboardSummary } from '@/lib/flashcards-dashboard-summary'
 
 /** GET /api/flashcards/dashboard-summary — minimal payload for the student dashboard strip. */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const user = await requireAuth()
-    const summary = await getFlashcardDashboardSummary(user.id)
+    const { searchParams } = new URL(req.url)
+    const courseSlug = searchParams.get('courseSlug')?.trim() || undefined
+    const summary = await getFlashcardDashboardSummary(user.id, { courseSlug })
     return NextResponse.json(summary)
   } catch (error) {
     if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden')) {

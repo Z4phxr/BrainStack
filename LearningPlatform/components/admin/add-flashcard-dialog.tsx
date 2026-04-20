@@ -23,6 +23,16 @@ interface FlashcardDeckRow {
   id: string
   name: string
   slug: string
+  courseId?: string | null
+  moduleId?: string | null
+  parentDeckId?: string | null
+  parentDeck?: { id: string; name: string; slug: string } | null
+}
+
+interface CourseHierarchy {
+  id: string
+  title: string
+  modules: Array<{ id: string; title: string }>
 }
 
 export interface FlashcardInitialData {
@@ -159,6 +169,8 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
   const [decks, setDecks] = useState<FlashcardDeckRow[]>([])
   const [deckId, setDeckId] = useState<string>('')
   const [decksLoading, setDecksLoading] = useState(false)
+  const [courseById, setCourseById] = useState<Record<string, string>>({})
+  const [moduleById, setModuleById] = useState<Record<string, string>>({})
 
   // ── Tags ─────────────────────────────────────────────────────────────────────
   const [availableTags, setAvailableTags] = useState<Tag[]>([])
@@ -192,11 +204,23 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
     Promise.all([
       fetch('/api/tags').then((r) => r.json()),
       fetch('/api/flashcard-decks').then((r) => r.json()),
+      fetch('/api/admin/courses-hierarchy').then((r) => r.json()),
     ])
-      .then(([tagData, deckData]) => {
+      .then(([tagData, deckData, hierarchyData]) => {
         setAvailableTags(tagData.tags ?? [])
         const list: FlashcardDeckRow[] = deckData.decks ?? []
         setDecks(list)
+        const courses: CourseHierarchy[] = hierarchyData.courses ?? []
+        const nextCourseById: Record<string, string> = {}
+        const nextModuleById: Record<string, string> = {}
+        for (const course of courses) {
+          nextCourseById[course.id] = course.title
+          for (const mod of course.modules ?? []) {
+            nextModuleById[mod.id] = mod.title
+          }
+        }
+        setCourseById(nextCourseById)
+        setModuleById(nextModuleById)
         const preferred = initialData?.deckId
         const resolved =
           preferred && list.some((d) => d.id === preferred)
@@ -208,6 +232,8 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
         setAvailableTags([])
         setDecks([])
         setDeckId('')
+        setCourseById({})
+        setModuleById({})
       })
       .finally(() => {
         setTagsLoading(false)
@@ -319,6 +345,15 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
   const formId = isEditMode ? 'edit-flashcard-form' : 'add-flashcard-form'
   const titleText = isEditMode ? 'Edit Flashcard' : 'Add Flashcard'
   const saveLabel = isEditMode ? 'Save changes' : 'Save Flashcard'
+
+  const sortedDecks = [...decks].sort((a, b) => {
+    const aCourse = (a.courseId ? courseById[a.courseId] : '') || ''
+    const bCourse = (b.courseId ? courseById[b.courseId] : '') || ''
+    if (aCourse !== bCourse) return aCourse.localeCompare(bCourse)
+    if (a.parentDeckId === null && b.parentDeckId !== null) return -1
+    if (a.parentDeckId !== null && b.parentDeckId === null) return 1
+    return a.name.localeCompare(b.name)
+  })
 
   return (
     <>
@@ -441,9 +476,16 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
                 required
                 className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:border-gray-700 dark:bg-gray-900"
               >
-                {decks.map((d) => (
+                {sortedDecks.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.name}
+                    {(() => {
+                      const courseTitle = d.courseId ? courseById[d.courseId] : ''
+                      if (d.parentDeckId && d.moduleId) {
+                        const moduleTitle = moduleById[d.moduleId] ?? 'Unknown module'
+                        return `${d.name} (Subdeck • ${moduleTitle}${courseTitle ? ` • ${courseTitle}` : ''})`
+                      }
+                      return `${d.name}${courseTitle ? ` (Main • ${courseTitle})` : ''}`
+                    })()}
                   </option>
                 ))}
               </select>

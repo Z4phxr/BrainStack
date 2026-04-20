@@ -11,7 +11,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { DashboardHorizontalScroll } from '@/components/dashboard/dashboard-horizontal-scroll'
-import { Brain, Zap, Loader2, BookOpen } from 'lucide-react'
+import { Brain, Loader2, BookOpen } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { studentGlassCard } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
@@ -41,16 +41,16 @@ function StatPill({ label, count }: { label: string; count: number }) {
 
 function FlashcardBlock({
   title,
+  subtitle,
   stats,
-  studyHref,
-  freeHref,
+  openHref,
 }: {
   title: string
+  subtitle: string
   stats: CardStats
-  studyHref: string
-  freeHref: string
+  openHref: string
 }) {
-  const canStudy = stats.due + stats.newCards > 0
+  const canOpen = stats.total > 0
 
   return (
     <Card
@@ -62,6 +62,7 @@ function FlashcardBlock({
       <CardContent className="flex h-full flex-col items-center justify-between gap-4 p-4">
         <div className="w-full text-center">
           <p className="text-lg font-semibold tracking-tight text-gray-800 dark:text-gray-100 md:text-xl">{title}</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
         </div>
 
         <div className="flex w-full items-stretch justify-center gap-2 sm:gap-3">
@@ -70,27 +71,16 @@ function FlashcardBlock({
           <StatPill label="total" count={stats.total} />
         </div>
 
-        <div className="grid w-full min-w-0 grid-cols-2 gap-2">
-          <Link href={studyHref} className="min-w-0">
+        <div className="grid w-full min-w-0 grid-cols-1 gap-2">
+          <Link href={openHref} className="min-w-0">
             <Button
               size="sm"
               variant="hero"
               className="auth-hero-cta h-auto w-full min-w-0 justify-center gap-1 whitespace-normal px-2 py-2 text-xs leading-tight sm:text-sm"
-              disabled={!canStudy}
+              disabled={!canOpen}
             >
               <Brain className="h-4 w-4 shrink-0" />
-              Study Now
-            </Button>
-          </Link>
-          <Link href={freeHref} className="min-w-0">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-auto w-full min-w-0 justify-center gap-1 whitespace-normal border-white/25 bg-white/10 px-2 py-2 text-xs leading-tight backdrop-blur-sm hover:bg-white/15 dark:border-white/20 dark:bg-white/5 dark:hover:bg-white/10 sm:text-sm"
-              disabled={stats.total === 0}
-            >
-              <Zap className="h-4 w-4 shrink-0" />
-              Free Learn
+              Open Deck Tree
             </Button>
           </Link>
         </div>
@@ -100,27 +90,23 @@ function FlashcardBlock({
 }
 
 function FlashcardSummaryCarousel({ summary }: { summary: FlashcardDashboardSummary }) {
-  const items: ReactNode[] = [
-    <FlashcardBlock
-      key="all"
-      title="All Flashcards"
-      stats={summary.all}
-      studyHref="/dashboard/flashcards/study?mode=srs"
-      freeHref="/dashboard/flashcards/study?mode=free"
-    />,
-  ]
+  const items: ReactNode[] = []
 
   for (const row of summary.decks) {
-    const slugQ = encodeURIComponent(row.deck.slug)
+    const courseSlugQ = encodeURIComponent(row.course.slug)
     items.push(
       <FlashcardBlock
-        key={`deck:${row.deck.slug}`}
+        key={`course-deck:${row.deck.slug}`}
         title={row.deck.name}
-        stats={{ total: row.total, newCards: row.newCards, due: row.due }}
-        studyHref={`/dashboard/flashcards/study?mode=srs&deckSlug=${slugQ}`}
-        freeHref={`/dashboard/flashcards/study?mode=free&deckSlug=${slugQ}`}
+        subtitle={row.course.title}
+        stats={row.stats}
+        openHref={`/dashboard/flashcards?courseSlug=${courseSlugQ}`}
       />,
     )
+  }
+
+  if (items.length === 0) {
+    return null
   }
 
   if (items.length === 1) {
@@ -195,14 +181,14 @@ export function FlashcardDashboardSection() {
       {!loading && !error && summary && summary.all.total === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/30 bg-white/10 py-10 text-center backdrop-blur-lg dark:border-white/20 dark:bg-white/10">
           <BookOpen className="mb-3 h-12 w-12 text-gray-300" />
-          <p className="text-base leading-relaxed text-gray-500 md:text-lg">No flashcards available yet.</p>
+          <p className="text-base leading-relaxed text-gray-500 md:text-lg">No course decks available yet.</p>
           <p className="mt-2 text-sm leading-relaxed text-gray-400 md:text-base">
-            Your instructor will add flashcards to your study deck.
+            Start a course first to unlock connected flashcard decks.
           </p>
         </div>
       )}
 
-      {!loading && !error && summary && summary.all.total > 0 && <FlashcardSummaryCarousel summary={summary} />}
+      {!loading && !error && summary && summary.decks.length > 0 && <FlashcardSummaryCarousel summary={summary} />}
     </section>
   )
 }

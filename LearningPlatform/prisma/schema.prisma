@@ -114,11 +114,21 @@ model FlashcardDeck {
   slug        String      @unique
   name        String
   description String?
+  /// Payload course id this deck belongs to.
+  courseId    String?
+  /// Payload module id for module-level subdecks (one subdeck per module).
+  moduleId    String?     @unique
+  /// Parent deck id when this is a subdeck.
+  parentDeckId String?
+  parentDeck  FlashcardDeck? @relation("DeckHierarchy", fields: [parentDeckId], references: [id], onDelete: SetNull)
+  childDecks  FlashcardDeck[] @relation("DeckHierarchy")
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   flashcards  Flashcard[]
   tags        Tag[]       @relation("DeckTags")
 
+  @@index([courseId, parentDeckId])
+  @@index([moduleId])
   @@map("flashcard_decks")
 }
 

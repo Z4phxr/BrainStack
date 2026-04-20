@@ -1,7 +1,7 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { notFound } from 'next/navigation'
-import { Check } from 'lucide-react'
+import { Brain, Check, Layers, Zap } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +12,12 @@ import { prisma } from '@/lib/prisma'
 import { CourseHeroTitle } from '@/components/courses/course-hero-title'
 import { studentGlassCard, studentGlassPill } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
+
+type DeckStats = { total: number; newCards: number; due: number }
+
+function emptyDeckStats(): DeckStats {
+  return { total: 0, newCards: 0, due: 0 }
+}
 
 /** Avoid “Module 1: Module 1: …” when CMS titles already include a module prefix. */
 function moduleDisplayTitle(orderIndex: number, rawTitle?: string | null): string {
@@ -96,6 +102,74 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
     })
     for (const r of rows) {
       completedLessonIds.add(r.lessonId)
+    }
+  }
+
+  const courseId = String(course.id)
+  const moduleIds = modulesWithLessons.map((m) => String(m.id))
+  const mainDeck = await prisma.flashcardDeck.findFirst({
+    where: { courseId, parentDeckId: null },
+    select: { id: true, name: true, slug: true },
+  })
+
+  const subdecks = mainDeck
+    ? await prisma.flashcardDeck.findMany({
+        where: { parentDeckId: mainDeck.id, moduleId: { in: moduleIds } },
+        select: { id: true, name: true, slug: true, moduleId: true },
+      })
+    : []
+
+  const trackedDeckIds = [...new Set([...(mainDeck ? [mainDeck.id] : []), ...subdecks.map((d) => d.id)])]
+  const statsByDeckId = new Map<string, DeckStats>()
+  for (const id of trackedDeckIds) statsByDeckId.set(id, emptyDeckStats())
+
+  if (trackedDeckIds.length > 0) {
+    const flashcardProgressUserId = session?.user?.id ?? '__anonymous__'
+    const flashcardRows = await prisma.flashcard.findMany({
+      where: { deckId: { in: trackedDeckIds } },
+      select: {
+        id: true,
+        deckId: true,
+        userProgress: { where: { userId: flashcardProgressUserId }, select: { state: true, nextReviewAt: true } },
+      },
+    })
+    const now = new Date()
+    for (const row of flashcardRows) {
+      const target = statsByDeckId.get(row.deckId)
+      if (!target) continue
+      target.total += 1
+      const progress = row.userProgress[0]
+      const state = progress?.state ?? 'NEW'
+      if (state === 'NEW') {
+        target.newCards += 1
+      } else if (progress?.nextReviewAt && progress.nextReviewAt <= now) {
+        target.due += 1
+      }
+    }
+  }
+
+  const subdeckByModuleId = new Map<string, { id: string; name: string; slug: string; stats: DeckStats }>()
+  for (const subdeck of subdecks) {
+    if (!subdeck.moduleId) continue
+    subdeckByModuleId.set(subdeck.moduleId, {
+      id: subdeck.id,
+      name: subdeck.name,
+      slug: subdeck.slug,
+      stats: statsByDeckId.get(subdeck.id) ?? emptyDeckStats(),
+    })
+  }
+
+  const combinedDeckStats = emptyDeckStats()
+  if (mainDeck) {
+    const mainOwn = statsByDeckId.get(mainDeck.id) ?? emptyDeckStats()
+    combinedDeckStats.total += mainOwn.total
+    combinedDeckStats.newCards += mainOwn.newCards
+    combinedDeckStats.due += mainOwn.due
+    for (const subdeck of subdecks) {
+      const stats = statsByDeckId.get(subdeck.id) ?? emptyDeckStats()
+      combinedDeckStats.total += stats.total
+      combinedDeckStats.newCards += stats.newCards
+      combinedDeckStats.due += stats.due
     }
   }
 
@@ -214,12 +288,86 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
                       ))}
                     </div>
                   )}
+
+                  {(() => {
+                    const moduleSubdeck = subdeckByModuleId.get(String(courseModule.id))
+                    if (!moduleSubdeck) return null
+                    const subdeckSlugQ = encodeURIComponent(moduleSubdeck.slug)
+                    return (
+                      <div className="rounded-xl border border-dashed border-primary/35 bg-primary/[0.08] p-3 dark:border-primary/40 dark:bg-primary/[0.14]">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                              Module subdeck: {moduleSubdeck.name}
+                            </p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                              Due {moduleSubdeck.stats.due} · New {moduleSubdeck.stats.newCards} · Total {moduleSubdeck.stats.total}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Link href={`/dashboard/flashcards/study?mode=srs&subdeckSlug=${subdeckSlugQ}`}>
+                              <span className={cn(studentGlassPill, 'inline-flex items-center gap-1 text-xs normal-case tracking-tight')}>
+                                <Brain className="h-3.5 w-3.5" />
+                                SRS learn
+                              </span>
+                            </Link>
+                            <Link href={`/dashboard/flashcards/study?mode=free&subdeckSlug=${subdeckSlugQ}`}>
+                              <span className={cn(studentGlassPill, 'inline-flex items-center gap-1 text-xs normal-case tracking-tight')}>
+                                <Zap className="h-3.5 w-3.5" />
+                                Free learn
+                              </span>
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
       </section>
+
+      {mainDeck && (
+        <section className="space-y-4">
+          <h2 className="text-center text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">
+            Deck info
+          </h2>
+          <Card className={cn('border-0 shadow-none', studentGlassCard)}>
+            <CardContent className="space-y-4 px-5 py-5 sm:px-6 sm:py-6">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={cn(studentGlassPill, 'inline-flex items-center gap-1 normal-case tracking-tight')}>
+                  <Layers className="h-3.5 w-3.5" />
+                  {mainDeck.name}
+                </span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Due {combinedDeckStats.due} · New {combinedDeckStats.newCards} · Total {combinedDeckStats.total}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link href={`/dashboard/flashcards/study?mode=srs&mainDeckSlug=${encodeURIComponent(mainDeck.slug)}`}>
+                  <span className={cn(studentGlassPill, 'inline-flex items-center gap-1 normal-case tracking-tight')}>
+                    <Brain className="h-3.5 w-3.5" />
+                    Start SRS learn
+                  </span>
+                </Link>
+                <Link href={`/dashboard/flashcards/study?mode=free&mainDeckSlug=${encodeURIComponent(mainDeck.slug)}`}>
+                  <span className={cn(studentGlassPill, 'inline-flex items-center gap-1 normal-case tracking-tight')}>
+                    <Zap className="h-3.5 w-3.5" />
+                    Start free learn
+                  </span>
+                </Link>
+                <Link href={`/dashboard/flashcards?courseSlug=${encodeURIComponent(slug)}`}>
+                  <span className={cn(studentGlassPill, 'inline-flex items-center gap-1 normal-case tracking-tight')}>
+                    Open deck tree
+                  </span>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
     </div>
   )
 }
