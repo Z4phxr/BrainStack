@@ -6,12 +6,13 @@ const {
   printRunnerHelp,
   slugifyDeckBasename,
   deckTitleFromSlug,
+  getImportDataDirs,
 } = require('../helpers/utils')
 const { createPrismaClient } = require('../helpers/prisma-client')
 const { importFlashcardsFromList, upsertFlashcardDeck } = require('../helpers/flashcard-import')
 
 const APP_ROOT = path.join(__dirname, '../../..')
-const DATA_DIR = path.join(__dirname, '../data/flashcards')
+const DATA_DIRS = getImportDataDirs(APP_ROOT, 'flashcards')
 
 function normalizeFlashcardExport(exported, filePath) {
   const baseSlug = slugifyDeckBasename(path.basename(filePath, '.js'))
@@ -52,9 +53,9 @@ async function run() {
   }
 
   const { prisma, disconnect } = createPrismaClient()
-  const files = scanDataJsFiles(DATA_DIR)
+  const files = scanDataJsFiles(DATA_DIRS)
   if (files.length === 0) {
-    console.log(`[INFO] No flashcard data files found in ${DATA_DIR}`)
+    console.log(`[INFO] No flashcard data files found in: ${DATA_DIRS.join(', ')}`)
     await disconnect()
     return 0
   }

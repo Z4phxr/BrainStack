@@ -1,11 +1,18 @@
 const path = require('path')
-const { loadEnv, scanDataJsFiles, parseRunnerArgs, printRunnerHelp, validateCourseFileExport } = require('../helpers/utils')
+const {
+  loadEnv,
+  scanDataJsFiles,
+  parseRunnerArgs,
+  printRunnerHelp,
+  validateCourseFileExport,
+  getImportDataDirs,
+} = require('../helpers/utils')
 const { createPrismaClient } = require('../helpers/prisma-client')
 const { initPayloadClient } = require('../helpers/payload-client')
 const { importCourseStructure } = require('../helpers/course-import')
 
 const APP_ROOT = path.join(__dirname, '../../..')
-const DATA_DIR = path.join(__dirname, '../data/courses')
+const DATA_DIRS = getImportDataDirs(APP_ROOT, 'courses')
 
 async function run() {
   loadEnv(APP_ROOT)
@@ -16,9 +23,9 @@ async function run() {
   }
 
   const { prisma, disconnect } = createPrismaClient()
-  const files = scanDataJsFiles(DATA_DIR)
+  const files = scanDataJsFiles(DATA_DIRS)
   if (files.length === 0) {
-    console.log(`[INFO] No course data files found in ${DATA_DIR}`)
+    console.log(`[INFO] No course data files found in: ${DATA_DIRS.join(', ')}`)
     console.log(
       '[HINT] In Docker, data ships inside the image — rebuild (`docker compose build app`) or mount ./scripts/imports (see DOCKER.md).',
     )

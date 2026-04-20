@@ -49,3 +49,6 @@ docs/
 
 # uploaded/generated media (not committed)
 public/media
+
+# private local-only import data
+scripts/imports/data-private/**/*.js

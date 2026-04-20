@@ -1,11 +1,11 @@
 const path = require('path')
-const { loadEnv, scanDataJsFiles, parseRunnerArgs, printRunnerHelp } = require('../helpers/utils')
+const { loadEnv, scanDataJsFiles, parseRunnerArgs, printRunnerHelp, getImportDataDirs } = require('../helpers/utils')
 const { createPrismaClient } = require('../helpers/prisma-client')
 const { initPayloadClient } = require('../helpers/payload-client')
 const { importModulePayload } = require('../helpers/module-import')
 
 const APP_ROOT = path.join(__dirname, '../../..')
-const DATA_DIR = path.join(__dirname, '../data/modules')
+const DATA_DIRS = getImportDataDirs(APP_ROOT, 'modules')
 
 async function run() {
   loadEnv(APP_ROOT)
@@ -16,9 +16,9 @@ async function run() {
   }
 
   const { prisma, disconnect } = createPrismaClient()
-  const files = scanDataJsFiles(DATA_DIR)
+  const files = scanDataJsFiles(DATA_DIRS)
   if (files.length === 0) {
-    console.log(`[INFO] No module patch files found in ${DATA_DIR}`)
+    console.log(`[INFO] No module patch files found in: ${DATA_DIRS.join(', ')}`)
     await disconnect()
     return 0
   }
