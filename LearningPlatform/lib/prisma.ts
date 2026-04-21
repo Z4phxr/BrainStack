@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
@@ -6,10 +8,36 @@ import { sanitizeDatabaseUrl } from '@/lib/db-utils';
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
   pool: Pool | undefined;
+  /** mtime of generated client — when it changes after `prisma generate`, drop cached client (dev only). */
+  prismaClientArtifactMtime?: number;
 };
+
+function getGeneratedPrismaClientMtime(): number {
+  try {
+    const clientJs = path.join(process.cwd(), 'node_modules', '.prisma', 'client', 'index.js');
+    return fs.statSync(clientJs).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
 
 // Lazy initialization function
 function initPrisma(): PrismaClient {
+  const artifactMtime = getGeneratedPrismaClientMtime()
+
+  if (process.env.NODE_ENV === 'development' && artifactMtime > 0) {
+    const prev = globalForPrisma.prismaClientArtifactMtime
+    if (globalForPrisma.prisma && prev !== undefined && artifactMtime > prev) {
+      void globalForPrisma.prisma.$disconnect().catch(() => {})
+      globalForPrisma.prisma = undefined
+      if (globalForPrisma.pool) {
+        void globalForPrisma.pool.end().catch(() => {})
+        globalForPrisma.pool = undefined
+      }
+    }
+    globalForPrisma.prismaClientArtifactMtime = artifactMtime
+  }
+
   if (globalForPrisma.prisma) {
     return globalForPrisma.prisma;
   }

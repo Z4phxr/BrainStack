@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { Card, CardContent } from '@/components/ui/card'
@@ -14,7 +15,6 @@ import {
   serializeCatalogQuery,
 } from '@/lib/courses-catalog'
 import { CourseCatalogCard } from '@/components/courses/course-catalog-card'
-import { CatalogPagination } from '@/components/courses/catalog-pagination'
 import { studentGlassCard } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
 
@@ -56,22 +56,38 @@ export default async function CoursesPage({ searchParams }: PageProps) {
     redirect(qs ? `/courses?${qs}` : '/courses')
   }
 
+  const currentPage = Math.min(filters.page, lastPage)
+  const prevQs = currentPage > 1 ? serializeCatalogQuery(filters, currentPage - 1) : ''
+  const nextQs = currentPage < lastPage ? serializeCatalogQuery(filters, currentPage + 1) : ''
+
   return (
     <div className="container mx-auto px-6 py-8 md:px-8">
-      <div className="mx-auto mb-10 max-w-3xl text-center">
-        <h1 className="mb-3 text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">
-          Available courses
-        </h1>
-        <p className="text-lg text-gray-600 dark:text-gray-400 md:text-xl">
-          Choose a course to start learning
-        </p>
-      </div>
+      <div className="mx-auto max-w-6xl space-y-10">
+        <div className="flex w-full flex-col gap-0">
+          <div className="flex w-full justify-start">
+            <Button variant="outline" size="sm" asChild className="shrink-0">
+              <Link href="/dashboard" className="inline-flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4" aria-hidden />
+                Back to dashboard
+              </Link>
+            </Button>
+          </div>
+          <div className="mx-auto w-full max-w-3xl p-0 text-center">
+            <h1 className="mb-3 mt-0 text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">
+              Discover courses
+            </h1>
+            <p className="text-lg leading-relaxed text-gray-600 dark:text-gray-400 md:text-xl">
+              Browse our catalog of published courses. Your progress is saved so you can pick up where you left off
+              whenever you are ready.
+            </p>
+          </div>
+        </div>
 
-      <form
-        action="/courses"
-        method="get"
-        className={cn('mb-10 grid gap-4 p-4 shadow-none md:grid-cols-2 md:p-6 lg:grid-cols-12 lg:items-end', studentGlassCard)}
-      >
+        <form
+          action="/courses"
+          method="get"
+          className={cn('grid gap-4 p-4 shadow-none md:grid-cols-2 md:p-6 lg:grid-cols-12 lg:items-end', studentGlassCard)}
+        >
         <div className="flex flex-col gap-1.5 lg:col-span-3">
           <label htmlFor="catalog-q" className="text-sm font-medium text-foreground">
             Search by title
@@ -156,42 +172,83 @@ export default async function CoursesPage({ searchParams }: PageProps) {
             Apply
           </Button>
         </div>
-      </form>
+        </form>
 
-      {courses.length === 0 ? (
-        <Card className={cn('border-0 shadow-none', studentGlassCard)}>
-          <CardContent className="space-y-3 pt-8 pb-8">
-            <p className="text-center text-gray-600 dark:text-gray-400">
-              {filters.q || filters.level || filters.subject
-                ? 'No courses match your filters. Try adjusting search, level, or subject.'
-                : 'No courses available yet. Check back soon.'}
-            </p>
-            {(filters.q || filters.level || filters.subject) && (
-              <p className="text-center">
-                <Link
-                  href="/courses"
-                  className="text-sm font-medium text-blue-600 underline-offset-4 hover:underline dark:text-blue-400"
-                >
-                  Clear all filters
-                </Link>
+        {courses.length === 0 ? (
+          <Card className={cn('border-0 shadow-none', studentGlassCard)}>
+            <CardContent className="space-y-3 pt-8 pb-8">
+              <p className="text-center text-gray-600 dark:text-gray-400">
+                {filters.q || filters.level || filters.subject
+                  ? 'No courses match your filters. Try adjusting search, level, or subject.'
+                  : 'No courses available yet. Check back soon.'}
               </p>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <p className="mb-4 text-center text-sm text-muted-foreground md:text-left">
-            Showing {(filters.page - 1) * COURSES_CATALOG_PAGE_SIZE + 1}–
-            {Math.min(filters.page * COURSES_CATALOG_PAGE_SIZE, totalDocs)} of {totalDocs} courses
-          </p>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {courses.map((course) => (
-              <CourseCatalogCard key={String(course.id)} course={course} />
-            ))}
-          </div>
-          <CatalogPagination filters={filters} totalDocs={totalDocs} />
-        </>
-      )}
+              {(filters.q || filters.level || filters.subject) && (
+                <p className="text-center">
+                  <Link
+                    href="/courses"
+                    className="text-sm font-medium text-blue-600 underline-offset-4 hover:underline dark:text-blue-400"
+                  >
+                    Clear all filters
+                  </Link>
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {courses.map((course) => (
+                <CourseCatalogCard key={String(course.id)} course={course} />
+              ))}
+            </div>
+            <div className="flex flex-col gap-3 rounded-xl border border-slate-200/60 bg-white/40 px-4 py-3 dark:border-white/10 dark:bg-white/[0.04] sm:flex-row sm:items-center sm:justify-between md:px-6 md:py-4">
+              <p className="text-center text-sm text-muted-foreground md:text-left">
+                Showing{' '}
+                <span className="font-medium tabular-nums text-foreground">
+                  {(currentPage - 1) * COURSES_CATALOG_PAGE_SIZE + 1}
+                </span>
+                {'–'}
+                <span className="font-medium tabular-nums text-foreground">
+                  {Math.min(currentPage * COURSES_CATALOG_PAGE_SIZE, totalDocs)}
+                </span>{' '}
+                of <span className="font-medium tabular-nums text-foreground">{totalDocs}</span> course
+                {totalDocs === 1 ? '' : 's'}
+              </p>
+              <div className="flex items-center justify-center gap-2 sm:justify-end">
+                {currentPage > 1 ? (
+                  <Button variant="outline" size="sm" className="h-8 px-2" asChild>
+                    <Link href={prevQs ? `/courses?${prevQs}` : '/courses'}>
+                      <ChevronLeft className="h-4 w-4" aria-hidden />
+                      <span className="sr-only">Previous page</span>
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button type="button" variant="outline" size="sm" className="h-8 px-2" disabled>
+                    <ChevronLeft className="h-4 w-4" aria-hidden />
+                    <span className="sr-only">Previous page</span>
+                  </Button>
+                )}
+                <span className="min-w-[4.5rem] text-center text-xs tabular-nums text-muted-foreground">
+                  {currentPage} / {lastPage}
+                </span>
+                {currentPage < lastPage ? (
+                  <Button variant="outline" size="sm" className="h-8 px-2" asChild>
+                    <Link href={nextQs ? `/courses?${nextQs}` : '/courses'}>
+                      <ChevronRight className="h-4 w-4" aria-hidden />
+                      <span className="sr-only">Next page</span>
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button type="button" variant="outline" size="sm" className="h-8 px-2" disabled>
+                    <ChevronRight className="h-4 w-4" aria-hidden />
+                    <span className="sr-only">Next page</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }

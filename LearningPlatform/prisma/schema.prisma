@@ -21,7 +21,8 @@ model User {
   lessonProgress    LessonProgress[]
   taskProgress      TaskProgress[]
   taskAttempts      TaskAttempt[]
-  flashcardProgress UserFlashcardProgress[]
+  flashcardProgress                  UserFlashcardProgress[]
+  standaloneFlashcardDeckEnrollments UserStandaloneFlashcardDeck[]
 
   @@index([email])
   @@map("User")
@@ -114,6 +115,8 @@ model FlashcardDeck {
   slug        String      @unique
   name        String
   description String?
+  /// Payload `subjects` collection id (optional; e.g. standalone main deck subject).
+  subjectId   String?
   /// Payload course id this deck belongs to.
   courseId    String?
   /// Payload module id for module-level subdecks (one subdeck per module).
@@ -126,10 +129,26 @@ model FlashcardDeck {
   updatedAt   DateTime    @updatedAt
   flashcards  Flashcard[]
   tags        Tag[]       @relation("DeckTags")
+  standaloneEnrollments UserStandaloneFlashcardDeck[]
 
   @@index([courseId, parentDeckId])
   @@index([moduleId])
+  @@index([subjectId])
   @@map("flashcard_decks")
+}
+
+/// Student added a standalone (non-course) main deck to their library from the browse page.
+model UserStandaloneFlashcardDeck {
+  userId    String
+  deckId    String
+  createdAt DateTime @default(now())
+
+  user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deck FlashcardDeck   @relation(fields: [deckId], references: [id], onDelete: Cascade)
+
+  @@id([userId, deckId])
+  @@index([userId])
+  @@map("user_standalone_flashcard_decks")
 }
 
 /// A study flashcard with LaTeX-friendly text and optional media attachments.

@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/auth-helpers'
 import { isCardDue, parseSettings, getCardUrgency } from '@/lib/srs'
 import { getUserWeakTags } from '@/lib/analytics'
 import { getSortedFreeStudyCardsForUser } from '@/lib/flashcards-study-free'
+import { assertUserCanStudyDeckScope } from '@/lib/flashcards-study-access'
 
 /**
  * GET /api/flashcards/study
@@ -136,6 +137,19 @@ export async function GET(req: Request) {
         return NextResponse.json(
           { error: 'Validation failed', issues: { mainDeckSlug: ['Main deck not found'] } },
           { status: 400 },
+        )
+      }
+    }
+
+    if (deckFilterSlug || mainDeckSlugQ) {
+      const access = await assertUserCanStudyDeckScope(user.id, {
+        mainDeckSlug: mainDeckSlugQ ?? undefined,
+        subdeckSlug: deckFilterSlug,
+      })
+      if (!access.ok) {
+        return NextResponse.json(
+          { error: 'Forbidden', issues: { deck: [access.message] } },
+          { status: 403 },
         )
       }
     }

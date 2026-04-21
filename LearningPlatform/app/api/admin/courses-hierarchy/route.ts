@@ -5,8 +5,8 @@ import { prisma } from '@/lib/prisma'
 /**
  * GET /api/admin/courses-hierarchy
  *
- * Returns the full Course → Module → Lesson tree in one request.
- * Uses a single SQL JOIN instead of 3 separate Payload find() calls.
+ * Returns the full Course → Module → Lesson tree in one request (admin-only).
+ * Includes unpublished courses/modules/lessons so admin tools match DB state.
  * Shape: { courses: CourseWithModules[] }
  */
 export async function GET() {
@@ -38,11 +38,8 @@ export async function GET() {
       FROM payload.courses c
       LEFT JOIN payload.modules m
         ON m.course_id = c.id
-       AND m.is_published = TRUE
       LEFT JOIN payload.lessons l
         ON l.module_id = m.id
-       AND l.is_published = TRUE
-      WHERE c.is_published = TRUE
       ORDER BY c.title, m."order" NULLS LAST, l."order" NULLS LAST
     `
 
@@ -79,11 +76,20 @@ export async function GET() {
     const tree = Array.from(courseMap.values()).map((c) => ({
       id: c.id,
       title: c.title,
-      modules: Array.from(c.modules.values()).map((m) => ({
-        id: m.id,
-        title: m.title,
-        lessons: m.lessons,
-      })),
+      modules: Array.from(c.modules.values())
+        .sort(
+          (a, b) =>
+            (a.order ?? 0) - (b.order ?? 0) || (a.title || '').localeCompare(b.title || ''),
+        )
+        .map((m) => ({
+          id: m.id,
+          title: m.title,
+          order: m.order ?? 0,
+          lessons: m.lessons.sort(
+            (a, b) =>
+              (a.order ?? 0) - (b.order ?? 0) || (a.title || '').localeCompare(b.title || ''),
+          ),
+        })),
     }))
 
     return NextResponse.json(

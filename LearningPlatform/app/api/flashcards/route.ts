@@ -48,7 +48,13 @@ export async function GET(req: Request) {
     const rawSlugs = tagSlugsParam ? tagSlugsParam.split(',').map((s) => s.trim()).filter(Boolean) : (tagSlug ? [tagSlug] : [])
     // Dedupe + sort so cache key matches AND-filter semantics (order-insensitive)
     const tagSlugs = [...new Set(rawSlugs)].sort((a, b) => a.localeCompare(b))
-    const deckSlug = searchParams.get('deckSlug')?.trim() || undefined
+    const deckSlugRaw = searchParams.get('deckSlug')?.trim() || undefined
+    const deckIdRaw = searchParams.get('deckId')?.trim() || undefined
+    const mainDeckIdRaw = searchParams.get('mainDeckId')?.trim() || undefined
+    // Prefer exact deck id (subdeck scoping); ignore slug when id is present.
+    const deckSlug = deckIdRaw ? undefined : deckSlugRaw
+    const mainDeckId =
+      deckIdRaw || deckSlug ? undefined : mainDeckIdRaw
 
     let whereClause = undefined
     if (tagSlugs.length === 1) {
@@ -57,12 +63,27 @@ export async function GET(req: Request) {
       // AND semantics: flashcard must have ALL specified tags
       whereClause = { AND: tagSlugs.map((s) => ({ tags: { some: { slug: s } } })) }
     }
-    if (deckSlug) {
+    if (deckIdRaw) {
+      const deckFilter = { deckId: deckIdRaw }
+      whereClause = whereClause ? { AND: [whereClause, deckFilter] } : deckFilter
+    } else if (deckSlug) {
       const deckFilter = { deck: { slug: deckSlug } }
+      whereClause = whereClause ? { AND: [whereClause, deckFilter] } : deckFilter
+    } else if (mainDeckId) {
+      const deckFilter = {
+        OR: [{ deckId: mainDeckId }, { deck: { parentDeckId: mainDeckId } }],
+      }
       whereClause = whereClause ? { AND: [whereClause, deckFilter] } : deckFilter
     }
 
-    const cacheKey = `${tagSlugs.join('|') || 'all'}__deck:${deckSlug || 'all'}`
+    const deckKey = deckIdRaw
+      ? `id:${deckIdRaw}`
+      : deckSlug
+        ? `slug:${deckSlug}`
+        : mainDeckId
+          ? `main:${mainDeckId}`
+          : 'all'
+    const cacheKey = `${tagSlugs.join('|') || 'all'}__deck:${deckKey}`
     const flashcards = await getCachedFlashcards(cacheKey, whereClause)
     return NextResponse.json({ flashcards })
   } catch (error) {

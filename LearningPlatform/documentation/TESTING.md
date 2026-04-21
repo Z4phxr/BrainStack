@@ -57,6 +57,7 @@ npm run test:e2e:ui       # Playwright UI mode
     - `app/api/flashcards/study/route.ts`: `69.09%` statements
     - `lib/flashcards-dashboard-summary.ts`: `89.47%` statements
   - New/updated feature-focused tests:
+    - `test/api/flashcards.test.ts` (subdeck-only validation: main-deck assignment rejection on create/update)
     - `test/api/flashcard-decks-and-summary.test.ts` (deck/subdeck create validation and dashboard hierarchy aggregation)
     - `test/api/flashcard-study-weighting.test.ts` (mainDeckSlug/subdeckSlug query validation and filtering)
 

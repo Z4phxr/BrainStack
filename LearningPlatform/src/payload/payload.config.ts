@@ -115,6 +115,10 @@ export default buildConfig({
     idType: 'uuid',
     schemaName: 'payload',
     migrationDir: MIGRATION_DIR,
+    // Drizzle `pushDevSchema` emits ALTERs without USING; legacy varchar/serial columns
+    // then break Payload init in dev. Schema is evolved via `src/payload/migrations/` +
+    // `npm run payload:migrate` instead.
+    push: false,
   }),
   sharp,
   plugins: [],

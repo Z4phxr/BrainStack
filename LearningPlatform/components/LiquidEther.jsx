@@ -89,7 +89,23 @@ export default function LiquidEther({
         this.container = container;
         this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
         this.resize();
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        try {
+          this.renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            alpha: true,
+            failIfMajorPerformanceCaveat: false,
+            powerPreference: 'default',
+          });
+          const gl = this.renderer.getContext();
+          if (!gl) {
+            this.renderer.dispose();
+            this.renderer = null;
+            return;
+          }
+        } catch {
+          this.renderer = null;
+          return;
+        }
         this.renderer.autoClear = false;
         this.renderer.setClearColor(new THREE.Color(0x000000), 0);
         this.renderer.setPixelRatio(this.pixelRatio);
@@ -109,6 +125,7 @@ export default function LiquidEther({
         if (this.renderer) this.renderer.setSize(this.width, this.height, false);
       }
       update() {
+        if (!this.clock) return;
         this.delta = this.clock.getDelta();
         this.time += this.delta;
       }
@@ -938,7 +955,20 @@ export default function LiquidEther({
     class WebGLManager {
       constructor(props) {
         this.props = props;
+        /** No GPU / sandboxed browser (e.g. embedded preview) — skip Three.js entirely */
+        this._webglUnavailable = false;
         Common.init(props.$wrapper);
+        if (!Common.renderer) {
+          this._webglUnavailable = true;
+          try {
+            document.dispatchEvent(
+              new CustomEvent('background-ready', { detail: { source: 'liquidether', degraded: true } })
+            );
+          } catch {
+            // noop
+          }
+          return;
+        }
         Mouse.init(props.$wrapper);
         Mouse.autoIntensity = props.autoIntensity;
         Mouse.takeoverDuration = props.takeoverDuration;
@@ -969,20 +999,23 @@ export default function LiquidEther({
         this.running = false;
       }
       init() {
-          this.props.$wrapper.prepend(Common.renderer.domElement);
-          try {
-            // signal that LiquidEther's canvas has been attached and is ready to paint
-            document.dispatchEvent(new CustomEvent('background-ready', { detail: { source: 'liquidether' } }));
-          } catch (e) {
-            // noop
-          }
+        if (this._webglUnavailable) return;
+        this.props.$wrapper.prepend(Common.renderer.domElement);
+        try {
+          // signal that LiquidEther's canvas has been attached and is ready to paint
+          document.dispatchEvent(new CustomEvent('background-ready', { detail: { source: 'liquidether' } }));
+        } catch (e) {
+          // noop
+        }
         this.output = new Output();
       }
       resize() {
         Common.resize();
+        if (this._webglUnavailable || !this.output) return;
         this.output.resize();
       }
       render() {
+        if (this._webglUnavailable) return;
         if (this.autoDriver) this.autoDriver.update();
         Mouse.update();
         Common.update();
@@ -992,16 +1025,19 @@ export default function LiquidEther({
         this.output.render();
       }
       loop() {
+        if (this._webglUnavailable) return;
         if (!this.running) return; // safety
         this.render();
         rafRef.current = requestAnimationFrame(this._loop);
       }
       start() {
+        if (this._webglUnavailable) return;
         if (this.running) return;
         this.running = true;
         this._loop();
       }
       pause() {
+        if (this._webglUnavailable) return;
         this.running = false;
         if (rafRef.current) {
           cancelAnimationFrame(rafRef.current);
@@ -1010,9 +1046,11 @@ export default function LiquidEther({
       }
       dispose() {
         try {
-          window.removeEventListener('resize', this._resize);
-          document.removeEventListener('visibilitychange', this._onVisibility);
-          Mouse.dispose();
+          if (!this._webglUnavailable) {
+            window.removeEventListener('resize', this._resize);
+            document.removeEventListener('visibilitychange', this._onVisibility);
+            Mouse.dispose();
+          }
           if (Common.renderer) {
             const canvas = Common.renderer.domElement;
             if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);

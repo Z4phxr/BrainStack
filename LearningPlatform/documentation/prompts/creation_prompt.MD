@@ -357,93 +357,76 @@ Tasks go in the `tasks` array of each lesson.
 
 ## Flashcards File Format (Main Deck + Module Subdecks)
 
-**Location:** `data/flashcards/`
+**Location:** `/data/flashcards/`  
+**When:** Only if the user answered **Yes** to flashcards in discovery; otherwise skip all flashcard files.
 
-**When to generate:** Only if the user opted **Yes** to flashcards in discovery. If they chose **No**, do **not** create flashcard files.
+**Platform rule:** For a **course** tree, the **main** deck row is structural only — use **`cards: []`**. Every study card lives on a **module subdeck** (`parentDeckSlug` + same `courseId` as main + **`moduleId`** for that module). The importer accepts **`module.exports = [{ deck, cards }, …]`** in one `.js` file (one object per module in that chunk).
 
-**Required course-generation pattern:**
-- Create one **main deck** file for the whole course:
-  - `data/flashcards/[topic]-main-deck.js`
-- For each course chunk (modules 1-2, 3-4, ...), create one **subdeck chunk** file:
-  - `data/flashcards/[topic]-subdecks-pt1.js`
-  - `data/flashcards/[topic]-subdecks-pt2.js`
-- Each module in a chunk must have exactly one subdeck in the matching `subdecks-ptN` file.
-- Every subdeck must point to the same main deck via `parentDeckSlug`.
+**Files to create (aligned with course chunks):**
+1. **`[topic]-main-deck.js`** — single object `{ deck, cards }`: main has `courseId: '__COURSE_ID__'`, same `slug` you use as every subdeck’s `parentDeckSlug`, **`cards: []`**.
+2. **`[topic]-subdecks-ptN.js`** — **array** of `{ deck, cards }`, one entry per **module** in that course chunk; each `deck` has `parentDeckSlug`, `courseId`, **`moduleId`** matching the module from the matching course file.
 
-**Main deck format (`[topic]-main-deck.js`):**
+**Import order:** Tags → courses → modules → flashcards. Name the main deck file so it **sorts before** `subdecks-pt*.js` (e.g. `docker-main-deck.js` before `docker-subdecks-pt1.js`) so the parent exists when subdecks import in one run.
+
+**Main deck (structural):**
 ```javascript
 module.exports = {
   deck: {
     slug: 'docker-main-deck',
-    name: 'Docker - Main Course Deck',
-    description: 'Parent deck for all module subdecks.',
-    tagSlugs: ['docker', 'beginner']
+    name: 'Docker — course deck',
+    description: 'Parent for module subdecks.',
+    tagSlugs: ['docker', 'beginner'],
+    courseId: '__COURSE_ID__',
   },
-  cards: []
+  cards: [],
 }
 ```
 
-**Subdeck chunk format (`[topic]-subdecks-pt1.js` for modules 1-2):**
+**Subdeck chunk (modules 1–2 in one file):**
 ```javascript
 module.exports = [
   {
     deck: {
       slug: 'docker-module-1-subdeck',
-      name: 'Module 1 - Introduction',
-      description: 'Flashcards for module 1.',
+      name: 'Module 1 — Introduction',
       parentDeckSlug: 'docker-main-deck',
       courseId: '__COURSE_ID__',
       moduleId: '__MODULE_1_ID__',
-      tagSlugs: ['docker', 'beginner']
+      tagSlugs: ['docker', 'beginner'],
     },
     cards: [
       {
         question: 'What problem does Docker solve?',
-        answer: 'Docker solves environment inconsistency by packaging apps and dependencies into portable containers.',
-        tagSlugs: ['docker', 'beginner']
-      }
-    ]
+        answer: 'Docker packages apps and dependencies so they run the same way in every environment.',
+        tagSlugs: ['docker', 'beginner'],
+      },
+    ],
   },
   {
     deck: {
       slug: 'docker-module-2-subdeck',
-      name: 'Module 2 - Images and Containers',
-      description: 'Flashcards for module 2.',
+      name: 'Module 2 — Images and containers',
       parentDeckSlug: 'docker-main-deck',
       courseId: '__COURSE_ID__',
       moduleId: '__MODULE_2_ID__',
-      tagSlugs: ['docker', 'images']
+      tagSlugs: ['docker', 'images'],
     },
     cards: [
       {
         question: 'What is a Docker image?',
-        answer: 'A Docker image is a read-only template used to create one or more running containers.',
-        tagSlugs: ['docker', 'images']
-      }
-    ]
-  }
+        answer: 'A read-only template used to create running containers.',
+        tagSlugs: ['docker', 'images'],
+      },
+    ],
+  },
 ]
 ```
 
-**Deck fields:**
-- `slug` (string, required): Unique, stable across re-imports; lowercase kebab-case.
-- `name` (string, required): Human-readable title.
-- `description` (string, optional): Longer blurb for admins.
-- `tagSlugs` (array, optional but recommended): Tags attached to the deck.
-- `parentDeckSlug` (string, required for subdecks): The course main deck slug.
-- `courseId` (string, recommended): Payload course id.
-- `moduleId` (string, required for subdecks): Payload module id (one subdeck per module).
+**`deck` fields (course-linked):** `slug`, `name`, optional `description`, optional `tagSlugs`, **`courseId`** (Payload course id). On subdecks only: **`parentDeckSlug`** (main slug), **`moduleId`** (Payload module id for that subdeck).
 
-**Card fields (inside `cards`):**
-- `question` (string, required): Plain text.
-- `answer` (string, required): 1–3 sentences (see quality rules below).
-- `tagSlugs` (array, required): 2–4 tag slugs per card.
+**`cards` fields:** `question`, `answer`, `tagSlugs` (2–4 slugs; import tags first).
 
-**Answer quality:**
-- Complete (full explanation)
-- Concise (2-4 sentences maximum)
-- Self-contained (no "as mentioned above")
-- Can use LaTeX for formulas: `$O(\\log n)$`
+**Answer quality:** 2–4 complete sentences; self-contained; LaTeX uses `\\` (e.g. `$O(n \\log n)$`); avoid em-dash `—`.
 
 ---
 
@@ -531,9 +514,9 @@ Based on discovery answers, create a **detailed outline** showing:
 ...
 
 ### Flashcards *(omit this whole subsection if user chose No flashcards)*:
-- **Main deck file:** `data/flashcards/[topic]-main-deck.js`
-- **Chunk subdeck files:** `data/flashcards/[topic]-subdecks-pt1.js`, `...-pt2.js`, etc.
-- **Rule:** one subdeck per module, and every subdeck uses `parentDeckSlug` = main deck slug
+- **Main deck file:** `scripts/imports/data/flashcards/[topic]-main-deck.js` — `{ deck, cards }` with **`courseId`**, **`cards: []`**
+- **Chunk subdeck files:** `scripts/imports/data/flashcards/[topic]-subdecks-pt1.js`, `...-pt2.js`, etc. — **`module.exports = [{ deck, cards }, …]`** (one block per module)
+- **Rule:** one subdeck per module; every subdeck uses **`parentDeckSlug`** = main deck slug, plus **`courseId`** and **`moduleId`**
 ```
 
 **Get user approval** on this structure before generating files!
@@ -978,7 +961,9 @@ module.exports = {
 
 ---
 
-## Example 3: Flashcards Main Deck File
+## Example 3: Flashcards — course main (empty cards)
+
+Course mains are **not** where questions go — put every card on **module subdecks** (see **Flashcards File Format** above and `docker-subdecks-pt1.js`-style files).
 
 ```javascript
 // data/flashcards/docker-main-deck.js
@@ -987,42 +972,12 @@ module.exports = {
   deck: {
     slug: 'docker-main-deck',
     name: 'Docker - Main Course Deck',
-    description: 'Parent deck for Docker module subdecks.',
-    tagSlugs: ['docker', 'containerization', 'beginner']
+    description: 'Parent deck for module subdecks.',
+    tagSlugs: ['docker', 'containerization', 'beginner'],
+    courseId: '__COURSE_ID__',
   },
-  cards: [
-    {
-      question: 'What is Docker?',
-      answer: 'Docker is a containerization platform that packages applications and all their dependencies into isolated, portable containers that run consistently across different environments.',
-      tagSlugs: ['docker', 'beginner']
-    },
-    {
-      question: 'What is a Docker container?',
-      answer: 'A Docker container is a lightweight, standalone, executable package that includes everything needed to run an application: code, runtime, libraries, and system tools.',
-      tagSlugs: ['docker', 'containers', 'beginner']
-    },
-    {
-      question: 'What is the difference between a Docker image and a container?',
-      answer: 'A Docker image is a read-only template (like a blueprint or recipe). A container is a running instance created from that image (like a house built from the blueprint). Multiple containers can run from one image.',
-      tagSlugs: ['docker', 'images', 'containers', 'beginner']
-    },
-    {
-      question: 'How do Docker containers differ from virtual machines?',
-      answer: 'Containers share the host OS kernel and are lightweight (MBs, start in seconds). VMs run complete operating systems and are heavier (GBs, start in minutes). Containers provide process-level isolation while VMs provide hardware-level isolation.',
-      tagSlugs: ['docker', 'containerization', 'beginner']
-    },
-    {
-      question: 'What does "docker run" command do?',
-      answer: 'The "docker run" command creates and starts a new container from a specified image. It combines image download (if needed), container creation, and container startup into one command.',
-      tagSlugs: ['docker', 'commands', 'beginner']
-    },
-    {
-      question: 'What is a Dockerfile?',
-      answer: 'A Dockerfile is a text file containing instructions for building a Docker image. It specifies the base image, files to copy, commands to run, and configuration needed to create a custom image.',
-      tagSlugs: ['docker', 'dockerfile', 'intermediate']
-    }
-  ]
-};
+  cards: [],
+}
 ```
 
 ---
@@ -1097,7 +1052,7 @@ Before showing any file to the user, verify:
 - [ ] Exported as object with `module.exports`
 
 ## Flashcards Files *(skip whole checklist if user chose No flashcards)*
-- [ ] Main deck file exists with stable `deck.slug`
+- [ ] Main deck file exists with stable `deck.slug` and **`courseId`**; **`cards: []`**
 - [ ] Subdeck chunk file exists for each generated module chunk
 - [ ] Exactly one subdeck per module in each chunk
 - [ ] Every subdeck has `parentDeckSlug` pointing to the same main deck
@@ -1164,6 +1119,10 @@ Before showing any file to the user, verify:
 12. **Don't leave subdecks unlinked or mismatched**
     - Every subdeck must include `parentDeckSlug` = main deck slug
     - For each generated module chunk, ensure a matching subdeck chunk file exists
+
+13. **Don't put flashcard questions on the course main deck**
+    - Main file must use **`cards: []`** and set **`courseId`**
+    - All cards belong on **subdeck** entries (`moduleId` + `parentDeckSlug` + `courseId`)
 
 
 # PART 8: RESPONSE FORMAT

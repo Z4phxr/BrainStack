@@ -52,7 +52,14 @@ Tasks are the atomic unit of knowledge assessment. Each task can be assigned one
 
 ### 2.2 Flashcards
 
-Flashcards are a parallel study mechanism. They are not attached to lessons — they exist as a standalone collection in the `public` schema. Like tasks, each flashcard can carry multiple `Tag` records.
+Flashcards are a parallel study mechanism: they are **not** lesson blocks. Each card lives in the `public` schema on a **`FlashcardDeck`** (`Flashcard.deckId`). Like tasks, each flashcard can carry multiple **`Tag`** records.
+
+**Deck shapes:**
+
+- **Course-linked** — A course can have one **main** deck (`FlashcardDeck.courseId`, no `parentDeckId`). **Subdecks** are children of that main (`parentDeckId`), typically one per **module** (`moduleId`). Cards for curriculum content are assigned to **subdecks**; the course main deck is structural (card placement rules are enforced in `lib/validate-flashcard-refs.ts` and the flashcard APIs).
+- **Standalone** — Decks with **no** `courseId` are collections outside the course tree. The standalone **main** may hold **direct** cards; optional **subdecks** nest under that main for topical splits. **Study access** for standalone trees is gated: the learner must have enrolled the **root** main deck (`UserStandaloneFlashcardDeck` row, created from **`POST /api/flashcards/standalone-decks/enroll`**). Course-linked decks do not use that join. Enforcement lives in **`lib/flashcards-study-access.ts`** (`assertUserCanStudyDeckScope`), called from **`GET /api/flashcards/study`** when `mainDeckSlug` or `subdeckSlug` is present.
+
+Admins manage hierarchy and cards at **`/admin/flashcards`**; see `PLATFORM_FEATURES.md` § *Flashcards and deck hierarchy*.
 
 Flashcard tags feed into the SRS session ordering (see [Section 7.3](#73-weak-tag-ordering-in-srs-sessions)) but do not currently feed into the task recommendation analytics, since task performance and flashcard performance are tracked separately.
 
@@ -388,14 +395,20 @@ score = getCardUrgency(card, now) + (card_has_weak_tag ? WEAK_TAG_BONUS : 0)
 
 ### 7.4 SRS session modes
 
-`GET /api/flashcards/study?mode=<mode>&tagSlug=<slug>&subject=<slug>&deckSlug=<slug>`
+`GET /api/flashcards/study?mode=<mode>&tagSlug=<slug>&subject=<slug>&deckSlug=<slug>&subdeckSlug=<slug>&mainDeckSlug=<slug>`
 
 | Mode | Behaviour |
 |------|-----------|
 | `srs` (default) | Shows only cards that are due now; respects `newCardsPerDay` and `maxReviews` daily budgets |
 | `free` | Shows all cards in the set regardless of schedule; no daily limits |
 
-`tagSlug`, `subject`, and `deckSlug` are optional filters that scope candidate cards before SRS/free mode rules are applied.
+Optional filters scope candidate cards before SRS/free rules:
+
+- **`tagSlug`**, **`subject`** — topic / catalog-style narrowing.
+- **`deckSlug`** (legacy alias) or **`subdeckSlug`** — limit to a **single** deck by slug (use one of these; do not combine with `mainDeckSlug`).
+- **`mainDeckSlug`** — include cards on that **main** deck **plus** all of its **subdecks** (resolved by slug). Mutually exclusive with `deckSlug` / `subdeckSlug` in the handler.
+
+**Access:** for **standalone** roots (no `courseId`), the route rejects the request unless the current user is enrolled on that root (`UserStandaloneFlashcardDeck`). Course mains remain available to any signed-in user.
 
 In `srs` mode, the daily new-card budget is calculated via a `count` query rather than by loading all progress rows:
 

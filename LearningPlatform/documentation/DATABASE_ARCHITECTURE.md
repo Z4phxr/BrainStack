@@ -106,6 +106,7 @@ The database connection string is read from the `DATABASE_URL` environment varia
 |  |  Flashcard             |  |  media                 |  |
 |  |  FlashcardSettings     |  |  tasks_tags (join)     |  |
 |  |  UserFlashcardProgress |  |                        |  |
+|  |  UserStandaloneDeck (join) |  |                        |  |
 |  |  TaskProgressTag       |  |                        |  |
 |  |  ActivityLog           |  |                        |  |
 |  |  PlatformFlags         |  |                        |  |
@@ -142,7 +143,7 @@ Stores credentials and role assignment for every platform participant.
 | `createdAt` | `DateTime` | Auto-set on creation |
 | `updatedAt` | `DateTime` | Auto-updated on change |
 
-**Relations:** one-to-many to `LessonProgress`, `TaskProgress`, `CourseProgress`, `UserFlashcardProgress`; one-to-one to `FlashcardSettings`.
+**Relations:** one-to-many to `LessonProgress`, `TaskProgress`, `CourseProgress`, `UserFlashcardProgress`, `UserStandaloneFlashcardDeck`; one-to-one to `FlashcardSettings`.
 
 ---
 
@@ -235,15 +236,37 @@ A study card with LaTeX-capable question and answer text and optional media refe
 
 #### `FlashcardDeck`
 
-Named grouping container for flashcards. Import scripts and admin APIs use deck slug/id as a stable grouping key.
+Named grouping container for flashcards. Decks form a **tree**: optional **`parentDeckId`** points to a parent deck (typically the course **main** deck or a standalone **main**). Import scripts and admin APIs use slug/id as stable keys.
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `slug` | `String` | Unique |
 | `name` | `String` | Display name |
 | `description` | `String?` | Optional deck description |
+| `subjectId` | `String?` | Optional Payload **`subjects`** collection id (used for standalone mains and student catalog display) |
+| `courseId` | `String?` | Payload course id when this deck belongs to a course (usually set on the **main** deck only) |
+| `moduleId` | `String?` | Payload module id for **module-aligned subdecks** (`@unique` — one deck row per module when used) |
+| `parentDeckId` | `String?` | Parent deck when this row is a **subdeck**; `null` means a **root** (main) deck |
 
-**Relations:** one-to-many to `Flashcard`; many-to-many to `Tag`.
+**Course pattern:** one main deck per course (`courseId` set, `parentDeckId` null) and many subdecks under it (`parentDeckId` = main id). **Standalone pattern:** root decks with `courseId` null; optional child subdecks; standalone mains may own **direct** `Flashcard` rows.
+
+**Relations:** self-referential hierarchy (`parentDeck` / `childDecks`); one-to-many to `Flashcard`; many-to-many to `Tag`; one-to-many to `UserStandaloneFlashcardDeck` (enrollments on **standalone root** decks only).
+
+---
+
+#### `UserStandaloneFlashcardDeck`
+
+Join table: a learner **added** a standalone (non-course) **main** deck to their flashcard library from the student browse catalog. Required before standalone deck-tree and study URLs apply for that user (see `lib/flashcards-study-access.ts`).
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `userId` | `String` | FK → `User.id` (cascade) |
+| `deckId` | `String` | FK → `FlashcardDeck.id` of a **root** standalone deck (`courseId` null, `parentDeckId` null) (cascade) |
+| `createdAt` | `DateTime` | Enrollment timestamp |
+
+**Constraint:** `@@id([userId, deckId])` — composite primary key. **Index:** `userId` for dashboard queries.
+
+**Table:** `user_standalone_flashcard_decks`.
 
 ---
 
@@ -385,10 +408,13 @@ Payload also creates implicit join tables such as `tasks_tags` to store the `tag
   User      (1) --< (N) LessonProgress
   User      (1) --< (1) FlashcardSettings
   User      (1) --< (N) UserFlashcardProgress
+  User      (1) --< (N) UserStandaloneFlashcardDeck
+  UserStandaloneFlashcardDeck (N) >-- (1) FlashcardDeck   [standalone root enrollment]
 
   LessonProgress (1) --< (N) TaskProgress
   TaskProgress   (N) >--< (N) Tag      [via TaskProgressTag]
 
+  FlashcardDeck (1) --< (N) FlashcardDeck   [parentDeckId hierarchy: main -> subdecks]
   FlashcardDeck (1) --< (N) Flashcard
   FlashcardDeck (N) >--< (N) Tag       [via implicit DeckTags]
   Flashcard (N) >--< (N) Tag           [via implicit _FlashcardTags]

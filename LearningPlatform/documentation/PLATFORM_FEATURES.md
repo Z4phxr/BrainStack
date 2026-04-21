@@ -11,7 +11,7 @@ Detailed feature reference for content authoring, publishing controls, lesson/ta
 | Task engine | Multiple Choice, True/False, Open-Ended with optional auto-grading |
 | Adaptive learning | Tag-based weakness scoring surfaces personalized practice tasks |
 | Spaced repetition | Full SM-2 algorithm - NEW / LEARNING / REVIEW / RELEARNING / MASTERED states |
-| Flashcard decks | Admin-defined decks with optional tag scope and deck-based study filtering |
+| Flashcards / decks | Course **main + module subdecks**, or **standalone** decks with optional subdecks; tag scope and deck-based study filtering |
 | Pro features | Pro lesson assistant and admin-controlled user Pro entitlement |
 | Audit trail | Activity log (append-only); new events can be paused in **Admin → Settings**; `/admin/logs` remains filterable for existing rows |
 | Media | S3-compatible object storage with signed URL delivery and usage tracking |
@@ -26,12 +26,23 @@ Signed-in learners use the student layout (navbar, theme). Highlights:
   - **Your courses** lists only courses where the learner has at least one **published** lesson in `IN_PROGRESS` or `COMPLETED` (from `LessonProgress`, resolved through Payload lessons). If none, a prompt links to the catalog.  
   - **Most popular** shows up to five courses ranked by **distinct learners** (same lesson-progress rule), then fills any remaining slots with the **newest published** courses so the strip stays full. Results are cached briefly server-side.  
   - A **Explore all courses** promo card (same centered column as the rest of the dashboard) links to `/courses`.  
+  - **Your Flashcards** loads a post-paint summary (`/api/flashcards/dashboard-summary`): one card per enrolled **course** deck and per **standalone** deck in the user’s library, with **Open deck tree** deep links (`/dashboard/flashcards?courseSlug=…` or `?standaloneDeckSlug=…`). A **Browse all decks** action opens **`/dashboard/flashcards/browse`** (Discover decks catalog).  
   - Stat cards include **Active courses**: count of distinct started courses (same definition as Your courses), not a raw count of every `CourseProgress` row.
 
-- **Course catalog (`/courses`)**  
+- **Course catalog (`/courses`)** — **Discover courses**  
+  - **Back to dashboard** (outline button, top of page).  
   - Centered title and subtitle.  
   - **GET** form (shareable URLs): **search** by course title (substring), **filter** by level (Beginner / Intermediate / Advanced) and **subject**, **sort** by last updated, created date, or title (asc/desc).  
-  - **Pagination**: 15 published courses per page.
+  - **Pagination**: 15 published courses per page; **previous / next** chevron controls and a “Showing *x–y* of *n*” strip under the grid.
+
+- **Flashcards — student deck tree (`/dashboard/flashcards`)**  
+  - **Back to dashboard** (same control as `/courses`).  
+  - Optional query **`courseSlug`** or **`standaloneDeckSlug`** filters the summary to a single main deck (from dashboard or browse links).  
+  - Shows main-deck stats, **SRS Learn** / **Free Learn** for the aggregate (`mainDeckSlug`), and one block per **subdeck** when present. Standalone mains may show **description**, **subject**, and **tags** (glass pill chips).  
+  - Empty subdeck copy is centered when there are no sections yet.
+
+- **Flashcards — Discover decks (`/dashboard/flashcards/browse`)**  
+  - Authenticated catalog of **standalone** main decks and **published course** main decks; filter bar (search, subject, sort) and **Apply**; **Add to my flashcards** enrolls via **`POST /api/flashcards/standalone-decks/enroll`**; links to deck tree or course page as appropriate.
 
 ## Admin Panel
 
@@ -45,8 +56,7 @@ The sidebar provides access to:
 - **Tasks** - create questions with prompts, answer choices, solutions, point values, and tag annotations; list supports **search** (debounced, question/title/id/lessons) and **task type** filter via `GET /api/admin/tasks?type=…`
 - **Subjects** - top-level topic taxonomy
 - **Tags** - canonical knowledge tags shared across tasks and flashcards; power the recommendation engine
-- **Flashcards** - create study cards linked to tags for the SRS system; admin list supports **search** (debounced, question/answer/deck/tags/id) alongside deck and tag filters
-- **Flashcard Decks** - create named decks, connect tags, and organize study sets
+- **Flashcards** - SRS cards linked to tags; **Course deck tree** (one main deck per course + subdecks per module), **Standalone deck tree** (collections not tied to a course, with optional subdecks and “direct” cards on the standalone main), and **All flashcards** (filters, grid, create). Search is debounced (question/answer/deck/tags/id); deck filters respect main/subdeck and URL query params (`view=all`, `mainDeckId`, `deckSlug`).
 - **Users** - list users; **Credentials** column toggles **Pro** and **admin** role (`PATCH /api/admin/users/:id`); self–admin demotion is blocked
 - **Media** - upload and manage images and files backed by S3-compatible object storage
 - **Settings** - theme, reading-size preferences, **activity log on/off**, and related controls
@@ -143,10 +153,26 @@ BrainStack includes Pro-gated capabilities on top of the core learning flow:
 - **Pro guardrails** via `requireProUser()` and rate limiting on assistant usage.
 - **Admin user management** via `/api/admin/users` and `PATCH /api/admin/users/[id]` (`isPro` and/or `role`).
 
-## Flashcard Decks
+## Flashcards and deck hierarchy
 
-Flashcards support optional deck organization for targeted study modes:
+Flashcards are not lesson blocks; they live in the **`public`** schema on **`FlashcardDeck`** (with optional **tags** on each deck and on each card). Admins manage them at **`/admin/flashcards`** using three views: **Course deck tree**, **Standalone deck tree**, and **All flashcards**.
 
-- Admin list/create endpoints via `/api/flashcard-decks`.
-- Deck metadata includes `name`, `slug`, optional `description`, and associated tags.
-- Study endpoint supports `deckSlug` filtering (`GET /api/flashcards/study`).
+### Course-linked decks
+
+- One **main** deck per course (`FlashcardDeck.courseId` set, `parentDeckId` null). It groups the course’s flashcard structure.
+- **Subdecks** sit under that main (`parentDeckId` → main deck id). They usually mirror **modules** (`moduleId` optional/uniquely tied to a module). **New cards for a course belong on a subdeck**, not on the course main deck (enforced in API validation).
+
+### Standalone decks
+
+- Decks with **no** `courseId` are **standalone** collections (e.g. “JavaScript flashcards”, “Interview prep”).
+- The standalone **main** deck may hold **direct** cards (cards whose `deckId` is that main). You can add **subdecks** under the main for finer organisation; cards on subdecks behave like course subdecks.
+
+### APIs and study
+
+- Deck CRUD and listing: **`/api/flashcard-decks`** (admin); deck update by id: **`PATCH /api/flashcard-decks/[id]`** (admin).
+- Card CRUD and admin list filters: **`/api/flashcards`** (query params such as `mainDeckId`, `deckSlug` / deck id, tag slugs).
+- Student dashboard summary: **`GET /api/flashcards/dashboard-summary`** with optional **`courseSlug`** / **`standaloneDeckSlug`** (returns hierarchy + stats; standalone roots only if the user has a **`UserStandaloneFlashcardDeck`** row).
+- Standalone catalog + enroll: **`GET /api/flashcards/standalone-decks`**, **`POST /api/flashcards/standalone-decks/enroll`** (`{ deckSlug }`).
+- Student study: **`GET /api/flashcards/study`** supports `deckSlug`, `subdeckSlug`, `mainDeckSlug`, plus `tagSlug` / `subject` and `mode=srs|free`. For **standalone** trees, the handler checks enrollment via **`lib/flashcards-study-access.ts`** (see `ADAPTIVE_LEARNING.md`).
+
+Deep links from the deck trees use **`/admin/flashcards?view=all&mainDeckId=…`** and, for a single subdeck, **`&deckSlug=…`** (legacy **`/admin/flashcards/deck/[id]`** redirects to the same query shape).

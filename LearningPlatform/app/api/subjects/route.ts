@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '@payload-config'
+import { prisma } from '@/lib/prisma'
 import { toSlug } from '@/lib/utils'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { logActivity, ActivityAction } from '@/lib/activity-log'
@@ -11,23 +12,41 @@ const OA = { overrideAccess: true as const }
 
 export async function GET() {
   try {
-    const payload = await getPayload({ config })
-    const { docs } = await payload.find({
-      collection: 'subjects',
-      sort: 'name',
-      limit: 500,
-      ...OA,
+    const rows = await prisma.$queryRaw<Array<{ id: string; name: string; slug: string }>>`
+      SELECT s.id::text AS id, s.name::text AS name, s.slug::text AS slug
+      FROM payload.subjects s
+      ORDER BY s.name ASC
+      LIMIT 500
+    `
+    return NextResponse.json({
+      subjects: rows.map((r) => ({
+        id: String(r.id),
+        name: String(r.name ?? ''),
+        slug: (r.slug && String(r.slug)) || toSlug(String(r.name ?? '')),
+        tagSlugs: [] as string[],
+      })),
     })
-    const subjects = docs.map((doc) => ({
-      id: String(doc.id),
-      name: String(doc.name ?? ''),
-      slug: (doc.slug as string) ?? toSlug(String(doc.name ?? '')),
-      tagSlugs: [] as string[],
-    }))
-    return NextResponse.json({ subjects })
-  } catch (err) {
-    console.error('[GET /api/subjects] error', err)
-    return NextResponse.json({ subjects: [] }, { status: 500 })
+  } catch (sqlErr) {
+    console.warn('[GET /api/subjects] direct SQL failed, falling back to Payload', sqlErr)
+    try {
+      const payload = await getPayload({ config })
+      const { docs } = await payload.find({
+        collection: 'subjects',
+        sort: 'name',
+        limit: 500,
+        ...OA,
+      })
+      const subjects = docs.map((doc) => ({
+        id: String(doc.id),
+        name: String(doc.name ?? ''),
+        slug: (doc.slug as string) ?? toSlug(String(doc.name ?? '')),
+        tagSlugs: [] as string[],
+      }))
+      return NextResponse.json({ subjects })
+    } catch (err) {
+      console.error('[GET /api/subjects] error', err)
+      return NextResponse.json({ subjects: [] }, { status: 500 })
+    }
   }
 }
 

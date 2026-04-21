@@ -8,7 +8,8 @@ export async function GET(req: Request) {
     const user = await requireAuth()
     const { searchParams } = new URL(req.url)
     const courseSlug = searchParams.get('courseSlug')?.trim() || undefined
-    const summary = await getFlashcardDashboardSummary(user.id, { courseSlug })
+    const standaloneDeckSlug = searchParams.get('standaloneDeckSlug')?.trim() || undefined
+    const summary = await getFlashcardDashboardSummary(user.id, { courseSlug, standaloneDeckSlug })
     return NextResponse.json(summary)
   } catch (error) {
     if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden')) {

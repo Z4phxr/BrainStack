@@ -273,7 +273,12 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
             
             <div>
               <Label htmlFor="title" className="text-base font-medium">Title</Label>
-              <Input id="title" name="title" defaultValue={course.title} className="mt-3" />
+              <Input
+                id="title"
+                name="title"
+                defaultValue={course.title}
+                className="mt-3 border border-input bg-background dark:bg-background"
+              />
               {courseFieldErrors.title && <FieldError message={courseFieldErrors.title} />}
             </div>
             <div>
@@ -450,7 +455,7 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
                   name="moduleTitle"
                   placeholder="e.g. Foundational concepts"
                   required
-                  className="mt-3"
+                  className="mt-3 border border-input bg-background dark:bg-background"
                 />
                 {moduleFieldErrors.title && <FieldError message={moduleFieldErrors.title} />}
               </div>

@@ -23,6 +23,10 @@ interface CardStats {
   due: number
 }
 
+function titlesMatch(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase()
+}
+
 function StatPill({ label, count }: { label: string; count: number }) {
   return (
     <div
@@ -51,6 +55,7 @@ function FlashcardBlock({
   openHref: string
 }) {
   const canOpen = stats.total > 0
+  const showSubtitle = Boolean(subtitle.trim()) && !titlesMatch(title, subtitle)
 
   return (
     <Card
@@ -62,7 +67,9 @@ function FlashcardBlock({
       <CardContent className="flex h-full flex-col items-center justify-between gap-4 p-4">
         <div className="w-full text-center">
           <p className="text-lg font-semibold tracking-tight text-gray-800 dark:text-gray-100 md:text-xl">{title}</p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
+          {showSubtitle ? (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
+          ) : null}
         </div>
 
         <div className="flex w-full items-stretch justify-center gap-2 sm:gap-3">
@@ -93,14 +100,23 @@ function FlashcardSummaryCarousel({ summary }: { summary: FlashcardDashboardSumm
   const items: ReactNode[] = []
 
   for (const row of summary.decks) {
-    const courseSlugQ = encodeURIComponent(row.course.slug)
+    const openHref =
+      row.source === 'standalone'
+        ? `/dashboard/flashcards?standaloneDeckSlug=${encodeURIComponent(row.deck.slug)}`
+        : `/dashboard/flashcards?courseSlug=${encodeURIComponent(row.course!.slug)}`
+    const subtitle =
+      row.source === 'standalone'
+        ? row.deck.subject?.name?.trim() ||
+          (row.deck.tags?.length ? row.deck.tags.map((t) => t.name).join(' · ') : '') ||
+          'Standalone library'
+        : row.course!.title
     items.push(
       <FlashcardBlock
-        key={`course-deck:${row.deck.slug}`}
+        key={`${row.source}-deck:${row.deck.slug}`}
         title={row.deck.name}
-        subtitle={row.course.title}
+        subtitle={subtitle}
         stats={row.stats}
-        openHref={`/dashboard/flashcards?courseSlug=${courseSlugQ}`}
+        openHref={openHref}
       />,
     )
   }
@@ -178,17 +194,25 @@ export function FlashcardDashboardSection() {
 
       {error && <p className="text-base leading-relaxed text-red-500 md:text-lg">{error}</p>}
 
-      {!loading && !error && summary && summary.all.total === 0 && (
+      {!loading && !error && summary && summary.decks.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/30 bg-white/10 py-10 text-center backdrop-blur-lg dark:border-white/20 dark:bg-white/10">
           <BookOpen className="mb-3 h-12 w-12 text-gray-300" />
-          <p className="text-base leading-relaxed text-gray-500 md:text-lg">No course decks available yet.</p>
+          <p className="text-base leading-relaxed text-gray-500 md:text-lg">No decks in your library yet.</p>
           <p className="mt-2 text-sm leading-relaxed text-gray-400 md:text-base">
-            Start a course first to unlock connected flashcard decks.
+            Start a course for course-linked decks, or browse the catalog to add standalone decks to your library.
           </p>
         </div>
       )}
 
       {!loading && !error && summary && summary.decks.length > 0 && <FlashcardSummaryCarousel summary={summary} />}
+
+      {!loading && !error && summary && (
+        <div className="flex justify-center pt-1">
+          <Button size="sm" variant="outline" asChild className="min-w-[10rem]">
+            <Link href="/dashboard/flashcards/browse">Browse all decks</Link>
+          </Button>
+        </div>
+      )}
     </section>
   )
 }

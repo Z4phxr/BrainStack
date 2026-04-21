@@ -36,6 +36,17 @@ export const createMockPrisma = (overrides = {}) => {
       count: vi.fn(() => createMockResult(0)),
       aggregate: vi.fn(() => createMockResult({ _sum: { earnedPoints: 0 } })),
     },
+
+    userStandaloneFlashcardDeck: {
+      create: vi.fn((args) => createMockResult({ ...args.data })),
+      findUnique: vi.fn(() => createMockResult(null)),
+      findFirst: vi.fn(() => createMockResult(null)),
+      findMany: vi.fn(() => createMockResult([])),
+      upsert: vi.fn((args) => createMockResult({ ...args.create })),
+      delete: vi.fn(() => createMockResult({})),
+      deleteMany: vi.fn(() => createMockResult({ count: 0 })),
+      count: vi.fn(() => createMockResult(0)),
+    },
     
     // LessonProgress operations
     lessonProgress: {
@@ -95,6 +106,7 @@ export const createMockPrisma = (overrides = {}) => {
       findMany:   vi.fn(() => createMockResult([])),
       update:     vi.fn((args) => createMockResult({ id: args.where.id, tags: [], ...args.data })),
       delete:     vi.fn((args) => createMockResult({ id: args.where.id })),
+      deleteMany: vi.fn(() => createMockResult({ count: 0 })),
       upsert:     vi.fn((args) => createMockResult({ id: 'mock-id', ...args.create })),
       count:      vi.fn(() => createMockResult(0)),
     },
@@ -107,6 +119,7 @@ export const createMockPrisma = (overrides = {}) => {
       findMany:   vi.fn(() => createMockResult([])),
       update:     vi.fn((args) => createMockResult({ id: args.where.id, tags: [], ...args.data })),
       delete:     vi.fn((args) => createMockResult({ id: args.where.id })),
+      deleteMany: vi.fn(() => createMockResult({ count: 0 })),
       upsert:     vi.fn((args) => createMockResult({ id: 'mock-id', ...args.create })),
       count:      vi.fn(() => createMockResult(0)),
     },

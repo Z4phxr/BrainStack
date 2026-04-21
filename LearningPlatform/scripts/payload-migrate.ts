@@ -32,6 +32,9 @@ function hasExecute(value: unknown): value is DbWithExecute {
 }
 
 async function migratePayload() {
+  // Skip Drizzle push during init (see @payloadcms/db-postgres connect.js).
+  process.env.PAYLOAD_MIGRATING = 'true'
+
   console.log('[INFO] Payload CMS Migration Runner (Production Mode)')
   console.log('================================================')
   

@@ -143,6 +143,36 @@ describe('GET /api/flashcards', () => {
       expect.objectContaining({ where: undefined }),
     )
   })
+
+  it('filters by deckId when provided', async () => {
+    adminSession()
+    vi.mocked(mockPrisma.flashcard.findMany).mockResolvedValue([] as any)
+
+    const req = makeRequest('GET', 'http://localhost/api/flashcards?deckId=sub-1')
+    await listGet(req)
+
+    expect(mockPrisma.flashcard.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ deckId: 'sub-1' }),
+      }),
+    )
+  })
+
+  it('filters by mainDeckId (main deck + its subdecks) when provided', async () => {
+    adminSession()
+    vi.mocked(mockPrisma.flashcard.findMany).mockResolvedValue([] as any)
+
+    const req = makeRequest('GET', 'http://localhost/api/flashcards?mainDeckId=main-1')
+    await listGet(req)
+
+    expect(mockPrisma.flashcard.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ deckId: 'main-1' }, { deck: { parentDeckId: 'main-1' } }],
+        }),
+      }),
+    )
+  })
 })
 
 // ─── POST /api/flashcards ─────────────────────────────────────────────────────
@@ -150,7 +180,7 @@ describe('GET /api/flashcards', () => {
 describe('POST /api/flashcards', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(mockPrisma.flashcardDeck.findUnique).mockResolvedValue({ id: 'deck-1' } as any)
+    vi.mocked(mockPrisma.flashcardDeck.findUnique).mockResolvedValue({ id: 'deck-1', parentDeckId: 'main-1' } as any)
     vi.mocked(mockPrisma.tag.findMany).mockResolvedValue([] as any)
   })
 
@@ -218,6 +248,52 @@ describe('POST /api/flashcards', () => {
     )
   })
 
+  it('returns 400 when target deck is a course main deck', async () => {
+    adminSession()
+    vi.mocked(mockPrisma.flashcardDeck.findUnique).mockResolvedValue({
+      id: 'deck-main',
+      parentDeckId: null,
+      courseId: 'course-1',
+    } as any)
+
+    const req = makeRequest('POST', 'http://localhost/api/flashcards', {
+      question: 'Q',
+      answer: 'A',
+      deckId: 'deck-main',
+      tagIds: [],
+    })
+    const res = await listPost(req)
+    const data = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(data.issues.deckId[0]).toMatch(/subdeck|course main/i)
+  })
+
+  it('creates flashcard on standalone main deck (direct cards)', async () => {
+    adminSession()
+    vi.mocked(mockPrisma.flashcardDeck.findUnique).mockResolvedValue({
+      id: 'standalone-main',
+      parentDeckId: null,
+      courseId: null,
+    } as any)
+    vi.mocked(mockPrisma.flashcard.create).mockResolvedValue({ ...MOCK_FLASHCARD, id: 'new-direct' } as any)
+
+    const req = makeRequest('POST', 'http://localhost/api/flashcards', {
+      question: 'Q',
+      answer: 'A',
+      deckId: 'standalone-main',
+      tagIds: [],
+    })
+    const res = await listPost(req)
+
+    expect(res.status).toBe(201)
+    expect(mockPrisma.flashcard.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ deckId: 'standalone-main' }),
+      }),
+    )
+  })
+
   it('connects tags when tagIds are provided', async () => {
     adminSession()
     vi.mocked(mockPrisma.tag.findMany).mockResolvedValue([{ id: 'tag-1' }, { id: 'tag-2' }] as any)
@@ -277,7 +353,7 @@ describe('GET /api/flashcards/[id]', () => {
 describe('PUT /api/flashcards/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(mockPrisma.flashcardDeck.findUnique).mockResolvedValue({ id: 'deck-1' } as any)
+    vi.mocked(mockPrisma.flashcardDeck.findUnique).mockResolvedValue({ id: 'deck-1', parentDeckId: 'main-1' } as any)
   })
 
   it('returns 401 when unauthenticated', async () => {
@@ -332,6 +408,28 @@ describe('PUT /api/flashcards/[id]', () => {
         data: expect.objectContaining({ tags: { set: [{ id: 't1' }] } }),
       }),
     )
+  })
+
+  it('returns 400 when updating flashcard to a course main deck', async () => {
+    adminSession()
+    vi.mocked(mockPrisma.flashcard.findUnique).mockResolvedValue({
+      deckId: 'deck-1',
+      tags: [],
+    } as any)
+    vi.mocked(mockPrisma.flashcardDeck.findUnique).mockResolvedValue({
+      id: 'deck-main',
+      parentDeckId: null,
+      courseId: 'course-1',
+    } as any)
+
+    const res = await idPut(
+      makeRequest('PUT', 'http://localhost/api/flashcards/fc-1', { deckId: 'deck-main' }),
+      routeCtx('fc-1'),
+    )
+    const data = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(data.issues.deckId[0]).toMatch(/subdeck|course main/i)
   })
 })
 
