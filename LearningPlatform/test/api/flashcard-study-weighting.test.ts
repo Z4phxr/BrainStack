@@ -200,4 +200,39 @@ describe('GET /api/flashcards/study — weak-tag weighting', () => {
     // Both cards returned (free mode returns all)
     expect(body.cards.length).toBe(2)
   })
+
+  it('returns 400 when mainDeckSlug is combined with deckSlug', async () => {
+    userSession()
+    const res = await GET(get('http://localhost/api/flashcards/study?deckSlug=sub&mainDeckSlug=main'))
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 when mainDeckSlug points to a subdeck', async () => {
+    userSession()
+    mockPrisma.flashcardDeck.findUnique.mockResolvedValue({ id: 'd-sub', parentDeckId: 'd-main' } as any)
+
+    const res = await GET(get('http://localhost/api/flashcards/study?mainDeckSlug=bad-main'))
+    expect(res.status).toBe(400)
+  })
+
+  it('filters by mainDeckSlug across parent and child decks', async () => {
+    userSession()
+    // Course-linked main: non-empty courseId so study access is allowed without standalone enrollment.
+    mockPrisma.flashcardDeck.findUnique.mockResolvedValue({
+      id: 'd-main',
+      parentDeckId: null,
+      courseId: 'payload-course-1',
+    } as any)
+    mockPrisma.flashcard.findMany.mockResolvedValue([] as any)
+
+    const res = await GET(get('http://localhost/api/flashcards/study?mainDeckSlug=course-main'))
+    expect(res.status).toBe(200)
+    expect(mockPrisma.flashcard.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ deck: { slug: 'course-main' } }, { deck: { parentDeck: { slug: 'course-main' } } }],
+        }),
+      }),
+    )
+  })
 })

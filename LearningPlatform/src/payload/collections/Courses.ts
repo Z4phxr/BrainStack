@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { toSlug } from '../../../lib/utils'
+import { prisma } from '../../../lib/prisma'
 import { deleteModulesAttachingToCourse } from '../lib/content-cascade-delete'
 
 export const Courses: CollectionConfig = {
@@ -12,6 +13,21 @@ export const Courses: CollectionConfig = {
     beforeDelete: [
       async ({ id, req }) => {
         await deleteModulesAttachingToCourse(req.payload, String(id), req)
+      },
+    ],
+    afterChange: [
+      async ({ doc }) => {
+        const courseId = String(doc?.id ?? '').trim()
+        const courseTitle = typeof doc?.title === 'string' ? doc.title.trim() : ''
+        if (!courseId || !courseTitle) return
+        try {
+          await prisma.flashcardDeck.updateMany({
+            where: { courseId, parentDeckId: null },
+            data: { name: courseTitle },
+          })
+        } catch (error) {
+          console.error('[Courses.afterChange] failed to sync main deck names', error)
+        }
       },
     ],
   },

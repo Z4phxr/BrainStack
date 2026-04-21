@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/auth-helpers'
 import { isCardDue, parseSettings, getCardUrgency } from '@/lib/srs'
 import { getUserWeakTags } from '@/lib/analytics'
 import { getSortedFreeStudyCardsForUser } from '@/lib/flashcards-study-free'
+import { assertUserCanStudyDeckScope } from '@/lib/flashcards-study-access'
 
 /**
  * GET /api/flashcards/study
@@ -15,7 +16,9 @@ import { getSortedFreeStudyCardsForUser } from '@/lib/flashcards-study-free'
  * Query parameters:
  *   mode     = "srs" | "free"   (default: "srs")
  *   tagSlug   = <slug>          (optional  filters to a single tag)
- *   deckSlug  = <slug>          (optional  limits to one flashcard deck)
+ *   deckSlug   = <slug>         (optional, legacy alias)
+ *   subdeckSlug = <slug>        (optional, limits to one module subdeck)
+ *   mainDeckSlug = <slug>       (optional, includes main deck + all children)
  *
  * SRS mode:
  *   - Returns cards that are due NOW (new, overdue, or due today).
@@ -45,8 +48,18 @@ export async function GET(req: Request) {
     const tagSlug   = searchParams.get('tagSlug') ?? undefined
     const subject   = searchParams.get('subject') ?? undefined
     const deckSlugQ = searchParams.get('deckSlug')?.trim() || undefined
+    const subdeckSlugQ = searchParams.get('subdeckSlug')?.trim() || undefined
+    const mainDeckSlugQ = searchParams.get('mainDeckSlug')?.trim() || undefined
+    const deckFilterSlug = subdeckSlugQ ?? deckSlugQ
 
-    if (mode === 'free' && !tagSlug && !subject && !deckSlugQ) {
+    if (deckFilterSlug && mainDeckSlugQ) {
+      return NextResponse.json(
+        { error: 'Validation failed', issues: { deck: ['Use either subdeckSlug/deckSlug or mainDeckSlug, not both'] } },
+        { status: 400 },
+      )
+    }
+
+    if (mode === 'free' && !tagSlug && !subject && !deckFilterSlug && !mainDeckSlugQ) {
       const sorted = await getSortedFreeStudyCardsForUser(user.id)
       return NextResponse.json({ cards: sorted, mode, total: sorted.length })
     }
@@ -106,9 +119,39 @@ export async function GET(req: Request) {
         ? { tags: { some: { slug: { in: subjectTagSlugs } } } }
         : undefined
 
-    if (deckSlugQ) {
-      const deckPart = { deck: { slug: deckSlugQ } }
+    if (deckFilterSlug) {
+      const deckPart = { deck: { slug: deckFilterSlug } }
       whereFilter = whereFilter ? { AND: [whereFilter, deckPart] } : deckPart
+    } else if (mainDeckSlugQ) {
+      const mainDeckPart = { OR: [{ deck: { slug: mainDeckSlugQ } }, { deck: { parentDeck: { slug: mainDeckSlugQ } } }] }
+      whereFilter = whereFilter ? { AND: [whereFilter, mainDeckPart] } : mainDeckPart
+    }
+
+    if (mainDeckSlugQ && !deckFilterSlug) {
+      // Ensure main deck exists and is not itself a subdeck, otherwise we might silently return unrelated data.
+      const mainDeck = await prisma.flashcardDeck.findUnique({
+        where: { slug: mainDeckSlugQ },
+        select: { id: true, parentDeckId: true },
+      })
+      if (!mainDeck || mainDeck.parentDeckId) {
+        return NextResponse.json(
+          { error: 'Validation failed', issues: { mainDeckSlug: ['Main deck not found'] } },
+          { status: 400 },
+        )
+      }
+    }
+
+    if (deckFilterSlug || mainDeckSlugQ) {
+      const access = await assertUserCanStudyDeckScope(user.id, {
+        mainDeckSlug: mainDeckSlugQ ?? undefined,
+        subdeckSlug: deckFilterSlug,
+      })
+      if (!access.ok) {
+        return NextResponse.json(
+          { error: 'Forbidden', issues: { deck: [access.message] } },
+          { status: 403 },
+        )
+      }
     }
 
     const flashcards = await prisma.flashcard.findMany({
@@ -188,8 +231,10 @@ export async function GET(req: Request) {
     } else if (subjectTagSlugs && subjectTagSlugs.length > 0) {
       flashcardScope.tags = { some: { slug: { in: subjectTagSlugs } } }
     }
-    if (deckSlugQ) {
-      flashcardScope.deck = { slug: deckSlugQ }
+    if (deckFilterSlug) {
+      flashcardScope.deck = { slug: deckFilterSlug }
+    } else if (mainDeckSlugQ) {
+      flashcardScope.OR = [{ deck: { slug: mainDeckSlugQ } }, { deck: { parentDeck: { slug: mainDeckSlugQ } } }]
     }
 
     const newReviewedToday = await prisma.userFlashcardProgress.count({

@@ -14,7 +14,7 @@ export async function Navbar() {
   const initial = (displayName ?? session?.user?.email ?? 'A')[0]?.toUpperCase()
 
   return (
-    <nav className={cn('relative z-30', studentGlassNav)}>
+    <nav className={cn('fixed inset-x-0 top-0 z-40', studentGlassNav)}>
       <div className="container mx-auto flex min-h-[4.25rem] items-center justify-between gap-4 px-4 py-3 sm:min-h-[4.5rem] sm:py-4">
         <NavbarBrand />
         

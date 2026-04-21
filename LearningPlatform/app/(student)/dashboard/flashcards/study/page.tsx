@@ -7,7 +7,7 @@
  *   srs  â€” Only shows cards that are due today (respects daily limits).
  *   free â€” Shows ALL cards in the set regardless of due date.
  *
- * Optional query params: ?tagSlug=, ?subject=, ?deckSlug= limit which cards load.
+ * Optional query params: ?tagSlug=, ?subject=, ?deckSlug=, ?subdeckSlug=, ?mainDeckSlug= limit which cards load.
  *
  * The study loop:
  *  1. Fetch due cards from /api/flashcards/study
@@ -75,12 +75,21 @@ function humanizeSlug(slug: string): string {
     .join(' ')
 }
 
-function studyQuery(mode: string, tagSlug: string, subject: string, deckSlug: string): string {
+function studyQuery(
+  mode: string,
+  tagSlug: string,
+  subject: string,
+  deckSlug: string,
+  subdeckSlug: string,
+  mainDeckSlug: string,
+): string {
   const p = new URLSearchParams()
   p.set('mode', mode)
   if (tagSlug) p.set('tagSlug', tagSlug)
   if (subject) p.set('subject', subject)
   if (deckSlug) p.set('deckSlug', deckSlug)
+  if (subdeckSlug) p.set('subdeckSlug', subdeckSlug)
+  if (mainDeckSlug) p.set('mainDeckSlug', mainDeckSlug)
   return p.toString()
 }
 
@@ -176,6 +185,8 @@ function StudyPage() {
   const tagSlug  = searchParams.get('tagSlug') ?? ''
   const subject  = searchParams.get('subject') ?? ''
   const deckSlug = searchParams.get('deckSlug') ?? ''
+  const subdeckSlug = searchParams.get('subdeckSlug') ?? ''
+  const mainDeckSlug = searchParams.get('mainDeckSlug') ?? ''
   // â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const [queue,        setQueue]        = useState<StudyCard[]>([])
@@ -201,7 +212,7 @@ function StudyPage() {
     setCurrentIdx(0)
     setReviewedCount(0)
     try {
-      const qs = studyQuery(mode, tagSlug, subject, deckSlug)
+      const qs = studyQuery(mode, tagSlug, subject, deckSlug, subdeckSlug, mainDeckSlug)
       const res = await fetch(`/api/flashcards/study?${qs}`)
       if (!res.ok) throw new Error('Failed to load session')
       const data = await res.json()
@@ -213,7 +224,7 @@ function StudyPage() {
       setError('Could not load study session. Please try again.')
       setPhase('empty')
     }
-  }, [mode, tagSlug, subject, deckSlug])
+  }, [mode, tagSlug, subject, deckSlug, subdeckSlug, mainDeckSlug])
 
   useEffect(() => { loadSession() }, [loadSession])
 
@@ -345,7 +356,7 @@ function StudyPage() {
   const progressTotal = totalRef.current
   const progressDone  = reviewedCount
   const pct           = progressTotal > 0 ? Math.round((progressDone / progressTotal) * 100) : 0
-  const backHref      = '/dashboard'
+  const backHref      = '/dashboard/flashcards'
 
   // â”€â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -358,7 +369,11 @@ function StudyPage() {
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
           >
             <ArrowLeft className="h-4 w-4" />
-            {deckSlug
+            {subdeckSlug
+              ? humanizeSlug(subdeckSlug)
+              : mainDeckSlug
+                ? humanizeSlug(mainDeckSlug)
+                : deckSlug
               ? humanizeSlug(deckSlug)
               : subject
                 ? subject
@@ -432,7 +447,7 @@ function StudyPage() {
               </Link>
               {mode === 'srs' && (
                 <Link
-                  href={`/dashboard/flashcards/study?${studyQuery('free', tagSlug, subject, deckSlug)}`}
+                  href={`/dashboard/flashcards/study?${studyQuery('free', tagSlug, subject, deckSlug, subdeckSlug, mainDeckSlug)}`}
                   className="mt-2"
                 >
                   <Button>

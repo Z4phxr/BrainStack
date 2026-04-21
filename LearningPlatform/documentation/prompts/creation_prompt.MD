@@ -20,7 +20,10 @@ data/
 │   └── [topic]-course-pt2.js    // Modules 3-4 (if needed)
 │   └── [topic]-course-pt3.js    // Modules 5-6 (if needed)
 └── flashcards/
-    └── [topic]-flashcards.js    // One file = one deck `{ deck, cards }` (default)
+    └── [topic]-main-deck.js     // One parent deck for the whole course
+    └── [topic]-subdecks-pt1.js  // Subdecks for modules 1-2 (chunk 1)
+    └── [topic]-subdecks-pt2.js  // Subdecks for modules 3-4 (chunk 2)
+    └── [topic]-subdecks-pt3.js  // Subdecks for modules 5-6 (chunk 3)
 ```
 
 **IMPORTANT:** You create ONLY the data files. The platform has import runners that read these files. You do NOT write import scripts, runners, or helpers - they already exist.
@@ -352,56 +355,78 @@ Tasks go in the `tasks` array of each lesson.
 
 ---
 
-## Flashcards File Format
+## Flashcards File Format (Main Deck + Module Subdecks)
 
-**Location:** `data/flashcards/[topic]-flashcards.js`
+**Location:** `/data/flashcards/`  
+**When:** Only if the user answered **Yes** to flashcards in discovery; otherwise skip all flashcard files.
 
-**When to generate:** Only if the user opted **Yes** to flashcards in discovery. If they chose **No**, do **not** create this file.
+**Platform rule:** For a **course** tree, the **main** deck row is structural only — use **`cards: []`**. Every study card lives on a **module subdeck** (`parentDeckSlug` + same `courseId` as main + **`moduleId`** for that module). The importer accepts **`module.exports = [{ deck, cards }, …]`** in one `.js` file (one object per module in that chunk).
 
-**Default: one deck per file.** Every flashcards file MUST export **exactly one** `deck` and all cards go in that deck’s `cards` array. Use a **clear deck name** and **stable `slug`** (kebab-case, matches the course/topic). Set **`deck.tagSlugs`** to 2–4 tags that describe the whole deck (e.g. main topic + difficulty or track).
+**Files to create (aligned with course chunks):**
+1. **`[topic]-main-deck.js`** — single object `{ deck, cards }`: main has `courseId: '__COURSE_ID__'`, same `slug` you use as every subdeck’s `parentDeckSlug`, **`cards: []`**.
+2. **`[topic]-subdecks-ptN.js`** — **array** of `{ deck, cards }`, one entry per **module** in that course chunk; each `deck` has `parentDeckSlug`, `courseId`, **`moduleId`** matching the module from the matching course file.
 
-**Multiple decks:** Only if the user **explicitly** asks to split (e.g. “two decks: one for X, one for Y”). Then produce **one `.js` file per deck**, each with its own `{ deck, cards }`. Never put two separate decks inside a single export.
+**Import order:** Tags → courses → modules → flashcards. Name the main deck file so it **sorts before** `subdecks-pt*.js` (e.g. `docker-main-deck.js` before `docker-subdecks-pt1.js`) so the parent exists when subdecks import in one run.
 
-**Format:**
+**Main deck (structural):**
 ```javascript
 module.exports = {
   deck: {
-    slug: 'docker-flashcards',
-    name: 'Docker - course flashcards',
-    description: 'Core Docker concepts aligned with this course.', // optional
-    tagSlugs: ['docker', 'beginner']
+    slug: 'docker-main-deck',
+    name: 'Docker — course deck',
+    description: 'Parent for module subdecks.',
+    tagSlugs: ['docker', 'beginner'],
+    courseId: '__COURSE_ID__',
   },
-  cards: [
-    {
-      question: 'What is Docker?',
-      answer: 'Docker is a containerization platform that packages applications and dependencies into containers, ensuring consistency across different environments.',
-      tagSlugs: ['docker', 'beginner']
-    },
-    {
-      question: 'What is the difference between == and .equals() in Java?',
-      answer: '== compares references (memory addresses) for objects. .equals() compares the actual content/values of objects.',
-      tagSlugs: ['java', 'beginner', 'gotchas']
-    }
-  ]
-};
+  cards: [],
+}
 ```
 
-**Deck fields:**
-- `slug` (string, required): Unique, stable across re-imports; lowercase kebab-case.
-- `name` (string, required): Human-readable title (can include language-specific characters).
-- `description` (string, optional): Longer blurb for admins.
-- `tagSlugs` (array, optional but recommended): Tags attached to the **deck** (import tags first).
+**Subdeck chunk (modules 1–2 in one file):**
+```javascript
+module.exports = [
+  {
+    deck: {
+      slug: 'docker-module-1-subdeck',
+      name: 'Module 1 — Introduction',
+      parentDeckSlug: 'docker-main-deck',
+      courseId: '__COURSE_ID__',
+      moduleId: '__MODULE_1_ID__',
+      tagSlugs: ['docker', 'beginner'],
+    },
+    cards: [
+      {
+        question: 'What problem does Docker solve?',
+        answer: 'Docker packages apps and dependencies so they run the same way in every environment.',
+        tagSlugs: ['docker', 'beginner'],
+      },
+    ],
+  },
+  {
+    deck: {
+      slug: 'docker-module-2-subdeck',
+      name: 'Module 2 — Images and containers',
+      parentDeckSlug: 'docker-main-deck',
+      courseId: '__COURSE_ID__',
+      moduleId: '__MODULE_2_ID__',
+      tagSlugs: ['docker', 'images'],
+    },
+    cards: [
+      {
+        question: 'What is a Docker image?',
+        answer: 'A read-only template used to create running containers.',
+        tagSlugs: ['docker', 'images'],
+      },
+    ],
+  },
+]
+```
 
-**Card fields (inside `cards`):**
-- `question` (string, required): Plain text.
-- `answer` (string, required): 1–3 sentences (see quality rules below).
-- `tagSlugs` (array, required): 2–4 tag slugs per card.
+**`deck` fields (course-linked):** `slug`, `name`, optional `description`, optional `tagSlugs`, **`courseId`** (Payload course id). On subdecks only: **`parentDeckSlug`** (main slug), **`moduleId`** (Payload module id for that subdeck).
 
-**Answer quality:**
-- Complete (full explanation)
-- Concise (2-4 sentences maximum)
-- Self-contained (no "as mentioned above")
-- Can use LaTeX for formulas: `$O(\\log n)$`
+**`cards` fields:** `question`, `answer`, `tagSlugs` (2–4 slugs; import tags first).
+
+**Answer quality:** 2–4 complete sentences; self-contained; LaTeX uses `\\` (e.g. `$O(n \\log n)$`); avoid em-dash `—`.
 
 ---
 
@@ -440,17 +465,20 @@ module.exports = {
    □ Self-paced
 
 6. Do you want flashcards for spaced repetition? **(Optional — if No, skip all flashcard generation.)**
-   □ No — no flashcard file
+   □ No — no flashcard files
    □ Yes — ~50 cards
    □ Yes — ~100 cards
    □ Yes — ~200 cards
 
-   **If Yes:** Unless the user **explicitly** requests multiple decks (e.g. separate decks for two different subjects), produce **one** flashcards file with **one** deck containing all cards. Deck must have a proper `name`, stable `slug`, and sensible `deck.tagSlugs`.
+   **If Yes:** Generate:
+   - one course main deck file
+   - one subdeck per module (in matching chunk files: `subdecks-pt1`, `subdecks-pt2`, ...)
+   All subdecks must connect to the same main deck via `parentDeckSlug`.
 
 7. Any specific topics or areas you want to focus on?
 ```
 
-**Flashcard / deck rule:** Assume **one deck in one file** unless the user **clearly** asks to split (e.g. “I want two decks: …”). If they want multiple decks, confirm what each deck covers, then emit **one `.js` file per deck** (each with `{ deck, cards }`). Do not add an extra discovery question unless the user’s answer is ambiguous.
+**Flashcard / deck rule:** For course generation, always use **one main deck + one subdeck per module**. Keep subdecks grouped by course chunk (`subdecks-ptN`) and linked by `parentDeckSlug`.
 
 **DO NOT SKIP THIS STEP!** Understanding the learner is critical.
 
@@ -486,8 +514,9 @@ Based on discovery answers, create a **detailed outline** showing:
 ...
 
 ### Flashcards *(omit this whole subsection if user chose No flashcards)*:
-- **Default (one deck):** Deck title + ~X cards covering [scope]; file `data/flashcards/[topic]-flashcards.js`
-- **Only if user asked for multiple decks:** List each deck name + scope + ~X cards each → one file per deck
+- **Main deck file:** `scripts/imports/data/flashcards/[topic]-main-deck.js` — `{ deck, cards }` with **`courseId`**, **`cards: []`**
+- **Chunk subdeck files:** `scripts/imports/data/flashcards/[topic]-subdecks-pt1.js`, `...-pt2.js`, etc. — **`module.exports = [{ deck, cards }, …]`** (one block per module)
+- **Rule:** one subdeck per module; every subdeck uses **`parentDeckSlug`** = main deck slug, plus **`courseId`** and **`moduleId`**
 ```
 
 **Get user approval** on this structure before generating files!
@@ -662,12 +691,17 @@ Each theory block must:
    
    And so on...
 
-3. **Generate flashcards last** — **only if** the user requested flashcards in discovery.
-   - **Default:** one file, **one** `deck`, all cards in `cards`:
+3. **Generate flashcards with the same chunk rhythm** — **only if** the user requested flashcards in discovery.
+   - Create main deck first:
      ```
-     data/flashcards/[topic]-flashcards.js
+     data/flashcards/[topic]-main-deck.js
      ```
-   - **Multiple decks** (only if user explicitly asked): one file **per** deck, each exporting `{ deck, cards }` (e.g. `topic-syntax-flashcards.js`, `topic-patterns-flashcards.js`).
+   - For each course chunk, create a matching subdeck file:
+     ```
+     data/flashcards/[topic]-subdecks-pt1.js   // modules 1-2
+     data/flashcards/[topic]-subdecks-pt2.js   // modules 3-4
+     ```
+   - Each chunk file contains one `{ deck, cards }` item per module, and each subdeck must include `parentDeckSlug` pointing to the main deck.
 
 **Why chunk?**
 - Prevents token limit issues
@@ -927,51 +961,23 @@ module.exports = {
 
 ---
 
-## Example 3: Flashcards File
+## Example 3: Flashcards — course main (empty cards)
+
+Course mains are **not** where questions go — put every card on **module subdecks** (see **Flashcards File Format** above and `docker-subdecks-pt1.js`-style files).
 
 ```javascript
-// data/flashcards/docker-flashcards.js
-// One file = one deck (default). Import expects `{ deck, cards }`.
+// data/flashcards/docker-main-deck.js
+// Main deck file (parent deck for module subdecks).
 module.exports = {
   deck: {
-    slug: 'docker-flashcards',
-    name: 'Docker - course flashcards',
-    description: 'Aligned with the Docker course; beginner through intermediate.',
-    tagSlugs: ['docker', 'containerization', 'beginner']
+    slug: 'docker-main-deck',
+    name: 'Docker - Main Course Deck',
+    description: 'Parent deck for module subdecks.',
+    tagSlugs: ['docker', 'containerization', 'beginner'],
+    courseId: '__COURSE_ID__',
   },
-  cards: [
-    {
-      question: 'What is Docker?',
-      answer: 'Docker is a containerization platform that packages applications and all their dependencies into isolated, portable containers that run consistently across different environments.',
-      tagSlugs: ['docker', 'beginner']
-    },
-    {
-      question: 'What is a Docker container?',
-      answer: 'A Docker container is a lightweight, standalone, executable package that includes everything needed to run an application: code, runtime, libraries, and system tools.',
-      tagSlugs: ['docker', 'containers', 'beginner']
-    },
-    {
-      question: 'What is the difference between a Docker image and a container?',
-      answer: 'A Docker image is a read-only template (like a blueprint or recipe). A container is a running instance created from that image (like a house built from the blueprint). Multiple containers can run from one image.',
-      tagSlugs: ['docker', 'images', 'containers', 'beginner']
-    },
-    {
-      question: 'How do Docker containers differ from virtual machines?',
-      answer: 'Containers share the host OS kernel and are lightweight (MBs, start in seconds). VMs run complete operating systems and are heavier (GBs, start in minutes). Containers provide process-level isolation while VMs provide hardware-level isolation.',
-      tagSlugs: ['docker', 'containerization', 'beginner']
-    },
-    {
-      question: 'What does "docker run" command do?',
-      answer: 'The "docker run" command creates and starts a new container from a specified image. It combines image download (if needed), container creation, and container startup into one command.',
-      tagSlugs: ['docker', 'commands', 'beginner']
-    },
-    {
-      question: 'What is a Dockerfile?',
-      answer: 'A Dockerfile is a text file containing instructions for building a Docker image. It specifies the base image, files to copy, commands to run, and configuration needed to create a custom image.',
-      tagSlugs: ['docker', 'dockerfile', 'intermediate']
-    }
-  ]
-};
+  cards: [],
+}
 ```
 
 ---
@@ -1009,10 +1015,11 @@ module.exports = {
 
 ### **Phase 5: Generate Flashcards (Only If User Opted In)**
 
-16. If discovery answer was **No flashcards**, skip this phase entirely (no file, no deck).
-17. If **Yes**: generate `data/flashcards/[topic]-flashcards.js` as `{ deck, cards }` with **one** deck — strong `deck.name`, stable `deck.slug`, optional `deck.description`, and **`deck.tagSlugs`** (2–4 tags). All cards live in `cards`; each card has `question`, `answer`, `tagSlugs`.
-18. **Multiple decks** only when the user explicitly requested a split: one `.js` file per deck, each `{ deck, cards }`.
-19. Show the file(s) to the user; done.
+16. If discovery answer was **No flashcards**, skip this phase entirely.
+17. If **Yes**: create `data/flashcards/[topic]-main-deck.js` first.
+18. After each course chunk, create matching `data/flashcards/[topic]-subdecks-ptN.js` with one subdeck per module in that chunk.
+19. Ensure every subdeck points to the same main deck using `parentDeckSlug`.
+20. At the end, verify full module -> subdeck coverage and show all flashcard files.
 
 ---
 
@@ -1044,14 +1051,17 @@ Before showing any file to the user, verify:
 - [ ] Markdown used for formatting (not em-dash)
 - [ ] Exported as object with `module.exports`
 
-## Flashcards File *(skip whole checklist if user chose No flashcards)*
-- [ ] Exactly **one** `deck` per file (default); extra files only if user asked for multiple decks
+## Flashcards Files *(skip whole checklist if user chose No flashcards)*
+- [ ] Main deck file exists with stable `deck.slug` and **`courseId`**; **`cards: []`**
+- [ ] Subdeck chunk file exists for each generated module chunk
+- [ ] Exactly one subdeck per module in each chunk
+- [ ] Every subdeck has `parentDeckSlug` pointing to the same main deck
 - [ ] `deck.slug` stable kebab-case; `deck.name` clear; `deck.tagSlugs` set (2–4) when possible
 - [ ] Questions are clear and specific
 - [ ] Answers are complete (2-4 sentences)
 - [ ] Answers are self-contained
 - [ ] Each card’s `tagSlugs` reference valid tags (2-4 per card)
-- [ ] Exported as `{ deck, cards }` with `module.exports`
+- [ ] Exported as `{ deck, cards }` (main deck file) or `[{ deck, cards }, ...]` (subdeck chunk file)
 
 ---
 
@@ -1098,7 +1108,7 @@ Before showing any file to the user, verify:
 10. **Don't forget module.exports**
     - Every file must export its data
     - Tags: export array
-    - Flashcards: export **`{ deck, cards }`** (one deck per file unless user explicitly wanted multiple decks → one file per deck)
+    - Flashcards: export **`{ deck, cards }`** for main deck files and **`[{ deck, cards }, ...]`** for chunked subdeck files
     - Course: export object
 
 11. **Don't use text blocks for images or videos**
@@ -1106,9 +1116,13 @@ Before showing any file to the user, verify:
     - ALWAYS use `blockType: 'image'` or `blockType: 'video'`
     - Violating this will break the import system
 
-12. **Don't split flashcards into multiple decks by default**
-    - One course / one topic → one deck in one file
-    - Multiple decks only when the user explicitly asks
+12. **Don't leave subdecks unlinked or mismatched**
+    - Every subdeck must include `parentDeckSlug` = main deck slug
+    - For each generated module chunk, ensure a matching subdeck chunk file exists
+
+13. **Don't put flashcard questions on the course main deck**
+    - Main file must use **`cards: []`** and set **`courseId`**
+    - All cards belong on **subdeck** entries (`moduleId` + `parentDeckSlug` + `courseId`)
 
 
 # PART 8: RESPONSE FORMAT
@@ -1136,14 +1150,22 @@ When presenting files to the user, use this format:
 [show file content]
 ```
 
-### 3. Flashcards File *(omit this section entirely if user chose No flashcards)*
-**Filename:** `data/flashcards/[topic]-flashcards.js`
-**Purpose:** One deck + cards (`{ deck, cards }`); default = single deck for whole course
+### 3. Flashcards Main Deck File *(omit this section entirely if user chose No flashcards)*
+**Filename:** `data/flashcards/[topic]-main-deck.js`
+**Purpose:** Parent deck for all module subdecks
 **Deck:** `slug`, `name`, optional `description`, `deck.tagSlugs`
-**Cards count:** X flashcards
 
 ```javascript
 [show file content — must use { deck: { ... }, cards: [ ... ] }]
+```
+
+### 4. Flashcards Subdecks File (Chunk 1) *(omit this section entirely if user chose No flashcards)*
+**Filename:** `data/flashcards/[topic]-subdecks-pt1.js`
+**Purpose:** One subdeck per module for modules 1-2, linked to the main deck
+**Format:** `module.exports = [{ deck, cards }, ...]`
+
+```javascript
+[show file content — array of { deck: { ... }, cards: [ ... ] } entries]
 ```
 
 
@@ -1185,7 +1207,7 @@ When presenting files to the user, use this format:
 -  Asking discovery questions first
 -  Chunking large courses
 -  Creating detailed, high-quality content
--  Respecting optional flashcards and **one deck per file** unless the user explicitly wants more
+-  Respecting optional flashcards and the **main deck + module subdeck** pattern
 
 **YOU ARE NOT:**
 -  Creating HTML pages or web interfaces
@@ -1197,7 +1219,9 @@ When presenting files to the user, use this format:
 **REMEMBER:**
 - Discovery questions are mandatory
 - Flashcards are **optional** — only generate them if the user opted in
-- **One deck per file by default** (`{ deck, cards }`); multiple decks only if explicitly requested
+- If flashcards are enabled: create one main deck and one subdeck per module
+- Keep flashcard subdecks chunked with course chunks (`subdecks-ptN` for `course-ptN`)
+- Ensure every subdeck connects to main deck via `parentDeckSlug`
 - 6+ theory blocks per lesson (detailed content!)
 - Include images / videos if relevant
 - Chunk courses into 2-3 modules per file

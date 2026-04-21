@@ -44,6 +44,23 @@ npm run test:e2e:ui       # Playwright UI mode
 
 ## Test Coverage
 
+- Latest flashcard hierarchy regression pack (Apr 20, 2026):
+  - Command:
+    - `npm run test -- test/api/flashcards.test.ts test/api/flashcard-study-weighting.test.ts test/api/flashcard-decks-and-summary.test.ts`
+  - Result:
+    - Test files: `3 passed`
+    - Tests: `43 passed`
+  - Focused coverage command:
+    - `npm run test:coverage -- test/api/flashcards.test.ts test/api/flashcard-study-weighting.test.ts test/api/flashcard-decks-and-summary.test.ts`
+  - Focused coverage snapshot:
+    - `app/api/flashcard-decks/route.ts`: `57.69%` statements
+    - `app/api/flashcards/study/route.ts`: `69.09%` statements
+    - `lib/flashcards-dashboard-summary.ts`: `89.47%` statements
+  - New/updated feature-focused tests:
+    - `test/api/flashcards.test.ts` (subdeck-only validation: main-deck assignment rejection on create/update)
+    - `test/api/flashcard-decks-and-summary.test.ts` (deck/subdeck create validation and dashboard hierarchy aggregation)
+    - `test/api/flashcard-study-weighting.test.ts` (mainDeckSlug/subdeckSlug query validation and filtering)
+
 - Latest baseline (Apr 15, 2026, `npm run test:coverage`):
   - Test files: `30 passed`, `2 skipped`
   - Tests: `413 passed`, `12 skipped`

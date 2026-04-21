@@ -24,6 +24,7 @@ A production-ready exam preparation and course management platform built on Next
 | Task engine | Multiple Choice, True/False, Open-Ended with optional auto-grading |
 | Adaptive learning | Tag-based weakness scoring surfaces personalized practice tasks |
 | Spaced repetition | Full SM-2 algorithm - NEW / LEARNING / REVIEW / RELEARNING / MASTERED states |
+| Flashcards (SRS) | Student **deck tree** (`/dashboard/flashcards`), **Discover decks** browse + library enroll (`/dashboard/flashcards/browse`), SM-2 study sessions; **standalone** decks require enrollment before study  |
 | Audit trail | Persistent activity log for every admin action, viewable and filterable in the panel |
 | Media | S3-compatible object storage with signed URL delivery and usage tracking |
 | Security | JWT revocation, rate limiting, per-request CSP nonces, Zod validation throughout |
@@ -42,7 +43,7 @@ The sidebar (see `LearningPlatform/components/admin/sidebar.tsx`) includes:
 - **Subjects** — top-level taxonomy
 - **Tags** — canonical tags for tasks and flashcards (recommendations)
 - **Tasks** — assessments with prompts, solutions, points, and tags
-- **Flashcards** — SRS cards (deck organization is supported in the product; see `/api/flashcard-decks`)
+- **Flashcards** — SRS cards; **course-linked** decks (one main deck per course + **subdecks** per module) and **standalone** decks (collections not tied to a course, with optional subdecks). Managed in-app at `/admin/flashcards` (see [Spaced Repetition Flashcards](#spaced-repetition-flashcards)); APIs under `/api/flashcards` and `/api/flashcard-decks`.
 - **Media** — uploads and library management
 - **AI Agent** — experimental course generation workspace
 - **Logs** — audit trail (see [Activity Log](#activity-log--audit-trail))
@@ -152,6 +153,15 @@ When reviewing a card the student chooses one of four answers - **Again**, **Har
 
 Cards are linked to **tags**, so the SRS session can be filtered to a particular topic.
 
+### Deck organisation (admin)
+
+Flashcards are stored on **`FlashcardDeck`** rows (see Prisma `FlashcardDeck`). The admin **Flashcards** area (`/admin/flashcards`) supports:
+
+- **Course-linked hierarchy** — One **main** deck per course (`courseId` set, no parent). **Subdecks** belong to that main (`parentDeckId`), typically aligned to **course modules** via `moduleId`. Cards for course material should live on **subdecks**; the course main deck is a container, not where new cards are assigned.
+- **Standalone collections** — Decks with **no** `courseId` are independent of the curriculum. The standalone **main** deck can hold cards directly (“direct” cards) and/or use **subdecks** for named splits (e.g. interview prep by topic).
+
+Study and list APIs can filter by deck slug, subdeck, or whole main tree; see `GET /api/flashcards/study` and admin list filters.
+
 ---
 
 ## Activity Log & Audit Trail
@@ -191,6 +201,7 @@ Canonical index (same structure as the repo): **[`LearningPlatform/documentation
 
 ### Product and learning features
 
+- **[`changelog/2026-04-20-flashcards.md`](LearningPlatform/documentation/changelog/2026-04-20-flashcards.md)** — Dated engineering log: flashcards student catalog, standalone enrollment, study access, migrations.
 - **[`PLATFORM_FEATURES.md`](LearningPlatform/documentation/PLATFORM_FEATURES.md)** — Admin capabilities, draft/publish workflow, lesson blocks, task types, media behavior.
 - **[`ADAPTIVE_LEARNING.md`](LearningPlatform/documentation/ADAPTIVE_LEARNING.md)** — Recommendations, weak-tag analytics, practice sessions, spaced repetition.
 - **[`AI_COURSE_GENERATION.md`](LearningPlatform/documentation/AI_COURSE_GENERATION.md)** — Admin AI Agent flow, providers, testing notes, cost guidance.

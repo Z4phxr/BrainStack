@@ -1,28 +1,105 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
-import { X, ImageIcon, Plus, Loader2 } from 'lucide-react'
+import { X, ImageIcon, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { MediaPicker } from './media-picker'
+import { AdminFlashcardTagPicker } from './admin-flashcard-tag-picker'
 import { cn } from '@/lib/utils'
-import { adminGlassOutlineButton, adminGlassSheet, studentGlassPill } from '@/lib/student-glass-styles'
+import { adminGlassOutlineButton, adminGlassSheet } from '@/lib/student-glass-styles'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Tag {
-  id: string
-  name: string
-  slug: string
-}
 
 interface FlashcardDeckRow {
   id: string
   name: string
   slug: string
+  courseId?: string | null
+  moduleId?: string | null
+  parentDeckId?: string | null
+  parentDeck?: { id: string; name: string; slug: string } | null
+}
+
+interface CourseHierarchy {
+  id: string
+  title: string
+  modules: Array<{ id: string; title: string; order?: number }>
+}
+
+/** Middle-dot segments: Subdeck · module (or deck name) · course title. */
+const DECK_OPTION_LABEL_SEP = ' · '
+
+/** Decks shown in the create/edit target dropdown (create + browse filters + lock). */
+function filterEligibleFlashcardDecks(
+  list: FlashcardDeckRow[],
+  opts: {
+    isEditMode: boolean
+    initialDeckId?: string
+    editDeckId?: string
+    restrictToParentMainDeckId?: string | null
+    lockDeckSelection?: boolean
+  },
+): FlashcardDeckRow[] {
+  const { isEditMode, initialDeckId, editDeckId, restrictToParentMainDeckId, lockDeckSelection } = opts
+
+  let pool = list
+
+  if (!isEditMode && restrictToParentMainDeckId) {
+    const main = list.find((d) => d.id === restrictToParentMainDeckId)
+    if (!main) {
+      pool = []
+    } else {
+      const isStandaloneMain = !main.courseId || String(main.courseId).trim() === ''
+      pool = list.filter((deck) => {
+        if (deck.parentDeckId === restrictToParentMainDeckId) return true
+        if (isStandaloneMain && deck.id === restrictToParentMainDeckId) return true
+        return false
+      })
+    }
+  }
+
+  pool = pool.filter((deck) => {
+    if (deck.parentDeckId) return true
+    const standaloneMain = !deck.courseId || String(deck.courseId).trim() === ''
+    if (standaloneMain) return true
+    return deck.id === editDeckId || deck.id === initialDeckId
+  })
+
+  const lockId = initialDeckId ?? editDeckId
+  if (lockDeckSelection && lockId) {
+    const inPool = pool.find((d) => d.id === lockId)
+    if (inPool) return [inPool]
+    const inList = list.find((d) => d.id === lockId)
+    return inList ? [inList] : pool
+  }
+
+  return pool
+}
+
+function formatFlashcardDeckOptionLabel(
+  d: FlashcardDeckRow,
+  courseById: Record<string, string>,
+  moduleById: Record<string, string>,
+): string {
+  const courseTitle = (d.courseId && courseById[d.courseId]) || ''
+  if (d.parentDeckId) {
+    const moduleTitle = d.moduleId ? moduleById[d.moduleId] : ''
+    const displayName = moduleTitle || d.name
+    const parts = ['Subdeck', displayName]
+    if (courseTitle) parts.push(courseTitle)
+    return parts.join(DECK_OPTION_LABEL_SEP)
+  }
+  const standaloneMain = !d.courseId || String(d.courseId).trim() === ''
+  if (standaloneMain) {
+    return `Standalone main · ${d.name}`
+  }
+  const parts = ['Main deck', d.name]
+  if (courseTitle) parts.push(courseTitle)
+  return parts.join(DECK_OPTION_LABEL_SEP)
 }
 
 export interface FlashcardInitialData {
@@ -43,6 +120,15 @@ interface FlashcardDialogProps {
   onSaved?: () => void
   /** Omit for create mode, supply for edit mode. */
   initialData?: FlashcardInitialData
+  /** Optional deck preselection for contextual create flows. */
+  initialDeckId?: string
+  /** When true, deck selection is locked to initial deck. */
+  lockDeckSelection?: boolean
+  /**
+   * Create mode only: limit the deck dropdown to this main deck’s subdecks, or — for a standalone
+   * main — that main plus its subdecks.
+   */
+  restrictToParentMainDeckId?: string
 }
 
 // keep old prop shape working
@@ -139,8 +225,17 @@ function ImageField({ imageId, imageUrl, label, onClear, onOpen }: ImageFieldPro
 
 // ─── FlashcardDialog (create + edit) ─────────────────────────────────────────
 
-export function FlashcardDialog({ open, onClose, onSaved, initialData }: FlashcardDialogProps) {
+export function FlashcardDialog({
+  open,
+  onClose,
+  onSaved,
+  initialData,
+  initialDeckId,
+  lockDeckSelection = false,
+  restrictToParentMainDeckId: restrictToParentMainDeckIdProp,
+}: FlashcardDialogProps) {
   const isEditMode = Boolean(initialData?.id)
+  const restrictToParentMainDeckId = isEditMode ? undefined : restrictToParentMainDeckIdProp
 
   // ── Form fields ──────────────────────────────────────────────────────────────
   const [question, setQuestion] = useState('')
@@ -159,13 +254,11 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
   const [decks, setDecks] = useState<FlashcardDeckRow[]>([])
   const [deckId, setDeckId] = useState<string>('')
   const [decksLoading, setDecksLoading] = useState(false)
+  const [courseById, setCourseById] = useState<Record<string, string>>({})
+  const [moduleById, setModuleById] = useState<Record<string, string>>({})
 
-  // ── Tags ─────────────────────────────────────────────────────────────────────
-  const [availableTags, setAvailableTags] = useState<Tag[]>([])
+  // ── Tags (shared picker) ─────────────────────────────────────────────────────
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
-  const [newTagName, setNewTagName] = useState('')
-  const [tagsLoading, setTagsLoading] = useState(false)
-  const [creatingTag, setCreatingTag] = useState(false)
 
   // ── Submission ───────────────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false)
@@ -187,30 +280,46 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
     setError('')
     setFieldErrors({})
 
-    setTagsLoading(true)
     setDecksLoading(true)
     Promise.all([
-      fetch('/api/tags').then((r) => r.json()),
       fetch('/api/flashcard-decks').then((r) => r.json()),
+      fetch('/api/admin/courses-hierarchy').then((r) => r.json()),
     ])
-      .then(([tagData, deckData]) => {
-        setAvailableTags(tagData.tags ?? [])
+      .then(([deckData, hierarchyData]) => {
         const list: FlashcardDeckRow[] = deckData.decks ?? []
         setDecks(list)
-        const preferred = initialData?.deckId
+        const courses: CourseHierarchy[] = hierarchyData.courses ?? []
+        const nextCourseById: Record<string, string> = {}
+        const nextModuleById: Record<string, string> = {}
+        for (const course of courses) {
+          nextCourseById[course.id] = course.title
+          for (const mod of course.modules ?? []) {
+            nextModuleById[mod.id] = mod.title
+          }
+        }
+        setCourseById(nextCourseById)
+        setModuleById(nextModuleById)
+        const eligible = filterEligibleFlashcardDecks(list, {
+          isEditMode: Boolean(initialData?.id),
+          initialDeckId,
+          editDeckId: initialData?.deckId,
+          restrictToParentMainDeckId: restrictToParentMainDeckId ?? null,
+          lockDeckSelection,
+        })
+        const preferred = initialDeckId ?? initialData?.deckId
         const resolved =
-          preferred && list.some((d) => d.id === preferred)
+          preferred && eligible.some((d) => d.id === preferred)
             ? preferred
-            : list[0]?.id ?? ''
+            : eligible[0]?.id ?? ''
         setDeckId(resolved)
       })
       .catch(() => {
-        setAvailableTags([])
         setDecks([])
         setDeckId('')
+        setCourseById({})
+        setModuleById({})
       })
       .finally(() => {
-        setTagsLoading(false)
         setDecksLoading(false)
       })
 
@@ -233,40 +342,24 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
         .catch(() => {})
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [open, initialDeckId, initialData?.deckId, restrictToParentMainDeckId, lockDeckSelection])
+
+  const eligibleDecks = useMemo(
+    () =>
+      filterEligibleFlashcardDecks(decks, {
+        isEditMode: Boolean(initialData?.id),
+        initialDeckId,
+        editDeckId: initialData?.deckId,
+        restrictToParentMainDeckId: restrictToParentMainDeckId ?? null,
+        lockDeckSelection,
+      }),
+    [decks, initialData?.id, initialData?.deckId, initialDeckId, restrictToParentMainDeckId, lockDeckSelection],
+  )
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   function handleClose() {
     onClose()
-  }
-
-  function toggleTag(id: string) {
-    setSelectedTagIds((prev) => prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id])
-  }
-
-  async function handleCreateTag() {
-    const name = newTagName.trim()
-    if (!name) return
-    setCreatingTag(true)
-    try {
-      const res = await fetch('/api/tags', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      })
-      if (res.ok) {
-        const { tag } = await res.json()
-        setAvailableTags((prev) => [...prev, tag].sort((a, b) => a.name.localeCompare(b.name)))
-        setSelectedTagIds((prev) => [...prev, tag.id])
-        setNewTagName('')
-      } else {
-        const data = await res.json()
-        setError(data.error ?? 'Failed to create tag')
-      }
-    } finally {
-      setCreatingTag(false)
-    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -319,6 +412,19 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
   const formId = isEditMode ? 'edit-flashcard-form' : 'add-flashcard-form'
   const titleText = isEditMode ? 'Edit Flashcard' : 'Add Flashcard'
   const saveLabel = isEditMode ? 'Save changes' : 'Save Flashcard'
+
+  const sortedDecks = [...eligibleDecks].sort((a, b) => {
+    const aCourse = (a.courseId ? courseById[a.courseId] : '') || ''
+    const bCourse = (b.courseId ? courseById[b.courseId] : '') || ''
+    if (aCourse !== bCourse) return aCourse.localeCompare(bCourse)
+    if (a.parentDeckId === null && b.parentDeckId !== null) return -1
+    if (a.parentDeckId !== null && b.parentDeckId === null) return 1
+    const aSortName =
+      a.parentDeckId && a.moduleId && moduleById[a.moduleId] ? moduleById[a.moduleId]! : a.name
+    const bSortName =
+      b.parentDeckId && b.moduleId && moduleById[b.moduleId] ? moduleById[b.moduleId]! : b.name
+    return aSortName.localeCompare(bSortName)
+  })
 
   return (
     <>
@@ -438,15 +544,21 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
                 id="flashcard-deck"
                 value={deckId}
                 onChange={(e) => setDeckId(e.target.value)}
+                disabled={lockDeckSelection}
                 required
                 className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:border-gray-700 dark:bg-gray-900"
               >
-                {decks.map((d) => (
+                {sortedDecks.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.name}
+                    {formatFlashcardDeckOptionLabel(d, courseById, moduleById)}
                   </option>
                 ))}
               </select>
+            )}
+            {!decksLoading && sortedDecks.length === 0 && (
+              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                No subdecks or standalone main decks yet. Create a subdeck or a standalone collection first.
+              </p>
             )}
             {fieldErrors.deckId && (
               <p className="mt-1 text-xs text-red-500">{fieldErrors.deckId[0]}</p>
@@ -475,60 +587,16 @@ export function FlashcardDialog({ open, onClose, onSaved, initialData }: Flashca
           )}
 
           {/* ── Tags ── */}
-          <section>
-            <Label className="mb-2 block font-medium">Tags</Label>
-
-            {tagsLoading ? (
-              <p className="text-sm text-gray-400">Loading tags…</p>
-            ) : availableTags.length === 0 ? (
-              <p className="text-sm text-gray-400">No tags yet — create one below.</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {availableTags.map((tag) => {
-                  const selected = selectedTagIds.includes(tag.id)
-                  return (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      onClick={() => toggleTag(tag.id)}
-                      className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                    >
-                      <span
-                        className={cn(
-                          studentGlassPill,
-                          'cursor-pointer select-none normal-case tracking-tight',
-                          selected && 'ring-2 ring-primary/35',
-                        )}
-                      >
-                        {tag.name}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Create new tag inline */}
-            <div className="mt-3 flex items-center gap-2">
-              <Input
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateTag() } }}
-                placeholder="New tag name…"
-                className="h-8 text-sm"
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className={cn(adminGlassOutlineButton)}
-                disabled={!newTagName.trim() || creatingTag}
-                onClick={handleCreateTag}
-              >
-                {creatingTag ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-              </Button>
-            </div>
-          </section>
+          <AdminFlashcardTagPicker
+            active={open}
+            value={selectedTagIds}
+            onChange={setSelectedTagIds}
+            disabled={submitting}
+            quickPickMode={isEditMode ? 'all' : 'popular'}
+            layout="dialog"
+            searchInputId="flashcard-tag-search"
+            onTagError={(msg) => setError(msg)}
+          />
         </form>
 
         {/* Footer */}

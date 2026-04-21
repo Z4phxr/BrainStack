@@ -70,11 +70,22 @@ async function seed() {
     
     logger.debug('Payload tables exist')
   } catch (error) {
-    logger.warning('Cannot check Payload tables', String(error))
-    await pool.end()
-    process.exit(0)
+    logger.error(
+      'Cannot reach Postgres or inspect Payload tables. Start the database (e.g. Docker Desktop + `docker compose up -d postgres`) and ensure DATABASE_URL matches your host/port.',
+      String(error),
+    )
+    try {
+      await pool.end()
+    } catch {
+      /* ignore */
+    }
+    process.exit(1)
   } finally {
-    await pool.end()
+    try {
+      await pool.end()
+    } catch {
+      /* ignore */
+    }
   }
 
   const payload = await getPayload({ config })
@@ -113,14 +124,18 @@ async function seed() {
       const authResult = await authPool.query(
         `INSERT INTO public."User" (id, email, name, "passwordHash", role, "createdAt", "updatedAt")
          VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-         ON CONFLICT (email) DO NOTHING
+         ON CONFLICT (email) DO UPDATE SET
+           "passwordHash" = EXCLUDED."passwordHash",
+           role = EXCLUDED.role,
+           name = COALESCE(EXCLUDED.name, public."User".name),
+           "updatedAt" = NOW()
          RETURNING id, email, role`,
         ['admin-001', adminEmail, 'Admin User', passwordHash, 'ADMIN']
       )
       if (authResult.rows.length > 0) {
-        logger.success('Admin user for NextAuth ready')
+        logger.success('Admin user for NextAuth ready (created or password synced from SEED_ADMIN_PASSWORD)')
       } else {
-        logger.info('Admin NextAuth user already exists (ON CONFLICT DO NOTHING hit)')
+        logger.info('Admin NextAuth upsert returned no row (unexpected)')
       }
     } catch (error) {
       // Log the real error clearly so it's visible in Railway logs

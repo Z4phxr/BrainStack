@@ -42,7 +42,7 @@ function needsFlashcardUpdate(existing, answer, desiredTagIds) {
  * Create or update deck metadata by slug (idempotent).
  *
  * @param {import('@prisma/client').PrismaClient} prisma
- * @param {{ slug: string, name?: string, description?: string | null, tagSlugs?: string[] }} spec
+ * @param {{ slug: string, name?: string, description?: string | null, tagSlugs?: string[], courseId?: string | null, moduleId?: string | null, parentDeckSlug?: string | null, subjectId?: string | null }} spec
  */
 async function upsertFlashcardDeck(prisma, spec, { dryRun }) {
   const slug = typeof spec.slug === 'string' && spec.slug.trim() ? spec.slug.trim() : null
@@ -54,6 +54,24 @@ async function upsertFlashcardDeck(prisma, spec, { dryRun }) {
     spec.description == null || spec.description === '' ? null : String(spec.description)
   const tagSlugs = Array.isArray(spec.tagSlugs) ? spec.tagSlugs : []
   const desiredTagIds = await getTagIdsBySlug(prisma, tagSlugs)
+  const courseId = typeof spec.courseId === 'string' && spec.courseId.trim() ? spec.courseId.trim() : null
+  const moduleId = typeof spec.moduleId === 'string' && spec.moduleId.trim() ? spec.moduleId.trim() : null
+  const subjectId =
+    typeof spec.subjectId === 'string' && spec.subjectId.trim() ? spec.subjectId.trim() : null
+  const parentDeckSlug =
+    typeof spec.parentDeckSlug === 'string' && spec.parentDeckSlug.trim() ? spec.parentDeckSlug.trim() : null
+  let parentDeckId = null
+
+  if (parentDeckSlug) {
+    const parent = await prisma.flashcardDeck.findUnique({
+      where: { slug: parentDeckSlug },
+      select: { id: true },
+    })
+    if (!parent) {
+      throw new Error(`Parent deck slug not found: ${parentDeckSlug}`)
+    }
+    parentDeckId = parent.id
+  }
 
   const existing = await prisma.flashcardDeck.findUnique({
     where: { slug },
@@ -72,6 +90,10 @@ async function upsertFlashcardDeck(prisma, spec, { dryRun }) {
         slug,
         name,
         description,
+        subjectId,
+        courseId,
+        moduleId,
+        parentDeckId,
         tags: { connect: desiredTagIds.map((id) => ({ id })) },
       },
     })
@@ -84,6 +106,10 @@ async function upsertFlashcardDeck(prisma, spec, { dryRun }) {
     data: {
       name,
       description,
+      subjectId,
+      courseId,
+      moduleId,
+      parentDeckId,
       tags: { set: desiredTagIds.map((id) => ({ id })) },
     },
   })

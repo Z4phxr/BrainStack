@@ -14,11 +14,70 @@ const { importFlashcardsFromList, upsertFlashcardDeck } = require('../helpers/fl
 const APP_ROOT = path.join(__dirname, '../../..')
 const DATA_DIRS = getImportDataDirs(APP_ROOT, 'flashcards')
 
+/**
+ * @param {Record<string, unknown>} deck
+ * @param {string} fallbackSlug when `deck.slug` is missing
+ */
+function deckSpecFromDeckObject(deck, fallbackSlug) {
+  const slug =
+    typeof deck.slug === 'string' && deck.slug.trim() ? deck.slug.trim() : fallbackSlug
+  const name =
+    typeof deck.name === 'string' && deck.name.trim() ? deck.name.trim() : deckTitleFromSlug(slug)
+  const courseId =
+    typeof deck.courseId === 'string' && deck.courseId.trim() ? deck.courseId.trim() : null
+  const moduleId =
+    typeof deck.moduleId === 'string' && deck.moduleId.trim() ? deck.moduleId.trim() : null
+  const parentDeckSlug =
+    typeof deck.parentDeckSlug === 'string' && deck.parentDeckSlug.trim()
+      ? deck.parentDeckSlug.trim()
+      : null
+  const subjectId =
+    typeof deck.subjectId === 'string' && deck.subjectId.trim() ? deck.subjectId.trim() : null
+  return {
+    slug,
+    name,
+    description: deck.description,
+    tagSlugs: deck.tagSlugs,
+    courseId,
+    moduleId,
+    parentDeckSlug,
+    subjectId,
+  }
+}
+
+/**
+ * @returns {{ kind: 'single', deckSpec: object, cards: unknown[] } | { kind: 'multi', entries: { deckSpec: object, cards: unknown[] }[] } | null}
+ */
 function normalizeFlashcardExport(exported, filePath) {
   const baseSlug = slugifyDeckBasename(path.basename(filePath, '.js'))
 
   if (Array.isArray(exported)) {
+    const first = exported[0]
+    const isMultiDeckChunk =
+      exported.length > 0 &&
+      first &&
+      typeof first === 'object' &&
+      first.deck &&
+      typeof first.deck === 'object' &&
+      Array.isArray(first.cards)
+
+    if (isMultiDeckChunk) {
+      const entries = exported.map((entry, idx) => {
+        if (!entry || typeof entry !== 'object' || !Array.isArray(entry.cards)) {
+          throw new Error(`Entry ${idx + 1}: expected { deck, cards } with cards array`)
+        }
+        const deck = entry.deck && typeof entry.deck === 'object' ? entry.deck : {}
+        const fallbackSlug = `${baseSlug}-m${idx + 1}`
+        return {
+          deckSpec: deckSpecFromDeckObject(deck, fallbackSlug),
+          cards: entry.cards,
+        }
+      })
+      return { kind: 'multi', entries }
+    }
+
     return {
+      kind: 'single',
       deckSpec: { slug: baseSlug, name: deckTitleFromSlug(baseSlug) },
       cards: exported,
     }
@@ -26,17 +85,9 @@ function normalizeFlashcardExport(exported, filePath) {
 
   if (exported && typeof exported === 'object' && Array.isArray(exported.cards)) {
     const deck = exported.deck && typeof exported.deck === 'object' ? exported.deck : {}
-    const slug =
-      typeof deck.slug === 'string' && deck.slug.trim() ? deck.slug.trim() : baseSlug
-    const name =
-      typeof deck.name === 'string' && deck.name.trim() ? deck.name.trim() : deckTitleFromSlug(slug)
     return {
-      deckSpec: {
-        slug,
-        name,
-        description: deck.description,
-        tagSlugs: deck.tagSlugs,
-      },
+      kind: 'single',
+      deckSpec: deckSpecFromDeckObject(deck, baseSlug),
       cards: exported.cards,
     }
   }
@@ -80,29 +131,37 @@ async function run() {
 
       if (!normalized) {
         console.error(
-          `[ERROR] ${path.basename(filePath)} must export an array of cards or { deck?, cards: [...] }`,
+          `[ERROR] ${path.basename(filePath)} must export an array of cards, { deck?, cards: [...] }, or an array of { deck, cards } (chunked subdecks)`,
         )
         hadError = true
         continue
       }
 
-      const { deckSpec, cards } = normalized
+      const batches =
+        normalized.kind === 'multi'
+          ? normalized.entries.map((e, i) => ({ label: `#${i + 1}`, ...e }))
+          : [{ label: '', deckSpec: normalized.deckSpec, cards: normalized.cards }]
 
-      try {
-        const { id: deckId } = await upsertFlashcardDeck(prisma, deckSpec, { dryRun: opts.dryRun })
-        const result = await importFlashcardsFromList(prisma, cards, { dryRun: opts.dryRun, deckId })
-        if (result.errors.length > 0) {
+      for (const batch of batches) {
+        const { deckSpec, cards, label } = batch
+        try {
+          const prefix = label ? `[${label}] ` : ''
+          const { id: deckId } = await upsertFlashcardDeck(prisma, deckSpec, { dryRun: opts.dryRun })
+          const result = await importFlashcardsFromList(prisma, cards, { dryRun: opts.dryRun, deckId })
+          if (result.errors.length > 0) {
+            hadError = true
+          }
+          console.log(`${prefix}[INFO] Flashcards batch summary:`, {
+            deck: deckSpec.slug,
+            created: result.created,
+            updated: result.updated,
+            skipped: result.skipped,
+            errors: result.errors.length,
+          })
+        } catch (err) {
+          console.error(`[ERROR] ${path.basename(filePath)}${label ? ` ${label}` : ''}: ${err.message || err}`)
           hadError = true
         }
-        console.log('[INFO] Flashcards batch summary:', {
-          created: result.created,
-          updated: result.updated,
-          skipped: result.skipped,
-          errors: result.errors.length,
-        })
-      } catch (err) {
-        console.error(`[ERROR] ${path.basename(filePath)}: ${err.message || err}`)
-        hadError = true
       }
     }
 
