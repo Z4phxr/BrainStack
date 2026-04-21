@@ -217,7 +217,12 @@ describe('GET /api/flashcards/study — weak-tag weighting', () => {
 
   it('filters by mainDeckSlug across parent and child decks', async () => {
     userSession()
-    mockPrisma.flashcardDeck.findUnique.mockResolvedValue({ id: 'd-main', parentDeckId: null } as any)
+    // Course-linked main: non-empty courseId so study access is allowed without standalone enrollment.
+    mockPrisma.flashcardDeck.findUnique.mockResolvedValue({
+      id: 'd-main',
+      parentDeckId: null,
+      courseId: 'payload-course-1',
+    } as any)
     mockPrisma.flashcard.findMany.mockResolvedValue([] as any)
 
     const res = await GET(get('http://localhost/api/flashcards/study?mainDeckSlug=course-main'))
