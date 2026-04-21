@@ -31,7 +31,7 @@ export default async function StudentLayout({
       <div className="student-app-shell-bg" aria-hidden />
       <div className="student-app-shell">
         <Navbar />
-        <main className="text-base leading-relaxed">{children}</main>
+        <main className="pt-[4.5rem] text-base leading-relaxed sm:pt-[4.75rem]">{children}</main>
       </div>
     </div>
   )
