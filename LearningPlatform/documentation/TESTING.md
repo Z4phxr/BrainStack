@@ -61,13 +61,13 @@ npm run test:e2e:ui       # Playwright UI mode
     - `test/api/flashcard-decks-and-summary.test.ts` (deck/subdeck create validation and dashboard hierarchy aggregation)
     - `test/api/flashcard-study-weighting.test.ts` (mainDeckSlug/subdeckSlug query validation and filtering)
 
-- Latest baseline (Apr 15, 2026, `npm run test:coverage`):
-  - Test files: `30 passed`, `2 skipped`
-  - Tests: `413 passed`, `12 skipped`
-  - Statements: `75.14%`
-  - Branches: `58.88%`
-  - Functions: `80%`
-  - Lines: `76.9%`
+- Latest baseline (Apr 22, 2026, `npm run test:coverage`):
+  - Test files: `38 passed`, `2 skipped`
+  - Tests: `476 passed`, `12 skipped`
+  - Statements: `68.97%`
+  - Branches: `56.16%`
+  - Functions: `67.7%`
+  - Lines: `70.76%`
 - **Task attempt event log** (append-only `task_attempts` / recommendations / practice):
   - `test/unit/analytics.test.ts` — `getUserTagStats` / `getUserWeakTags` from `TaskAttempt` + `TaskAttemptTag`
   - `test/actions/progress.test.ts` — `submitTaskAnswer` writes attempts, tag joins, best-effort failure path, cache invalidation, no-tag tasks

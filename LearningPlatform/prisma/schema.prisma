@@ -23,9 +23,130 @@ model User {
   taskAttempts      TaskAttempt[]
   flashcardProgress                  UserFlashcardProgress[]
   standaloneFlashcardDeckEnrollments UserStandaloneFlashcardDeck[]
+  creativeSpaces                     CreativeSpace[]
+  creativeItems                      CreativeItem[]
+  creativeFlashcardDecks             CreativeFlashcardDeck[]
+  creativeFlashcards                 CreativeFlashcard[]
+  creativeDrawings                   CreativeDrawing[]
+  creativeActivityEvents             CreativeActivityEvent[]
 
   @@index([email])
   @@map("User")
+}
+
+model CreativeSpace {
+  id           String                 @id @default(cuid())
+  userId       String
+  title        String
+  courseId     String?
+  moduleId     String?
+  lessonId     String?
+  createdAt    DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime               @default(now()) @updatedAt @db.Timestamptz(6)
+  lastEditedAt DateTime               @default(now()) @db.Timestamptz(6)
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items        CreativeItem[]
+  drawings     CreativeDrawing[]
+  activities   CreativeActivityEvent[]
+  decks        CreativeFlashcardDeck[]
+  flashcards   CreativeFlashcard[]
+
+  @@index([userId])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("creative_spaces")
+}
+
+model CreativeItem {
+  id        String            @id @default(cuid())
+  spaceId   String
+  userId    String
+  type      CreativeItemType
+  x         Float             @default(0)
+  y         Float             @default(0)
+  width     Float             @default(280)
+  height    Float             @default(180)
+  zIndex    Int               @default(0)
+  tag       String?
+  payload   Json?
+  createdAt DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+  space     CreativeSpace     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([spaceId, zIndex])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("creative_items")
+}
+
+model CreativeDrawing {
+  id        String        @id @default(cuid())
+  spaceId   String
+  userId    String
+  strokes   Json
+  version   Int           @default(1)
+  createdAt DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+  space     CreativeSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId])
+  @@index([userId])
+  @@map("creative_drawings")
+}
+
+model CreativeActivityEvent {
+  id        String              @id @default(cuid())
+  spaceId   String
+  userId    String
+  eventType CreativeEventType
+  itemId    String?
+  metadata  Json?
+  eventAt   DateTime            @default(now()) @db.Timestamptz(6)
+  createdAt DateTime            @default(now()) @db.Timestamptz(6)
+  space     CreativeSpace       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([spaceId, eventAt(sort: Desc)])
+  @@index([userId, eventAt(sort: Desc)])
+  @@map("creative_activity_events")
+}
+
+model CreativeFlashcardDeck {
+  id          String              @id @default(cuid())
+  spaceId      String
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  space       CreativeSpace       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flashcards  CreativeFlashcard[]
+
+  @@index([spaceId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("creative_flashcard_decks")
+}
+
+model CreativeFlashcard {
+  id        String               @id @default(cuid())
+  deckId    String
+  spaceId   String
+  userId    String
+  front     String
+  back      String
+  hint      String?
+  tag       String?
+  createdAt DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  deck      CreativeFlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  space     CreativeSpace        @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([deckId, createdAt(sort: Desc)])
+  @@index([spaceId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("creative_flashcards")
 }
 
 model LessonProgress {
@@ -376,4 +497,27 @@ enum FlashcardState {
   RELEARNING
   /// Interval exceeds the mastered threshold (still reviewed)
   MASTERED
+}
+
+enum CreativeItemType {
+  TEXT
+  IMAGE
+  VIDEO
+  LINK
+  COURSE
+  FLASHCARD
+  DECK
+}
+
+enum CreativeEventType {
+  ITEM_CREATED
+  ITEM_UPDATED
+  ITEM_DELETED
+  DRAWING_UPDATED
+  DECK_CREATED
+  DECK_UPDATED
+  DECK_DELETED
+  FLASHCARD_CREATED
+  FLASHCARD_UPDATED
+  FLASHCARD_DELETED
 }

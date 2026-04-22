@@ -185,6 +185,13 @@
   min-height: 100dvh;
 }
 
+/* Prevent accidental browser text selection while dragging whiteboard objects. */
+body.creative-dragging,
+body.creative-dragging * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
 /* Override common utility background classes in dark mode so external
    components (e.g. embedded admin UI) don't show bright white bars.
    This maps Tailwind's bg-white/bg-gray-* to our unified two-tone colors
@@ -246,6 +253,16 @@
   color: #000000 !important;
 }
 .dark .btn-themed:hover { background-color: #f3f3f3 !important; }
+
+/* Creative-space whiteboard: `.btn-themed` follows `html.dark`, not local surface tokens, so with a
+   dark board (no `html.dark`) selected tools were black on a near-black card with no visible “on” state. */
+.creative-space-surface[data-creative-surface="dark"] .btn-themed {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+.creative-space-surface[data-creative-surface="dark"] .btn-themed:hover {
+  filter: brightness(1.07);
+}
 
 /* Hero CTAs: same gradients + rim/glow as the BrainStack title (see HeroContent.tsx). */
 .btn-hero-glass {

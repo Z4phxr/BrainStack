@@ -270,6 +270,40 @@ export const createMockPrisma = (overrides = {}) => {
       ),
     },
 
+    creativeSpace: {
+      findMany: vi.fn(() => createMockResult([])),
+      findFirst: vi.fn(() => createMockResult(null)),
+      create: vi.fn((args) =>
+        createMockResult({
+          id: 'mock-creative-space-id',
+          ...args.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          lastEditedAt: new Date(),
+        }),
+      ),
+      update: vi.fn((args) => createMockResult({ id: args.where.id, ...args.data })),
+      delete: vi.fn((args) => createMockResult({ id: args.where.id })),
+    },
+
+    creativeItem: {
+      findMany: vi.fn(() => createMockResult([])),
+      findFirst: vi.fn(() => createMockResult(null)),
+      create: vi.fn((args) =>
+        createMockResult({
+          id: 'mock-creative-item-id',
+          ...args.data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      ),
+      aggregate: vi.fn(() => createMockResult({ _max: { zIndex: 0 as number | null } })),
+    },
+
+    creativeActivityEvent: {
+      create: vi.fn((args) => createMockResult({ id: 'mock-activity-id', ...args.data })),
+    },
+
     // RevokedToken operations (JWT blocklist)
     revokedToken: {
       create:     vi.fn((args) => createMockResult({ id: 'mock-revoked-token-id', ...args.data })),
