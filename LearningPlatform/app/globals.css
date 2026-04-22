@@ -185,14 +185,6 @@
   min-height: 100dvh;
 }
 
-/* Creative whiteboard: optional navbar hide mode (toggled by board page). */
-body.creative-nav-hidden nav {
-  display: none !important;
-}
-body.creative-nav-hidden .student-app-shell > main {
-  padding-top: 0 !important;
-}
-
 /* Prevent accidental browser text selection while dragging whiteboard objects. */
 body.creative-dragging,
 body.creative-dragging * {
