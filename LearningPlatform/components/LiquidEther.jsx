@@ -1004,7 +1004,7 @@ export default function LiquidEther({
         try {
           // signal that LiquidEther's canvas has been attached and is ready to paint
           document.dispatchEvent(new CustomEvent('background-ready', { detail: { source: 'liquidether' } }));
-        } catch (e) {
+        } catch {
           // noop
         }
         this.output = new Output();
@@ -1056,7 +1056,7 @@ export default function LiquidEther({
             if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
             Common.renderer.dispose();
           }
-        } catch (e) {
+        } catch {
           void 0;
         }
       }
@@ -1136,14 +1136,14 @@ export default function LiquidEther({
       if (resizeObserverRef.current) {
         try {
           resizeObserverRef.current.disconnect();
-        } catch (e) {
+        } catch {
           void 0;
         }
       }
       if (intersectionObserverRef.current) {
         try {
           intersectionObserverRef.current.disconnect();
-        } catch (e) {
+        } catch {
           void 0;
         }
       }

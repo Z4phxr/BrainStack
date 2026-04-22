@@ -110,7 +110,7 @@ export async function PUT(req: Request, ctx: RouteContext) {
       resourceId:   id,
     })
 
-    try { revalidateTag('api-flashcards', 'max') } catch (_) { /* best-effort */ }
+    try { revalidateTag('api-flashcards', 'max') } catch { /* best-effort */ }
 
     return NextResponse.json({ flashcard })
   } catch (error) {
@@ -148,7 +148,7 @@ export async function DELETE(_req: Request, ctx: RouteContext) {
       resourceId:   id,
     })
 
-    try { revalidateTag('api-flashcards', 'max') } catch (_) { /* best-effort */ }
+    try { revalidateTag('api-flashcards', 'max') } catch { /* best-effort */ }
 
     return NextResponse.json({ success: true })
   } catch (error) {

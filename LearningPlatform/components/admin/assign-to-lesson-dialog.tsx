@@ -146,7 +146,8 @@ export function AssignToLessonDialog({
   function toggleLesson(id: string) {
     setSelectedLessonIds((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -154,7 +155,8 @@ export function AssignToLessonDialog({
   function toggleCourse(id: string) {
     setExpandedCourses((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -162,7 +164,8 @@ export function AssignToLessonDialog({
   function toggleModule(id: string) {
     setExpandedModules((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }

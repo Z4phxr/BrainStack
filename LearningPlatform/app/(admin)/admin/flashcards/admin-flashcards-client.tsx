@@ -1930,7 +1930,6 @@ export function AdminFlashcardsPage() {
 
                 // Paginate: 15 tags per page
                 const TAGS_PER_PAGE = 15
-                const totalPages = Math.max(1, Math.ceil(arr.length / TAGS_PER_PAGE))
                 const startIdx = (tagPage - 1) * TAGS_PER_PAGE
                 const paginatedTags = arr.slice(startIdx, startIdx + TAGS_PER_PAGE)
 

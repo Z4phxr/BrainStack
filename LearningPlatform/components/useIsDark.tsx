@@ -2,17 +2,7 @@
 import { useEffect, useState } from 'react'
 
 export default function useIsDark() {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window === 'undefined') return true
-    try {
-      const ls = localStorage.getItem('theme')
-      if (ls === 'light') return false
-      if (ls === 'dark') return true
-      return true
-    } catch {
-      return true
-    }
-  })
+  const [isDark, setIsDark] = useState(true)
 
   useEffect(() => {
     const getTheme = () => {
@@ -26,6 +16,8 @@ export default function useIsDark() {
         return true
       }
     }
+
+    queueMicrotask(() => setIsDark(getTheme()))
 
     // Update when localStorage changes in other tabs
     const onStorage = (e: StorageEvent) => {

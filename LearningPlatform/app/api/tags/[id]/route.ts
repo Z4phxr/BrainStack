@@ -125,7 +125,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         console.warn('[PUT /api/tags/[id]] Failed to sync tag on tasks:', syncErr)
       }
     }
-    try { revalidateTag('api-tags-list', 'max') } catch (_) { /* best-effort */ }
+    try { revalidateTag('api-tags-list', 'max') } catch { /* best-effort */ }
     logActivity({
       action: ActivityAction.TAG_UPDATED,
       actorUserId: admin.id,
@@ -163,7 +163,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       resourceType: 'tag',
       resourceId: id,
     })
-    try { revalidateTag('api-tags-list', 'max') } catch (_) { /* best-effort */ }
+    try { revalidateTag('api-tags-list', 'max') } catch { /* best-effort */ }
     return NextResponse.json({ success: true, deletedJoinRows })
   } catch (error) {
     if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden'))

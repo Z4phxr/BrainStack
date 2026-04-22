@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Loader2, Save, RotateCcw } from 'lucide-react'
 import { LessonReadingSizeSettings } from '@/components/settings/lesson-reading-size'
-import ThemeToggle from '@/components/theme-toggle'
 import { studentGlassCard } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
 

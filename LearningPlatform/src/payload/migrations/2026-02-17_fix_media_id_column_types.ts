@@ -11,7 +11,7 @@ import { sql } from 'drizzle-orm'
  * Solution: Convert these columns from integer to varchar to match Payload's expectations
  */
 
-export async function up({ db, payload }: MigrateUpArgs): Promise<void> {
+export async function up({ db }: MigrateUpArgs): Promise<void> {
   // Convert question_media_id from integer to varchar
   await db.execute(sql`
     ALTER TABLE "payload"."tasks" 
@@ -27,7 +27,7 @@ export async function up({ db, payload }: MigrateUpArgs): Promise<void> {
   console.log('[SUCCESS] Converted media ID columns from integer to varchar')
 }
 
-export async function down({ db, payload }: MigrateDownArgs): Promise<void> {
+export async function down({ db }: MigrateDownArgs): Promise<void> {
   // Rollback: Convert back to integer
   // Warning: This may fail if there are non-numeric values
   await db.execute(sql`

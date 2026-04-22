@@ -41,40 +41,6 @@ function truncate(text: string, max = 80): string {
   return text.length <= max ? text : text.slice(0, max).trimEnd() + '…'
 }
 
-function stateConfig(state: FlashcardState): { label: string; cls: string } {
-  switch (state) {
-    case 'NEW':        return { label: 'New',        cls: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' }
-    case 'LEARNING':   return { label: 'Learning',   cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300' }
-    case 'REVIEW':     return { label: 'Review',     cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' }
-    case 'RELEARNING': return { label: 'Relearning', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' }
-    case 'MASTERED':   return { label: 'Mastered',   cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' }
-  }
-}
-
-function sortByUrgency(cards: Flashcard[]): Flashcard[] {
-  const now = new Date()
-  const endOfDay = new Date(now); endOfDay.setHours(23, 59, 59, 999)
-  function urgency(c: Flashcard): number {
-    const due = c.nextReviewAt ? new Date(c.nextReviewAt) : null
-    if (c.state === 'RELEARNING') return due && due < now ? 1 : 3
-    if (c.state === 'REVIEW' || c.state === 'MASTERED') {
-      if (!due) return 4
-      if (due < now) return 2
-      if (due <= endOfDay) return 4
-      return 7
-    }
-    if (c.state === 'LEARNING') return due && due < now ? 1 : 3
-    if (c.state === 'NEW') return 5
-    return 6
-  }
-  return [...cards].sort((a, b) => {
-    const d = urgency(a) - urgency(b)
-    if (d !== 0) return d
-    return (a.nextReviewAt ? new Date(a.nextReviewAt).getTime() : 0) -
-           (b.nextReviewAt ? new Date(b.nextReviewAt).getTime() : 0)
-  })
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function FlashcardsByTagPage({

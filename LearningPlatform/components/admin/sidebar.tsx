@@ -67,20 +67,21 @@ const navItems = [
 
 export function AdminSidebar() {
   const pathname = usePathname()
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
+  const [collapsed, setCollapsed] = useState<boolean>(false)
+
+  useEffect(() => {
     try {
       const stored = localStorage.getItem('adminSidebarCollapsed')
-      return stored === 'true'
-    } catch (e) {
-      return false
+      queueMicrotask(() => setCollapsed(stored === 'true'))
+    } catch {
+      // keep default
     }
-  })
+  }, [])
 
   useEffect(() => {
     try {
       localStorage.setItem('adminSidebarCollapsed', collapsed ? 'true' : 'false')
-    } catch (e) {
+    } catch {
       // ignore
     }
   }, [collapsed])

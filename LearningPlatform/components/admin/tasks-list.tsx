@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { adminGlassOutlineButton, studentGlassPill } from '@/lib/student-glass-styles'
+import { studentGlassPill } from '@/lib/student-glass-styles'
 import { Trash2, ChevronUp, ChevronDown, Pencil } from 'lucide-react'
 import { deleteTask } from '@/app/(admin)/admin/actions'
 import { extractText } from '@/lib/lexical'

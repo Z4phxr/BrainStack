@@ -44,7 +44,7 @@ export function AddTaskDialog({ open, onClose, lessonId = '', nextOrder = 1, ini
   const [prefillTaskTags, setPrefillTaskTags] = useState<any[] | null>(null)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [newTagName, setNewTagName] = useState<string>('')
-  const [tagsLoading, setTagsLoading] = useState<boolean>(false)
+  const [_tagsLoading, setTagsLoading] = useState<boolean>(false)
   const [creatingTag, setCreatingTag] = useState<boolean>(false)
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [sortByUsesDesc, setSortByUsesDesc] = useState<boolean>(true)
@@ -194,7 +194,7 @@ export function AddTaskDialog({ open, onClose, lessonId = '', nextOrder = 1, ini
           for (const t of (json.tags || [])) byId.set(t.id, t)
           return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name))
         })
-      } catch (err) {
+      } catch {
         // ignore
       } finally {
         if (mounted) setTagsLoading(false)

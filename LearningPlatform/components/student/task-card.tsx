@@ -96,12 +96,6 @@ function isSafeDomain(url: string): boolean {
   }
 }
 
-// Helper: Simple comparison for OPEN_ENDED (MVP)
-function compareAnswers(userAnswer: string, correctAnswer: string): boolean {
-  const normalize = (str: string) => str.trim().toLowerCase()
-  return normalize(userAnswer) === normalize(correctAnswer)
-}
-
 // Helper: Render media (image or video)
 function renderMedia(media: Media | string | null | undefined, alt?: string): React.ReactNode {
   if (!media) return null

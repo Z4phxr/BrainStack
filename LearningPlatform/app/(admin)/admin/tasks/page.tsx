@@ -165,14 +165,6 @@ export default function AdminTasksPage() {
   const [tagSortDir, setTagSortDir] = useState<'asc' | 'desc'>('asc')
   const [tagPage, setTagPage] = useState(1)
 
-  // Tag sort buttons (mirror /admin/tags controls)
-  const tagSortButtons: Array<{ key: string; icon: React.ReactNode; title: string; onClick: () => void }> = [
-    { key: 'name-asc',   icon: <ArrowUpAZ   className="h-4 w-4" />, title: 'A → Z', onClick: () => { setTagSortField('name'); setTagSortDir('asc') } },
-    { key: 'name-desc',  icon: <ArrowDownAZ className="h-4 w-4" />, title: 'Z → A', onClick: () => { setTagSortField('name'); setTagSortDir('desc') } },
-    { key: 'count-desc', icon: <ArrowDown01 className="h-4 w-4" />, title: 'Most appearances (tasks + flashcards)', onClick: () => { setTagSortField('count'); setTagSortDir('desc') } },
-    { key: 'count-asc',  icon: <ArrowUp01   className="h-4 w-4" />, title: 'Fewest appearances (tasks + flashcards)', onClick: () => { setTagSortField('count'); setTagSortDir('asc') } },
-  ]
-
   // Edit dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editTask, setEditTask] = useState<Task | undefined>(undefined)
@@ -621,7 +613,6 @@ export default function AdminTasksPage() {
               {(() => {
                 // Paginate: 15 tags per page
                 const TAGS_PER_PAGE = 15
-                const totalPages = Math.max(1, Math.ceil(sortedTags.length / TAGS_PER_PAGE))
                 const startIdx = (tagPage - 1) * TAGS_PER_PAGE
                 const paginatedTags = sortedTags.slice(startIdx, startIdx + TAGS_PER_PAGE)
                 return paginatedTags.map((tag) => {

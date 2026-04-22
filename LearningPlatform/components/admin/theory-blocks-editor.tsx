@@ -357,7 +357,7 @@ export function TheoryBlocksEditor({ initialBlocks = [], onChange }: TheoryBlock
       if (el && typeof el.scrollIntoView === 'function') {
         try {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        } catch (e) {
+        } catch {
           el.scrollIntoView()
         }
       }

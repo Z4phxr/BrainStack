@@ -5,17 +5,19 @@ import { Button } from '@/components/ui/button'
 
 export default function ThemeToggle() {
   // null = not yet hydrated; avoids SSR/client mismatch
-  const [isDark, setIsDark] = useState<boolean | null>(() => {
-    if (typeof window === 'undefined') return null
+  const [isDark, setIsDark] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    // Read real theme state only after mount (client-only)
     try {
       const ls = localStorage.getItem('theme')
-      if (ls === 'dark') return true
-      if (ls === 'light') return false
-      return true
+      if (ls === 'dark') { queueMicrotask(() => setIsDark(true)); return }
+      if (ls === 'light') { queueMicrotask(() => setIsDark(false)); return }
+      queueMicrotask(() => setIsDark(true))
     } catch {
-      return true
+      queueMicrotask(() => setIsDark(true))
     }
-  })
+  }, [])
 
   useEffect(() => {
     if (isDark === null) return   // not yet mounted — don't touch the DOM
@@ -27,7 +29,7 @@ export default function ThemeToggle() {
         document.documentElement.classList.remove('dark')
         localStorage.setItem('theme', 'light')
       }
-    } catch (e) {
+    } catch {
       // noop
     }
   }, [isDark])
@@ -42,7 +44,7 @@ export default function ThemeToggle() {
         document.documentElement.classList.remove('dark')
         localStorage.setItem('theme', 'light')
       }
-    } catch (e) {
+    } catch {
       // noop
     }
     // update local state only; avoid reloading so the color transition can animate
@@ -50,7 +52,7 @@ export default function ThemeToggle() {
     try {
       // notify other components in this window so they can re-read theme and re-render
       window.dispatchEvent(new CustomEvent('theme-change', { detail: { isDark: next } }))
-    } catch (e) {
+    } catch {
       // noop
     }
   }
