@@ -258,7 +258,12 @@ export default function AdminTagsPage() {
     }
   }, [])
 
-  useEffect(() => { void fetchTags() }, [fetchTags])
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      void fetchTags()
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [fetchTags])
 
   // ── Filtered + sorted display list ─────────────────────────────────────────────
 

@@ -126,7 +126,12 @@ export default function FlashcardsByTagPage({
     }
   }, [slug])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      void fetchData()
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [fetchData])
 
   // ── Open dialogs ─────────────────────────────────────────────────────────────
 

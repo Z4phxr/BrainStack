@@ -63,9 +63,11 @@ export function AddTaskDialog({ open, onClose, lessonId = '', nextOrder = 1, ini
   // Prefill when editing
   useEffect(() => {
     if (initialTask) {
-      setEditingId(initialTask.id)
-      setTaskType(initialTask.type || 'MULTIPLE_CHOICE')
-      if (initialTask.choices) setChoices((initialTask.choices as Array<any>).map((c) => c.text || ''))
+      queueMicrotask(() => {
+        setEditingId(initialTask.id)
+        setTaskType(initialTask.type || 'MULTIPLE_CHOICE')
+        if (initialTask.choices) setChoices((initialTask.choices as Array<any>).map((c) => c.text || ''))
+      })
 
       // Helper to extract plain text from Lexical-like structures
       const extractPlain = (node: any): string => {
@@ -83,8 +85,10 @@ export function AddTaskDialog({ open, onClose, lessonId = '', nextOrder = 1, ini
         return texts.join(' ').trim()
       }
 
-      setPromptText(typeof initialTask.prompt === 'string' ? initialTask.prompt : extractPlain(initialTask.prompt))
-      setSolutionText(typeof initialTask.solution === 'string' ? initialTask.solution : extractPlain(initialTask.solution))
+      queueMicrotask(() => {
+        setPromptText(typeof initialTask.prompt === 'string' ? initialTask.prompt : extractPlain(initialTask.prompt))
+        setSolutionText(typeof initialTask.solution === 'string' ? initialTask.solution : extractPlain(initialTask.solution))
+      })
 
       // Resolve correct answer if stored as index/object
       const rawCorrect = initialTask.correctAnswer
@@ -94,30 +98,30 @@ export function AddTaskDialog({ open, onClose, lessonId = '', nextOrder = 1, ini
         else if (typeof rawCorrect === 'number') resolvedCorrect = (initialTask.choices && initialTask.choices[rawCorrect]?.text) || ''
         else if (typeof rawCorrect === 'object') resolvedCorrect = rawCorrect.text || String(rawCorrect)
       }
-      setCorrectAnswerText(resolvedCorrect)
+      queueMicrotask(() => setCorrectAnswerText(resolvedCorrect))
 
       // Prefill media ids and try to build preview URLs when available
       if (initialTask.questionMedia) {
         const qm = initialTask.questionMedia
-        setQuestionMediaId(typeof qm === 'string' ? String(qm) : String(qm?.id || ''))
+        queueMicrotask(() => setQuestionMediaId(typeof qm === 'string' ? String(qm) : String(qm?.id || '')))
         if (qm && typeof qm === 'object' && (qm.filename || qm.url)) {
           const mediaUrl = qm.filename ? `/api/media/serve/${encodeURIComponent(qm.filename)}` : qm.url
-          setQuestionMediaUrl(mediaUrl)
+          queueMicrotask(() => setQuestionMediaUrl(mediaUrl))
         }
       }
       if (initialTask.solutionMedia) {
         const sm = initialTask.solutionMedia
-        setSolutionMediaId(typeof sm === 'string' ? String(sm) : String(sm?.id || ''))
+        queueMicrotask(() => setSolutionMediaId(typeof sm === 'string' ? String(sm) : String(sm?.id || '')))
         if (sm && typeof sm === 'object' && (sm.filename || sm.url)) {
           const mediaUrl = sm.filename ? `/api/media/serve/${encodeURIComponent(sm.filename)}` : sm.url
-          setSolutionMediaUrl(mediaUrl)
+          queueMicrotask(() => setSolutionMediaUrl(mediaUrl))
         }
       }
 
-      setPointsValue(initialTask.points ?? 1)
+      queueMicrotask(() => setPointsValue(initialTask.points ?? 1))
       // Prefill autoGrade flag for open-ended tasks
       if (initialTask.autoGrade !== undefined) {
-        setAutoGrade(Boolean(initialTask.autoGrade))
+        queueMicrotask(() => setAutoGrade(Boolean(initialTask.autoGrade)))
       }
       // Prefill tags if present (support old format and new object format)
       if (Array.isArray(initialTask.tags)) {
@@ -139,36 +143,40 @@ export function AddTaskDialog({ open, onClose, lessonId = '', nextOrder = 1, ini
           if (!id) id = String(t?.slug ?? t?.tag ?? t?.name ?? '')
           if (id) ids.push(id)
         }
-        setSelectedTagIds(ids)
+        queueMicrotask(() => setSelectedTagIds(ids))
         // Save embedded task tags to merge later with master list
-        setPrefillTaskTags(initialTask.tags)
+        queueMicrotask(() => setPrefillTaskTags(initialTask.tags))
       }
     } else {
-      setEditingId(null)
-      setTaskType('MULTIPLE_CHOICE')
-      setChoices(['', '', '', ''])
-      setQuestionMediaId(null)
-      setQuestionMediaUrl(undefined)
-      setSolutionMediaId(null)
-      setSolutionMediaUrl(undefined)
-      setPromptText('')
-      setSolutionText('')
-      setCorrectAnswerText('')
-      setPointsValue(1)
-      setSelectedTagIds([])
-      setAutoGrade(false)
+      queueMicrotask(() => {
+        setEditingId(null)
+        setTaskType('MULTIPLE_CHOICE')
+        setChoices(['', '', '', ''])
+        setQuestionMediaId(null)
+        setQuestionMediaUrl(undefined)
+        setSolutionMediaId(null)
+        setSolutionMediaUrl(undefined)
+        setPromptText('')
+        setSolutionText('')
+        setCorrectAnswerText('')
+        setPointsValue(1)
+        setSelectedTagIds([])
+        setAutoGrade(false)
+      })
     }
   }, [initialTask, open])
 
   useEffect(() => {
     // If parent passed masterTags, use them; otherwise load from API.
     if (masterTags && Array.isArray(masterTags)) {
-      setAvailableTags((prev) => {
-        // merge pre-existing prev (if any) with masterTags; normalize ids to strings
-        const byId = new Map<string, any>(prev.map((x) => [String(x.id), x]))
-        for (const t of masterTags) byId.set(String(t.id), { ...t, id: String(t.id) })
-        return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name))
-      })
+      queueMicrotask(() =>
+        setAvailableTags((prev) => {
+          // merge pre-existing prev (if any) with masterTags; normalize ids to strings
+          const byId = new Map<string, any>(prev.map((x) => [String(x.id), x]))
+          for (const t of masterTags) byId.set(String(t.id), { ...t, id: String(t.id) })
+          return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name))
+        }),
+      )
       return
     }
 
@@ -192,7 +200,7 @@ export function AddTaskDialog({ open, onClose, lessonId = '', nextOrder = 1, ini
         if (mounted) setTagsLoading(false)
       }
     }
-    loadTags()
+    void loadTags()
     return () => { mounted = false }
   }, [masterTags])
 
@@ -200,17 +208,19 @@ export function AddTaskDialog({ open, onClose, lessonId = '', nextOrder = 1, ini
   // were not present in the master list, merge them into availableTags now.
   useEffect(() => {
     if (!prefillTaskTags) return
-    setAvailableTags((prev) => {
-      const byId = new Map<string, any>(prev.map((x) => [String(x.id), x]))
-      for (const t of prefillTaskTags) {
-        const rawId = t.id ?? t.tag ?? t.name ?? t.slug
-        if (!rawId) continue
-        const id = String(rawId)
-        if (!byId.has(id)) byId.set(id, { id, name: t.name || t.tag || t.slug || id, slug: t.slug || '' })
-      }
-      return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name))
+    queueMicrotask(() => {
+      setAvailableTags((prev) => {
+        const byId = new Map<string, any>(prev.map((x) => [String(x.id), x]))
+        for (const t of prefillTaskTags) {
+          const rawId = t.id ?? t.tag ?? t.name ?? t.slug
+          if (!rawId) continue
+          const id = String(rawId)
+          if (!byId.has(id)) byId.set(id, { id, name: t.name || t.tag || t.slug || id, slug: t.slug || '' })
+        }
+        return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name))
+      })
+      setPrefillTaskTags(null)
     })
-    setPrefillTaskTags(null)
   }, [prefillTaskTags])
 
   async function handleCreateTag(nameArg?: string) {

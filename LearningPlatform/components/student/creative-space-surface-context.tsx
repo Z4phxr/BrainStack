@@ -54,8 +54,10 @@ export function CreativeSpaceSurfaceProvider({
           window.localStorage.setItem(storageKey, legacy)
         }
       }
-      if (raw === 'dark' || raw === 'light') setAppearanceState(raw)
-      else setAppearanceState('light')
+      queueMicrotask(() => {
+        if (raw === 'dark' || raw === 'light') setAppearanceState(raw)
+        else setAppearanceState('light')
+      })
     } catch {
       // ignore
     }

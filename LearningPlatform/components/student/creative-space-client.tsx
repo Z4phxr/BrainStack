@@ -379,8 +379,8 @@ export function CreativeSpaceClient({ spaceId }: { spaceId: string }) {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem('creative-space-note-spellcheck')
-      if (raw === 'on') setSpellCheckEnabled(true)
-      if (raw === 'off') setSpellCheckEnabled(false)
+      if (raw === 'on') queueMicrotask(() => setSpellCheckEnabled(true))
+      if (raw === 'off') queueMicrotask(() => setSpellCheckEnabled(false))
     } catch {
       // ignore storage errors
     }
@@ -398,7 +398,7 @@ export function CreativeSpaceClient({ spaceId }: { spaceId: string }) {
         }
       }
       const n = raw ? normalizeHexColor(raw) : null
-      if (n) setBoardBackgroundColor(n)
+      if (n) queueMicrotask(() => setBoardBackgroundColor(n))
     } catch {
       // ignore storage errors
     }
@@ -415,7 +415,9 @@ export function CreativeSpaceClient({ spaceId }: { spaceId: string }) {
           window.localStorage.setItem(key, legacy)
         }
       }
-      if (raw === 'light' || raw === 'dark' || raw === 'auto') setCustomBoardChromeMode(raw)
+      if (raw === 'light' || raw === 'dark' || raw === 'auto') {
+        queueMicrotask(() => setCustomBoardChromeMode(raw))
+      }
     } catch {
       // ignore storage errors
     }
@@ -432,7 +434,8 @@ export function CreativeSpaceClient({ spaceId }: { spaceId: string }) {
           window.localStorage.setItem(key, legacy)
         }
       }
-      setBoardPatternId(parseBoardPatternId(raw))
+      const nextBoardPatternId = parseBoardPatternId(raw)
+      queueMicrotask(() => setBoardPatternId(nextBoardPatternId))
     } catch {
       // ignore storage errors
     }
@@ -496,7 +499,7 @@ export function CreativeSpaceClient({ spaceId }: { spaceId: string }) {
       if (!Number.isFinite(n)) return
       const z = Math.min(BOARD_ZOOM_MAX, Math.max(BOARD_ZOOM_MIN, n))
       boardZoomRef.current = z
-      setBoardZoom(z)
+      queueMicrotask(() => setBoardZoom(z))
     } catch {
       // ignore storage errors
     }
@@ -668,7 +671,7 @@ export function CreativeSpaceClient({ spaceId }: { spaceId: string }) {
   }, [spellCheckEnabled])
 
   useEffect(() => {
-    setCustomDrawColors(readStoredCustomDrawColors())
+    queueMicrotask(() => setCustomDrawColors(readStoredCustomDrawColors()))
   }, [])
 
   useEffect(() => {
@@ -783,7 +786,10 @@ export function CreativeSpaceClient({ spaceId }: { spaceId: string }) {
   }, [hydrateDeckPayloadCounts, spaceId])
 
   useEffect(() => {
-    void loadData()
+    const t = window.setTimeout(() => {
+      void loadData()
+    }, 0)
+    return () => window.clearTimeout(t)
   }, [loadData])
 
   const getViewportCenterOnBoard = useCallback(
@@ -861,7 +867,7 @@ export function CreativeSpaceClient({ spaceId }: { spaceId: string }) {
       document.body.classList.remove('creative-dragging')
       return
     }
-    setDrawToolsPanelOpen(true)
+    queueMicrotask(() => setDrawToolsPanelOpen(true))
   }, [drawMode])
 
   useEffect(() => {

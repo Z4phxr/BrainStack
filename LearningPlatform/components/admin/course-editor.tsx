@@ -86,8 +86,10 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
       : String(course.coverImage ?? '')
 
   useEffect(() => {
-    setCoverMediaId(coverIdFromCourse(course))
-    setCoverFilename(coverFilenameFromCourse(course))
+    queueMicrotask(() => {
+      setCoverMediaId(coverIdFromCourse(course))
+      setCoverFilename(coverFilenameFromCourse(course))
+    })
   }, [course.id, coverSig])
 
   useEffect(() => {

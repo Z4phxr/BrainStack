@@ -250,20 +250,24 @@ export function AIAgentWorkspace() {
     if (lastRunStatusNotified === run.status) return
 
     if (run.status === 'completed') {
-      setChat((prev) => [...prev, { role: 'assistant', content: 'Generation completed successfully.' }])
-      setLastRunStatusNotified('completed')
+      queueMicrotask(() => {
+        setChat((prev) => [...prev, { role: 'assistant', content: 'Generation completed successfully.' }])
+        setLastRunStatusNotified('completed')
+      })
       return
     }
 
     if (run.status === 'failed') {
       const detail = run.error ? ` ${run.error}` : ''
-      setChat((prev) => [...prev, { role: 'assistant', content: `Generation failed.${detail}` }])
-      setLastRunStatusNotified('failed')
+      queueMicrotask(() => {
+        setChat((prev) => [...prev, { role: 'assistant', content: `Generation failed.${detail}` }])
+        setLastRunStatusNotified('failed')
+      })
       return
     }
 
     if (run.status === 'running') {
-      setLastRunStatusNotified('running')
+      queueMicrotask(() => setLastRunStatusNotified('running'))
     }
   }, [run, lastRunStatusNotified])
 

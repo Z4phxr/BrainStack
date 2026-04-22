@@ -234,7 +234,10 @@ export default function AdminTasksPage() {
 
   // Refetch when tag or task-type filters change (search is applied client-side on the loaded list).
   useEffect(() => {
-    void fetchData()
+    const t = window.setTimeout(() => {
+      void fetchData()
+    }, 0)
+    return () => window.clearTimeout(t)
   }, [fetchData])
 
   function toggleTagSlug(slug: string) {
@@ -365,12 +368,12 @@ export default function AdminTasksPage() {
 
   // Reset page to 1 whenever filters/sort or underlying tasks change
   useEffect(() => {
-    setCurrentPage(1)
+    queueMicrotask(() => setCurrentPage(1))
   }, [tasks, debouncedSearch, typeFilter, selectedTagSlugs, sortKey])
 
   // Reset tag pagination when toggling between main/all tags
   useEffect(() => {
-    setTagPage(1)
+    queueMicrotask(() => setTagPage(1))
   }, [showAllTags])
 
   // Paged tasks (50 per page)

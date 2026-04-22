@@ -22,7 +22,10 @@ export function CreativeSpaceHomeClient() {
   }, [])
 
   useEffect(() => {
-    void loadSpaces()
+    const t = window.setTimeout(() => {
+      void loadSpaces()
+    }, 0)
+    return () => window.clearTimeout(t)
   }, [loadSpaces])
 
   const createSpace = useCallback(async () => {

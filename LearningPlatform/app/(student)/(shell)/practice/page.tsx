@@ -460,7 +460,10 @@ export default function PracticePage() {
 
   useEffect(() => {
     if (sessionTasks.length > 0 && currentIndex < sessionTasks.length) {
-      loadTask(sessionTasks[currentIndex].id)
+      const t = window.setTimeout(() => {
+        void loadTask(sessionTasks[currentIndex].id)
+      }, 0)
+      return () => window.clearTimeout(t)
     }
   }, [sessionTasks, currentIndex, loadTask])
 

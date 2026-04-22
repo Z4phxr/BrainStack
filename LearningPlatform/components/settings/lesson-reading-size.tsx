@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { studentGlassCard } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
@@ -12,11 +12,7 @@ import {
 } from '@/lib/lesson-theory-text-size'
 
 export function LessonReadingSizeSettings() {
-  const [value, setValue] = useState<LessonTheoryTextSize>('comfortable')
-
-  useEffect(() => {
-    setValue(readLessonTheoryTextSizeFromStorage())
-  }, [])
+  const [value, setValue] = useState<LessonTheoryTextSize>(() => readLessonTheoryTextSizeFromStorage())
 
   function select(next: LessonTheoryTextSize) {
     setValue(next)

@@ -5,19 +5,17 @@ import { Button } from '@/components/ui/button'
 
 export default function ThemeToggle() {
   // null = not yet hydrated; avoids SSR/client mismatch
-  const [isDark, setIsDark] = useState<boolean | null>(null)
-
-  useEffect(() => {
-    // Read real theme state only after mount (client-only)
+  const [isDark, setIsDark] = useState<boolean | null>(() => {
+    if (typeof window === 'undefined') return null
     try {
       const ls = localStorage.getItem('theme')
-      if (ls === 'dark') { setIsDark(true); return }
-      if (ls === 'light') { setIsDark(false); return }
-      setIsDark(true)
+      if (ls === 'dark') return true
+      if (ls === 'light') return false
+      return true
     } catch {
-      setIsDark(true)
+      return true
     }
-  }, [])
+  })
 
   useEffect(() => {
     if (isDark === null) return   // not yet mounted — don't touch the DOM

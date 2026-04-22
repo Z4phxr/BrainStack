@@ -147,7 +147,7 @@ function LatexPreview({ source }: { source: string }) {
 
   useEffect(() => {
     if (!source.trim()) {
-      setHtml('')
+      queueMicrotask(() => setHtml(''))
       return
     }
     let cancelled = false
@@ -270,17 +270,19 @@ export function FlashcardDialog({
     if (!open) return
 
     // Pre-fill fields from initialData
-    setQuestion(initialData?.question ?? '')
-    setAnswer(initialData?.answer ?? '')
-    setQuestionImageId(initialData?.questionImageId ?? null)
-    setAnswerImageId(initialData?.answerImageId ?? null)
-    setQuestionImageUrl(undefined)
-    setAnswerImageUrl(undefined)
-    setSelectedTagIds(initialData?.tagIds ?? [])
-    setError('')
-    setFieldErrors({})
+    queueMicrotask(() => {
+      setQuestion(initialData?.question ?? '')
+      setAnswer(initialData?.answer ?? '')
+      setQuestionImageId(initialData?.questionImageId ?? null)
+      setAnswerImageId(initialData?.answerImageId ?? null)
+      setQuestionImageUrl(undefined)
+      setAnswerImageUrl(undefined)
+      setSelectedTagIds(initialData?.tagIds ?? [])
+      setError('')
+      setFieldErrors({})
+    })
 
-    setDecksLoading(true)
+    queueMicrotask(() => setDecksLoading(true))
     Promise.all([
       fetch('/api/flashcard-decks').then((r) => r.json()),
       fetch('/api/admin/courses-hierarchy').then((r) => r.json()),

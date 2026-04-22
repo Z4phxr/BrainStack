@@ -258,7 +258,10 @@ export function AdminFlashcardsPage() {
   }, [searchInput])
 
   useEffect(() => {
-    void fetchData()
+    const t = window.setTimeout(() => {
+      void fetchData()
+    }, 0)
+    return () => window.clearTimeout(t)
   }, [fetchData])
 
   /** Deck scope from URL (?view=all&mainDeckId=…&deckSlug=… or ?deckScope=all to clear deck filters). */
@@ -269,26 +272,34 @@ export function AdminFlashcardsPage() {
     const deckScopeAll = searchParams.get('deckScope') === 'all'
 
     if (view === 'all' || mid || deckSlug || deckScopeAll) {
-      setActiveView('all')
+      queueMicrotask(() => setActiveView('all'))
     }
 
     if (deckScopeAll) {
-      setSelectedMainDeckId(null)
-      setSelectedSubdeckSlug(null)
+      queueMicrotask(() => {
+        setSelectedMainDeckId(null)
+        setSelectedSubdeckSlug(null)
+      })
       return
     }
 
     if (mid && deckSlug) {
-      setSelectedMainDeckId(mid)
-      setSelectedSubdeckSlug(deckSlug)
+      queueMicrotask(() => {
+        setSelectedMainDeckId(mid)
+        setSelectedSubdeckSlug(deckSlug)
+      })
     } else if (mid) {
-      setSelectedMainDeckId(mid)
-      setSelectedSubdeckSlug(null)
+      queueMicrotask(() => {
+        setSelectedMainDeckId(mid)
+        setSelectedSubdeckSlug(null)
+      })
     } else if (deckSlug) {
-      setSelectedSubdeckSlug(deckSlug)
+      queueMicrotask(() => setSelectedSubdeckSlug(deckSlug))
     } else {
-      setSelectedMainDeckId(null)
-      setSelectedSubdeckSlug(null)
+      queueMicrotask(() => {
+        setSelectedMainDeckId(null)
+        setSelectedSubdeckSlug(null)
+      })
     }
   }, [searchParams])
 
@@ -298,20 +309,23 @@ export function AdminFlashcardsPage() {
     const mid = searchParams.get('mainDeckId')?.trim()
     if (!deckSlug || mid) return
     const row = deckRows.find((d) => d.slug === deckSlug && d.parentDeckId)
-    if (row?.parentDeckId) setSelectedMainDeckId(row.parentDeckId)
+    if (row?.parentDeckId) queueMicrotask(() => setSelectedMainDeckId(row.parentDeckId))
   }, [searchParams, deckRows])
 
   useEffect(() => {
-    void fetchCoursesHierarchy()
+    const t = window.setTimeout(() => {
+      void fetchCoursesHierarchy()
+    }, 0)
+    return () => window.clearTimeout(t)
   }, [fetchCoursesHierarchy])
 
   // Reset tag pagination when toggling between main/all tags
   useEffect(() => {
-    setTagPage(1)
+    queueMicrotask(() => setTagPage(1))
   }, [showAllTags])
 
   useEffect(() => {
-    setCardPage(1)
+    queueMicrotask(() => setCardPage(1))
   }, [debouncedSearch, selectedTagSlugs, selectedSubdeckSlug, selectedMainDeckId, sortKey])
 
   /** Load CMS subjects when the standalone deck form opens; reset combobox state. */
@@ -321,12 +335,14 @@ export function AdminFlashcardsPage() {
         clearTimeout(standaloneSubjectBlurTimer.current)
         standaloneSubjectBlurTimer.current = null
       }
-      setStandaloneSubjectMenuOpen(false)
+      queueMicrotask(() => setStandaloneSubjectMenuOpen(false))
       return
     }
-    setStandaloneSubjectInput('')
-    setStandaloneSubjectId(null)
-    setStandaloneDeckTagIds([])
+    queueMicrotask(() => {
+      setStandaloneSubjectInput('')
+      setStandaloneSubjectId(null)
+      setStandaloneDeckTagIds([])
+    })
     let cancelled = false
     void (async () => {
       try {
@@ -497,7 +513,7 @@ export function AdminFlashcardsPage() {
 
   useEffect(() => {
     const tp = totalFlashcardGridPages(filteredFlashcards.length)
-    setCardPage((p) => Math.min(p, tp))
+    queueMicrotask(() => setCardPage((p) => Math.min(p, tp)))
   }, [filteredFlashcards.length])
 
   const browseMode = activeView === 'all'
@@ -581,11 +597,13 @@ export function AdminFlashcardsPage() {
 
   useEffect(() => {
     if (coursesWithoutMainDeck.length === 0) {
-      setDeckCourseId('')
+      queueMicrotask(() => setDeckCourseId(''))
       return
     }
     const allowed = new Set(coursesWithoutMainDeck.map((c) => c.id))
-    setDeckCourseId((prev) => (prev && allowed.has(prev) ? prev : coursesWithoutMainDeck[0]!.id))
+    queueMicrotask(() =>
+      setDeckCourseId((prev) => (prev && allowed.has(prev) ? prev : coursesWithoutMainDeck[0]!.id)),
+    )
   }, [coursesWithoutMainDeck])
 
   const usedModuleIds = useMemo(
@@ -598,7 +616,7 @@ export function AdminFlashcardsPage() {
     [deckRows],
   )
 
-  const subdecksByMain = useMemo(() => {
+  const subdecksByMain = (() => {
     const grouped = new Map<string, DeckRow[]>()
     for (const deck of deckRows) {
       if (!deck.parentDeckId) continue
@@ -625,7 +643,7 @@ export function AdminFlashcardsPage() {
       })
     }
     return grouped
-  }, [deckRows, moduleById])
+  })()
 
   /** Subdecks under the selected main deck (toolbar filter). */
   const subdecksForFilterMain = useMemo(() => {
@@ -637,7 +655,7 @@ export function AdminFlashcardsPage() {
     if (!selectedSubdeckSlug || !selectedMainDeckId) return
     const subs = subdecksByMain.get(selectedMainDeckId) ?? []
     if (!subs.some((s) => s.slug === selectedSubdeckSlug)) {
-      setSelectedSubdeckSlug(null)
+      queueMicrotask(() => setSelectedSubdeckSlug(null))
     }
   }, [selectedMainDeckId, selectedSubdeckSlug, subdecksByMain])
 
@@ -647,18 +665,22 @@ export function AdminFlashcardsPage() {
       mainDeckOptions.some((d) => d.id === selectedMainDeckId) ||
       standaloneMainDeckOptions.some((d) => d.id === selectedMainDeckId)
     if (!stillValid) {
-      setSelectedMainDeckId(null)
-      setSelectedSubdeckSlug(null)
+      queueMicrotask(() => {
+        setSelectedMainDeckId(null)
+        setSelectedSubdeckSlug(null)
+      })
     }
   }, [selectedMainDeckId, mainDeckOptions, standaloneMainDeckOptions])
 
   useEffect(() => {
-    setInlineSubdeckMainId((cur) =>
-      cur != null && !expandedHierarchyMainIds.has(cur) ? null : cur,
-    )
-    setInlineStandaloneSubdeckMainId((cur) =>
-      cur != null && !expandedHierarchyMainIds.has(cur) ? null : cur,
-    )
+    queueMicrotask(() => {
+      setInlineSubdeckMainId((cur) =>
+        cur != null && !expandedHierarchyMainIds.has(cur) ? null : cur,
+      )
+      setInlineStandaloneSubdeckMainId((cur) =>
+        cur != null && !expandedHierarchyMainIds.has(cur) ? null : cur,
+      )
+    })
   }, [expandedHierarchyMainIds])
 
   const mainDeckDialogTitle = useMemo(

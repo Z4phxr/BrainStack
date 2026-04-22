@@ -40,14 +40,7 @@ export function MediaPicker({ open, onClose, onSelect, currentMediaId, filter = 
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (open) {
-      fetchMedia()
-      setSelectedId(currentMediaId ? String(currentMediaId) : null)
-    }
-  }, [open, currentMediaId])
-
-  const fetchMedia = async () => {
+  async function fetchMedia() {
     try {
       setLoading(true)
       const response = await fetch('/api/media/list')
@@ -60,6 +53,15 @@ export function MediaPicker({ open, onClose, onSelect, currentMediaId, filter = 
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!open) return
+    const t = window.setTimeout(() => {
+      void fetchMedia()
+      setSelectedId(currentMediaId ? String(currentMediaId) : null)
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [open, currentMediaId])
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

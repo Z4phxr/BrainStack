@@ -65,7 +65,7 @@ export function AssignToLessonDialog({
 
   useEffect(() => {
     if (!open) return
-    setSelectedLessonIds(new Set(currentLessonIds))
+    queueMicrotask(() => setSelectedLessonIds(new Set(currentLessonIds)))
 
     const now = Date.now()
     // During tests, skip the module cache so tests that stub `fetch` observe
@@ -94,7 +94,7 @@ export function AssignToLessonDialog({
 
     if (cacheValid) {
       // Instant render — no network request needed
-      setCourses(_cache!.data)
+      queueMicrotask(() => setCourses(_cache!.data))
       if (lastExpandedFor.current !== taskId) {
         applyExpansion(_cache!.data)
         lastExpandedFor.current = taskId

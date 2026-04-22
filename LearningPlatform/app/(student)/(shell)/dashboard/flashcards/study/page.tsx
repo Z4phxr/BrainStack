@@ -226,7 +226,12 @@ function StudyPage() {
     }
   }, [mode, tagSlug, subject, deckSlug, subdeckSlug, mainDeckSlug])
 
-  useEffect(() => { loadSession() }, [loadSession])
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      void loadSession()
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [loadSession])
 
   // â”€â”€ Render LaTeX whenever current card changes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -234,10 +239,12 @@ function StudyPage() {
     const card = queue[currentIdx]
     if (!card) return
 
-    setQuestionHtml('')
-    setAnswerHtml('')
-    setQuestionImgUrl(null)
-    setAnswerImgUrl(null)
+    queueMicrotask(() => {
+      setQuestionHtml('')
+      setAnswerHtml('')
+      setQuestionImgUrl(null)
+      setAnswerImgUrl(null)
+    })
 
     renderLatex(card.question).then(setQuestionHtml)
     renderLatex(card.answer).then(setAnswerHtml)

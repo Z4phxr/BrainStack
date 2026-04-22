@@ -78,7 +78,10 @@ export function LessonAssistantShell({
 
   useEffect(() => {
     if (!open) return
-    refreshSelection()
+    const t = window.setTimeout(() => {
+      refreshSelection()
+    }, 0)
+    return () => window.clearTimeout(t)
   }, [open, refreshSelection])
 
   useEffect(() => {

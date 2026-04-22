@@ -18,24 +18,17 @@ interface AdminTopbarProps {
 }
 
 export function AdminTopbar({ user }: AdminTopbarProps) {
-  const [isDark, setIsDark] = useState(false)
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === 'undefined') return true
+    const stored = localStorage.getItem(THEME_KEY)
+    return stored !== 'light'
+  })
 
   useEffect(() => {
     const root = document.documentElement
-    const stored = localStorage.getItem(THEME_KEY)
-    if (stored === 'dark') {
-      root.classList.add('dark')
-      setIsDark(true)
-      return
-    }
-    if (stored === 'light') {
-      root.classList.remove('dark')
-      setIsDark(false)
-      return
-    }
-    root.classList.add('dark')
-    setIsDark(true)
-  }, [])
+    root.classList.toggle('dark', isDark)
+    localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light')
+  }, [isDark])
 
   const toggleTheme = () => {
     setIsDark((prev) => {

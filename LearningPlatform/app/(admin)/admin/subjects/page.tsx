@@ -38,10 +38,6 @@ export default function AdminSubjectsPage() {
       .replace(/-+/g, '-')
       .replace(/^[-]+|[-]+$/g, '')
 
-  useEffect(() => {
-    fetchSubjects()
-  }, [])
-
   const fetchSubjects = async () => {
     try {
       setLoading(true)
@@ -56,6 +52,13 @@ export default function AdminSubjectsPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      void fetchSubjects()
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
