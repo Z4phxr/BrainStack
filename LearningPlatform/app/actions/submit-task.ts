@@ -7,7 +7,6 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { checkLessonCompletion } from './lesson-progress'
 import { recalculateCourseProgress } from './course-progress'
-import { requirePayloadDocument } from '@/lib/payload-validate'
 import { invalidateUserTagStatsCache } from '@/lib/analytics'
 import { evaluateTaskAnswer as scoreTaskAnswer } from '@/lib/evaluate-task-answer'
 

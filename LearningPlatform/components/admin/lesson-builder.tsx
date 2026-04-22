@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation'
 import { TasksList } from './tasks-list'
 import { AddTaskDialog } from './add-task-dialog'
 import { TheoryBlocksEditor } from './theory-blocks-editor'
-import { FormError, FieldError } from '@/components/ui/form-error'
+import { FormError } from '@/components/ui/form-error'
 import { ZodError } from 'zod'
 import { cn } from '@/lib/utils'
 import { adminGlassCard, adminGlassOutlineButton } from '@/lib/student-glass-styles'
@@ -48,7 +48,7 @@ export function LessonBuilder({ lesson, tasks }: { lesson: Lesson; tasks: Task[]
   const [theoryBlocks, setTheoryBlocks] = useState(lesson.theoryBlocks || [])
   const [title, setTitle] = useState(lesson.title)
   const [error, setError] = useState<string>('')
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [, setFieldErrors] = useState<Record<string, string>>({})
   const courseSlug =
     typeof lesson.course === 'object' &&
     lesson.course !== null &&

@@ -378,7 +378,7 @@ export function ModulesList({ modules, courseId }: { modules: Module[]; courseId
                           try {
                             await moveLesson(lesson.id, 'up')
                             router.refresh()
-                          } catch (err) {
+                          } catch {
                             alert('Failed to move lesson up')
                           } finally {
                             setLoading(null)
@@ -397,7 +397,7 @@ export function ModulesList({ modules, courseId }: { modules: Module[]; courseId
                           try {
                             await moveLesson(lesson.id, 'down')
                             router.refresh()
-                          } catch (err) {
+                          } catch {
                             alert('Failed to move lesson down')
                           } finally {
                             setLoading(null)

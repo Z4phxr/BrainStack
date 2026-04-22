@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 // tabs removed: consolidate upload + browse into single view
-import { X, Search, Upload, Loader2, Image as ImageIcon, Video, Check } from 'lucide-react'
+import { X, Search, Upload, Loader2, Video, Check } from 'lucide-react'
 import { adminGlassCard, adminGlassOutlineButton } from '@/lib/student-glass-styles'
 
 interface Media {
@@ -33,33 +33,35 @@ export function MediaPicker({ open, onClose, onSelect, currentMediaId, filter = 
   const [media, setMedia] = useState<Media[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeTab, setActiveTab] = useState<'browse' | 'upload'>('browse')
+  const [_activeTab, setActiveTab] = useState<'browse' | 'upload'>('browse')
   const [selectedId, setSelectedId] = useState<string | null>(currentMediaId ? String(currentMediaId) : null)
   
   // Upload state
   const [uploading, setUploading] = useState(false)
-  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [_uploadError, setUploadError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (open) {
-      fetchMedia()
-      setSelectedId(currentMediaId ? String(currentMediaId) : null)
-    }
-  }, [open, currentMediaId])
-
-  const fetchMedia = async () => {
+  async function fetchMedia() {
     try {
       setLoading(true)
       const response = await fetch('/api/media/list')
       if (!response.ok) throw new Error('Failed to fetch media')
       const data = await response.json()
       setMedia(data.media || [])
-    } catch (error) {
+    } catch {
       setMedia([])
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!open) return
+    const t = window.setTimeout(() => {
+      void fetchMedia()
+      setSelectedId(currentMediaId ? String(currentMediaId) : null)
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [open, currentMediaId])
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -111,7 +113,7 @@ export function MediaPicker({ open, onClose, onSelect, currentMediaId, filter = 
       // Auto-select uploaded media
       setSelectedId(data.id)
       setActiveTab('browse')
-    } catch (err) {
+    } catch {
       setUploadError('Upload failed. Please try again.')
     } finally {
       setUploading(false)

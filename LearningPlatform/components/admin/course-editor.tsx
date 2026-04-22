@@ -71,7 +71,6 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
   const [loading, setLoading] = useState(false)
   const [showAddModule, setShowAddModule] = useState(false)
   const [subjects, setSubjects] = useState<Array<{ id: string; name: string }>>([])
-  const [subjectName, setSubjectName] = useState<string | null>(null)
   const [courseError, setCourseError] = useState<string>('')
   const [courseFieldErrors, setCourseFieldErrors] = useState<Record<string, string>>({})
   const [moduleError, setModuleError] = useState<string>('')
@@ -86,8 +85,10 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
       : String(course.coverImage ?? '')
 
   useEffect(() => {
-    setCoverMediaId(coverIdFromCourse(course))
-    setCoverFilename(coverFilenameFromCourse(course))
+    queueMicrotask(() => {
+      setCoverMediaId(coverIdFromCourse(course))
+      setCoverFilename(coverFilenameFromCourse(course))
+    })
   }, [course.id, coverSig])
 
   useEffect(() => {
@@ -99,9 +100,6 @@ export function CourseEditor({ course, modules }: { course: Course; modules: Mod
         const data = await res.json()
         if (isMounted && Array.isArray(data.subjects)) {
           setSubjects(data.subjects)
-          const subjectId = course.subject && typeof course.subject === 'object' ? String((course.subject as any).id) : String(course.subject)
-          const found = data.subjects.find((s: any) => String(s.id) === subjectId)
-          setSubjectName(found ? found.name : null)
         }
       } catch {
         if (isMounted) setSubjects([])

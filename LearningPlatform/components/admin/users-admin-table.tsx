@@ -63,7 +63,10 @@ export function UsersAdminTable({ currentUserId }: UsersAdminTableProps) {
   }, [])
 
   useEffect(() => {
-    void load(page)
+    const t = window.setTimeout(() => {
+      void load(page)
+    }, 0)
+    return () => window.clearTimeout(t)
   }, [page, load])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))

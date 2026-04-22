@@ -16,7 +16,7 @@ try {
      
     require("dotenv").config({ path: envPath });
   }
-} catch (e) {
+} catch {
   // Non-fatal: continue and rely on process.env
 }
 

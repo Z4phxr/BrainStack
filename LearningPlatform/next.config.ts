@@ -1,12 +1,13 @@
 import type { NextConfig } from "next";
 
 /**
- * Next.js 15.5.x configuration for Payload CMS compatibility
- * 
- * IMPORTANT: We use Next.js 15.x (not 16) because:
- * - @payloadcms/next@3.72.0 requires peer dependency next@"^15.4.10"
- * - Ensures stable compatibility with Payload CMS
- * 
+ * Next.js 16.x configuration for Payload CMS compatibility.
+ *
+ * IMPORTANT:
+ * - @payloadcms/next@3.83.0 supports Next 16.2+ (and selected 15.x ranges)
+ * - This project uses Next 16.2.4 with webpack mode for compatibility with
+ *   the existing custom webpack externals configuration.
+ *
  * Webpack configuration handles:
  * - External packages that cause build issues (sharp, drizzle-kit, @esbuild)
  * - Binary files that need to be ignored
@@ -52,14 +53,6 @@ const nextConfig: NextConfig = {
   // Webpack configuration for Payload CMS compatibility
   serverExternalPackages: ['@payloadcms/db-postgres', 'drizzle-kit', 'sharp'],
   
-  // Linting is enforced in CI via `npm run lint`. The build-time ESLint pass
-  // is disabled because eslint-plugin-next resolves differently inside certain
-  // Docker build environments.  Remove this flag once the next-lint package
-  // resolution is stabilised across all build environments.
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
-
   // The production build performs its own tsc pass. `npm run type-check` in CI
   // is the primary gate. Build-time errors are surfaced by the CI build job.
   typescript: {

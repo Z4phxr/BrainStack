@@ -145,8 +145,6 @@ export async function GET(req: Request) {
     const randomCount = limit - weakCount - mediumCount   // absorbs rounding
 
     const picked = new Set<string>()
-    const session: NTask[] = []
-
     const weakSlice   = pickUnique(weakPool,   weakCount,   picked)
     const mediumSlice = pickUnique(mediumPool,  mediumCount, picked)
     const randomSlice = pickUnique(randomPool,  randomCount, picked)

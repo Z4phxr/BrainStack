@@ -62,14 +62,14 @@ export function AdminFlashcardTagPicker({
 
   useEffect(() => {
     if (!active) {
-      setTagSearchOpen(false)
+      queueMicrotask(() => setTagSearchOpen(false))
       return
     }
     if (initialTags?.length) {
-      setAvailableTags(initialTags)
+      queueMicrotask(() => setAvailableTags(initialTags))
     }
     let cancelled = false
-    setTagsLoading(true)
+    queueMicrotask(() => setTagsLoading(true))
     void fetch('/api/tags')
       .then((r) => r.json())
       .then((data: { tags?: FlashcardTagOption[] }) => {

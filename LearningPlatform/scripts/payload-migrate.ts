@@ -10,11 +10,10 @@
  * 3. Prod: Run `npm run payload:migrate` to apply them
  */
 import 'dotenv/config'
-import { getPayload } from 'payload'
-import config from '../src/payload/payload.config.js'
 import pg from 'pg'
 import fs from 'fs'
 import path from 'path'
+import { drizzle } from 'drizzle-orm/node-postgres'
 
 // Import stable path resolution (single source of truth)
 // Use .ts extension for tsx runtime
@@ -245,12 +244,12 @@ async function migratePayload() {
     console.log('   USAGE:', privileges.rows[0].usage ? '[SUCCESS] YES' : '[ERROR] NO')
     console.log('   CREATE:', privileges.rows[0].create ? '[SUCCESS] YES' : '[ERROR] NO')
     
-    // Initialize Payload CMS (without push mode - production uses migrations only)
+    // Initialize migration DB adapter (without booting full Payload app).
+    // This avoids payload/next env loader coupling in CI while still executing
+    // official migration files through Drizzle's execute() API.
     console.log('')
-    console.log('[INFO] Initializing Payload CMS...')
-    console.log('   Mode: PRODUCTION (using migration files, NOT push)')
-
-    const payload = await getPayload({ config })
+    console.log('[INFO] Initializing migration DB adapter...')
+    console.log('   Mode: PRODUCTION (using migration files)')
 
     // Attempt to load and run migration files manually. This ensures
     // TypeScript `.ts` migration files are executed directly in this runtime
@@ -260,14 +259,10 @@ async function migratePayload() {
     console.log('[INFO] Applying migration files (manual runner)...')
 
     try {
-      const dbCandidate = payload.db as unknown as { drizzle?: unknown } | unknown
-      const dbForMigration =
-        typeof dbCandidate === 'object' && dbCandidate !== null && 'drizzle' in dbCandidate
-          ? (dbCandidate as { drizzle?: unknown }).drizzle
-          : dbCandidate
+      const dbForMigration = drizzle(pool)
 
       if (!hasExecute(dbForMigration)) {
-        throw new Error('Payload db adapter does not expose execute()')
+        throw new Error('Drizzle adapter does not expose execute()')
       }
 
       // Sort files to ensure deterministic order
@@ -278,7 +273,7 @@ async function migratePayload() {
         try {
           const mod = await import(pathToFileURL(full).href)
           if (typeof mod.up === 'function') {
-            await mod.up({ db: dbForMigration, payload, req: undefined })
+            await mod.up({ db: dbForMigration, payload: undefined, req: undefined })
             console.log('     [SUCCESS] Applied:', f)
           } else {
             console.warn('     [WARNING] No `up` export found in:', f)
@@ -310,26 +305,13 @@ async function migratePayload() {
       }
 
       if (!schemaApplied) {
-        console.log('[INFO] Falling back to payload.db.migrate()')
-        try {
-          await payload.db.migrate()
-          console.log('[SUCCESS] Migrations applied via payload.db.migrate()')
-        } catch (err) {
-          console.error('[ERROR] payload.db.migrate() failed:', err)
-          throw err
-        }
+        console.error('[ERROR] Manual migration runner failed and schema.sql fallback unavailable')
+        throw manualErr
       } else {
-        console.log('[SUCCESS] Skipping payload.db.migrate() because schema.sql succeeded')
+        console.log('[SUCCESS] schema.sql fallback succeeded')
       }
     }
-    
-    // Diagnostic: Show loaded collections
-    console.log('')
-    console.log('[INFO] Loaded collections:')
-    const collectionNames = Object.keys(payload.collections || {})
-    console.log('   Total:', collectionNames.length)
-    console.log('   Names:', collectionNames.join(', '))
-    
+
     // VERIFY: Check tables were actually created
     console.log('')
     console.log('[INFO] Verifying tables in "payload" schema...')

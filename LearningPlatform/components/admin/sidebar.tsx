@@ -70,19 +70,18 @@ export function AdminSidebar() {
   const [collapsed, setCollapsed] = useState<boolean>(false)
 
   useEffect(() => {
-    // Read persisted state from localStorage; default open (false)
     try {
       const stored = localStorage.getItem('adminSidebarCollapsed')
-      setCollapsed(stored === 'true')
-    } catch (e) {
-      // ignore
+      queueMicrotask(() => setCollapsed(stored === 'true'))
+    } catch {
+      // keep default
     }
   }, [])
 
   useEffect(() => {
     try {
       localStorage.setItem('adminSidebarCollapsed', collapsed ? 'true' : 'false')
-    } catch (e) {
+    } catch {
       // ignore
     }
   }, [collapsed])

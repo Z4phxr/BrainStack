@@ -11,11 +11,11 @@ export default function ThemeToggle() {
     // Read real theme state only after mount (client-only)
     try {
       const ls = localStorage.getItem('theme')
-      if (ls === 'dark') { setIsDark(true); return }
-      if (ls === 'light') { setIsDark(false); return }
-      setIsDark(true)
+      if (ls === 'dark') { queueMicrotask(() => setIsDark(true)); return }
+      if (ls === 'light') { queueMicrotask(() => setIsDark(false)); return }
+      queueMicrotask(() => setIsDark(true))
     } catch {
-      setIsDark(true)
+      queueMicrotask(() => setIsDark(true))
     }
   }, [])
 
@@ -29,7 +29,7 @@ export default function ThemeToggle() {
         document.documentElement.classList.remove('dark')
         localStorage.setItem('theme', 'light')
       }
-    } catch (e) {
+    } catch {
       // noop
     }
   }, [isDark])
@@ -44,7 +44,7 @@ export default function ThemeToggle() {
         document.documentElement.classList.remove('dark')
         localStorage.setItem('theme', 'light')
       }
-    } catch (e) {
+    } catch {
       // noop
     }
     // update local state only; avoid reloading so the color transition can animate
@@ -52,7 +52,7 @@ export default function ThemeToggle() {
     try {
       // notify other components in this window so they can re-read theme and re-render
       window.dispatchEvent(new CustomEvent('theme-change', { detail: { isDark: next } }))
-    } catch (e) {
+    } catch {
       // noop
     }
   }

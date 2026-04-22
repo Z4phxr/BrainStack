@@ -6,10 +6,40 @@ import { sql } from 'drizzle-orm'
  *
  * `2026-01-24_initial_schema` created `media.id` as varchar (uuid strings). Payload +
  * Drizzle push then emit `ALTER COLUMN id SET DATA TYPE uuid` without USING, which
- * PostgreSQL rejects. We convert explicitly and CASCADE so FK columns that reference
- * `media.id` are widened to uuid as well.
+ * PostgreSQL rejects. We convert explicitly with USING.
  */
 export async function up({ db }: MigrateUpArgs): Promise<void> {
+  const convertMediaReferenceColumnToUuid = async (table: string, column: string): Promise<void> => {
+    const columnTypeResult = await db.execute(sql`
+      SELECT udt_name
+      FROM information_schema.columns
+      WHERE table_schema = 'payload'
+        AND table_name = ${table}
+        AND column_name = ${column}
+    `)
+    const typeRows = columnTypeResult.rows as Array<{ udt_name: string }>
+    if (!typeRows.length) {
+      return
+    }
+    if (typeRows[0].udt_name === 'uuid') {
+      return
+    }
+
+    console.log(`[INFO] Converting payload.${table}.${column} to uuid...`)
+    await db.execute(
+      sql.raw(`
+        ALTER TABLE "payload"."${table}"
+          ALTER COLUMN "${column}" TYPE uuid
+          USING (
+            CASE
+              WHEN "${column}" IS NULL OR btrim("${column}") = '' THEN NULL
+              ELSE "${column}"::uuid
+            END
+          );
+      `),
+    )
+  }
+
   const result = await db.execute(sql`
     SELECT udt_name
     FROM information_schema.columns
@@ -27,7 +57,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
     return
   }
 
-  console.log('[INFO] Converting payload.media.id to uuid (CASCADE to referencing FK columns)...')
+  console.log('[INFO] Converting payload.media.id to uuid...')
 
   await db.execute(sql`
     ALTER TABLE "payload"."media" ALTER COLUMN "id" DROP DEFAULT;
@@ -35,13 +65,19 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
 
   await db.execute(sql`
     ALTER TABLE "payload"."media"
-      ALTER COLUMN "id" SET DATA TYPE uuid USING ("id"::uuid) CASCADE;
+      ALTER COLUMN "id" TYPE uuid USING ("id"::uuid);
   `)
 
   await db.execute(sql`
     ALTER TABLE "payload"."media"
       ALTER COLUMN "id" SET DEFAULT gen_random_uuid();
   `)
+
+  // Keep media-reference columns aligned with media.id (uuid) to avoid uuid=varchar errors.
+  await convertMediaReferenceColumnToUuid('tasks', 'question_media_id')
+  await convertMediaReferenceColumnToUuid('tasks', 'solution_media_id')
+  await convertMediaReferenceColumnToUuid('payload_locked_documents_rels', 'media_id')
+  await convertMediaReferenceColumnToUuid('courses', 'cover_image_id')
 
   console.log('[SUCCESS] payload.media.id converted to uuid.')
 }

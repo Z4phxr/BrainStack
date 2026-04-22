@@ -51,7 +51,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   console.log('[SUCCESS] Deprecated columns dropped.')
 }
 
-export async function down({ db }: MigrateDownArgs): Promise<void> {
+export async function down({ db: _db }: MigrateDownArgs): Promise<void> {
   // No restoration — these columns are intentionally removed.
   console.log('[INFO] down() is a no-op for this migration.')
 }

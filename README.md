@@ -1,14 +1,14 @@
 # BrainStack
 
-[![Next.js](https://img.shields.io/badge/Next.js-15.5.12-black?logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Next.js-16.2.4-black?logo=nextdotjs&logoColor=white)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19.2.3-61DAFB?logo=react&logoColor=white)](https://reactjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org)
-[![Payload CMS](https://img.shields.io/badge/Payload_CMS-3.72.0-ff69b4)](https://payloadcms.com)
+[![Payload CMS](https://img.shields.io/badge/Payload_CMS-3.83.0-ff69b4)](https://payloadcms.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![Prisma](https://img.shields.io/badge/Prisma-7.3.0-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io)
+[![Prisma](https://img.shields.io/badge/Prisma-7.8.0-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io)
 [![Tests](https://img.shields.io/badge/tests-Vitest%20%2B%20Playwright-blue)](LearningPlatform/documentation/TESTING.md)
 
-A production-ready exam preparation and course management platform built on Next.js 15, Payload CMS v3, and PostgreSQL. The platform covers the full lifecycle from content creation to student exam practice - with a rich admin panel, an adaptive learning engine, Anki-style spaced repetition flashcards, and a detailed audit log.
+A production-ready exam preparation and course management platform built on Next.js 16, Payload CMS v3, and PostgreSQL. The platform covers the full lifecycle from content creation to student exam practice - with a rich admin panel, an adaptive learning engine, Anki-style spaced repetition flashcards, and a detailed audit log.
 
 **Technical reference:** all detailed setup, imports, testing, architecture, and stack docs live under [`LearningPlatform/documentation/`](LearningPlatform/documentation/README.md) (start with the index file linked here).
 

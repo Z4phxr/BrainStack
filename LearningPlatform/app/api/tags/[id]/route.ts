@@ -125,7 +125,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         console.warn('[PUT /api/tags/[id]] Failed to sync tag on tasks:', syncErr)
       }
     }
-    try { revalidateTag('api-tags-list') } catch (_) { /* best-effort */ }
+    try { revalidateTag('api-tags-list', 'max') } catch { /* best-effort */ }
     logActivity({
       action: ActivityAction.TAG_UPDATED,
       actorUserId: admin.id,
@@ -163,7 +163,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       resourceType: 'tag',
       resourceId: id,
     })
-    try { revalidateTag('api-tags-list') } catch (_) { /* best-effort */ }
+    try { revalidateTag('api-tags-list', 'max') } catch { /* best-effort */ }
     return NextResponse.json({ success: true, deletedJoinRows })
   } catch (error) {
     if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden'))
@@ -182,7 +182,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const tag = await prisma.tag.findUnique({ where: { id } })
     if (!tag) return NextResponse.json({ error: 'Tag not found' }, { status: 404 })
     const updated = await prisma.tag.update({ where: { id }, data: { main: body.main } })
-    try { revalidateTag('api-tags-list') } catch { /* best-effort */ }
+    try { revalidateTag('api-tags-list', 'max') } catch { /* best-effort */ }
     return NextResponse.json({ tag: updated })
   } catch (error) {
     if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden'))

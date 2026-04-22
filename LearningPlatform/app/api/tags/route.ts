@@ -99,7 +99,7 @@ export async function POST(req: Request) {
       data: { name, slug },
     })
 
-    try { revalidateTag('api-tags-list') } catch (_) { /* best-effort */ }
+    try { revalidateTag('api-tags-list', 'max') } catch { /* best-effort */ }
 
     logActivity({
       action: ActivityAction.TAG_CREATED,

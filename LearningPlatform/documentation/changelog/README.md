@@ -6,5 +6,6 @@ Entries use [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) sections (*
 
 | Date | Topic | File |
 |------|--------|------|
+| 2026-04-22 | Payload CMS security upgrade to 3.83.0 | [`2026-04-22-payload-security-upgrade.md`](./2026-04-22-payload-security-upgrade.md) |
 | 2026-04-20 | Flashcards: student catalog, standalone library, study access, schema | [`2026-04-20-flashcards.md`](./2026-04-20-flashcards.md) |
 

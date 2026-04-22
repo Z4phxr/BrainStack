@@ -82,11 +82,14 @@ export default function StandaloneFlashcardBrowsePage() {
   }, [])
 
   useEffect(() => {
-    void load()
+    const t = window.setTimeout(() => {
+      void load()
+    }, 0)
+    return () => window.clearTimeout(t)
   }, [load])
 
   useEffect(() => {
-    setDeckListPage(1)
+    queueMicrotask(() => setDeckListPage(1))
   }, [appliedSearch, appliedSubjectId, appliedSort])
 
   const catalogSubjects = useMemo(() => {
@@ -125,7 +128,7 @@ export default function StandaloneFlashcardBrowsePage() {
   const deckListTotalPages = Math.max(1, Math.ceil(filteredDecks.length / DECKS_PER_PAGE))
 
   useEffect(() => {
-    setDeckListPage((p) => Math.min(p, deckListTotalPages))
+    queueMicrotask(() => setDeckListPage((p) => Math.min(p, deckListTotalPages)))
   }, [deckListTotalPages])
 
   const paginatedFilteredDecks = useMemo(() => {

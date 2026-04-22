@@ -36,7 +36,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   console.log('[SUCCESS] subjects.id converted to uuid.')
 }
 
-export async function down({ db }: MigrateDownArgs): Promise<void> {
+export async function down({ db: _db }: MigrateDownArgs): Promise<void> {
   console.log('[INFO] Skipping down migration — uuid → varchar conversion not needed.')
 }
 

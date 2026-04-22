@@ -15,7 +15,7 @@ export function LessonReadingSizeSettings() {
   const [value, setValue] = useState<LessonTheoryTextSize>('comfortable')
 
   useEffect(() => {
-    setValue(readLessonTheoryTextSizeFromStorage())
+    queueMicrotask(() => setValue(readLessonTheoryTextSizeFromStorage()))
   }, [])
 
   function select(next: LessonTheoryTextSize) {
