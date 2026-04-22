@@ -18,6 +18,7 @@ import {
 } from '@/components/dashboard/course-carousel'
 import { fetchPublishedCoursesByIdsInOrder } from '@/lib/started-courses'
 import { AllCoursesPromo } from '@/components/dashboard/all-courses-promo'
+import { CreativeSpaceDashboardPromo } from '@/components/dashboard/creative-space-dashboard-promo'
 import { studentGlassCard } from '@/lib/student-glass-styles'
 export default async function DashboardPage() {
   const session = await auth()
@@ -211,7 +212,9 @@ export default async function DashboardPage() {
         {!error && <AllCoursesPromo />}
 
         <div className="w-full pt-2">
-          <FlashcardDashboardSection />
+          <FlashcardDashboardSection>
+            <CreativeSpaceDashboardPromo />
+          </FlashcardDashboardSection>
         </div>
       </div>
     </div>

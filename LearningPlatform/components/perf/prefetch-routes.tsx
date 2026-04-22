@@ -8,6 +8,7 @@ const ROUTES_TO_PREFETCH = [
   '/register',
   '/courses',
   '/dashboard',
+  '/creative-space',
   '/admin/login',
   '/admin/dashboard',
 ]

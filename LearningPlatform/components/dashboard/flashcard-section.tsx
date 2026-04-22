@@ -144,7 +144,7 @@ function FlashcardSummaryCarousel({ summary }: { summary: FlashcardDashboardSumm
   )
 }
 
-export function FlashcardDashboardSection() {
+export function FlashcardDashboardSection({ children }: { children?: React.ReactNode }) {
   const [summary, setSummary] = useState<FlashcardDashboardSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -213,6 +213,8 @@ export function FlashcardDashboardSection() {
           </Button>
         </div>
       )}
+
+      {!loading && children ? <div className="mt-6 w-full">{children}</div> : null}
     </section>
   )
 }
