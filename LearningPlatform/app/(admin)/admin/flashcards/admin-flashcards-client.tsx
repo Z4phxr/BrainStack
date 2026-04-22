@@ -309,7 +309,8 @@ export function AdminFlashcardsPage() {
     const mid = searchParams.get('mainDeckId')?.trim()
     if (!deckSlug || mid) return
     const row = deckRows.find((d) => d.slug === deckSlug && d.parentDeckId)
-    if (row?.parentDeckId) queueMicrotask(() => setSelectedMainDeckId(row.parentDeckId))
+    const parentDeckId = row?.parentDeckId ?? null
+    if (parentDeckId) queueMicrotask(() => setSelectedMainDeckId(parentDeckId))
   }, [searchParams, deckRows])
 
   useEffect(() => {
