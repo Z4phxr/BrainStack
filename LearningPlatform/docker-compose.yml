@@ -5,13 +5,14 @@
 
 services:
   app:
+    image: "${APP_IMAGE:-brainstack:local}"
     build: .
     restart: unless-stopped
     stdin_open: true
     tty: true
     environment:
       DATABASE_URL: "${DATABASE_URL_DOCKER:-postgresql://postgres:postgres@postgres:5432/exam_prep_db?schema=public}"
-      PAYLOAD_DATABASE_URL: "${PAYLOAD_DATABASE_URL_DOCKER:-postgresql://postgres:postgres@postgres:5432/exam_prep_db?schema=public}"
+      PAYLOAD_DATABASE_URL: "${PAYLOAD_DATABASE_URL_DOCKER:-postgresql://postgres:postgres@postgres:5432/exam_prep_db?schema=payload}"
       # SECURITY: AUTH_SECRET and PAYLOAD_SECRET MUST be set in your environment.
       # Generate with: openssl rand -base64 32
       AUTH_SECRET: "${AUTH_SECRET:?AUTH_SECRET must be set (generate with: openssl rand -base64 32)}"
