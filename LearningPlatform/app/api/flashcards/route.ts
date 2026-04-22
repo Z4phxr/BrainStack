@@ -150,7 +150,7 @@ export async function POST(req: Request) {
       resourceId:   flashcard.id,
     })
 
-    try { revalidateTag('api-flashcards') } catch (_) { /* best-effort */ }
+    try { revalidateTag('api-flashcards', 'max') } catch (_) { /* best-effort */ }
 
     return NextResponse.json({ flashcard }, { status: 201 })
   } catch (error) {

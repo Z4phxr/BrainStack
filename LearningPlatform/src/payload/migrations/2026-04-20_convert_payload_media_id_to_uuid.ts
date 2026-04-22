@@ -6,8 +6,7 @@ import { sql } from 'drizzle-orm'
  *
  * `2026-01-24_initial_schema` created `media.id` as varchar (uuid strings). Payload +
  * Drizzle push then emit `ALTER COLUMN id SET DATA TYPE uuid` without USING, which
- * PostgreSQL rejects. We convert explicitly and CASCADE so FK columns that reference
- * `media.id` are widened to uuid as well.
+ * PostgreSQL rejects. We convert explicitly with USING.
  */
 export async function up({ db }: MigrateUpArgs): Promise<void> {
   const result = await db.execute(sql`
@@ -27,7 +26,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
     return
   }
 
-  console.log('[INFO] Converting payload.media.id to uuid (CASCADE to referencing FK columns)...')
+  console.log('[INFO] Converting payload.media.id to uuid...')
 
   await db.execute(sql`
     ALTER TABLE "payload"."media" ALTER COLUMN "id" DROP DEFAULT;
@@ -35,7 +34,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
 
   await db.execute(sql`
     ALTER TABLE "payload"."media"
-      ALTER COLUMN "id" SET DATA TYPE uuid USING ("id"::uuid) CASCADE;
+      ALTER COLUMN "id" TYPE uuid USING ("id"::uuid);
   `)
 
   await db.execute(sql`
