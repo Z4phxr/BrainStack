@@ -141,9 +141,9 @@ Every task can include:
 When an S3-compatible bucket is configured (AWS S3, Cloudflare R2, Railway Object Storage, or any compatible API), uploads are pushed to object storage after being written locally for metadata extraction. **If no bucket is configured**, files remain on the server under **`public/media`** (typical for local development).
 
 - Files are uploaded via `POST /api/media/upload`, then registered in the Payload **Media** collection.
-- Files are delivered via **`/api/media/serve/:filename`**: the handler **serves from disk when the file exists**, otherwise (if S3 is configured) **redirects to a signed URL** for the object in the bucket.
+- Files are delivered via **`/api/media/serve/:filename`**: the handler **serves from disk when the file exists**, otherwise (if S3 is configured) **streams the object from the bucket** through the app (same-origin, CSP-friendly) instead of exposing raw signed URLs to the browser.
 - Usage is tracked per file so admins can see which lessons and tasks reference a given asset before deletion.
-- Used by image-oriented lesson/task fields (lesson image blocks, task question media, task solution media, and lesson attachments).
+- Used by image-oriented lesson/task fields (lesson image blocks, task question media, task solution media, lesson attachments, and **flashcard** question/answer images).
 
 ## Pro Features
 
@@ -166,6 +166,13 @@ Flashcards are not lesson blocks; they live in the **`public`** schema on **`Fla
 
 - Decks with **no** `courseId` are **standalone** collections (e.g. “JavaScript flashcards”, “Interview prep”).
 - The standalone **main** deck may hold **direct** cards (cards whose `deckId` is that main). You can add **subdecks** under the main for finer organisation; cards on subdecks behave like course subdecks.
+
+### Card content (Markdown, math, images)
+
+Each card stores **question** and **answer** as plain-text **Markdown** (GitHub-flavored), rendered on the student study page (`/dashboard/flashcards/study`) with the same general conventions as lesson theory: headings, lists, tables, fenced code, links, etc.
+
+- **Math:** inline and display **KaTeX** using `$...$` and `$$...$$` delimiters.
+- **Images:** optional **question** and **answer** images are separate from the Markdown body. Admins pick assets from the **Media** library; the API stores `questionImageId` / `answerImageId` (Payload media). Study responses attach resolved **`/api/media/serve/...`** URLs so students do not need admin-only media listing.
 
 ### APIs and study
 

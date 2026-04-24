@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { prisma } from '@/lib/prisma'
+import { sanitizeTasksMediaRefs } from '@/lib/sanitize-payload-media-refs'
 
 /** Extract plain-text from a Lexical richText JSON object. */
 function lexicalToPlainText(lexical: unknown): string {
@@ -22,6 +23,12 @@ export const Tasks: CollectionConfig = {
     defaultColumns: ['title', 'lesson', 'type', 'points', 'order', 'isPublished'],
   },
   hooks: {
+    beforeRead: [
+      ({ doc }) => {
+        sanitizeTasksMediaRefs(doc)
+        return doc
+      },
+    ],
     beforeChange: [
       ({ data }) => {
         // Auto-generate title from prompt if caller didn't supply one

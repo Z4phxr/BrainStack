@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth-helpers'
 import { z } from 'zod'
 import { calculateNextReview, parseSettings, DEFAULT_SETTINGS, type FlashcardState } from '@/lib/srs'
+import { attachResolvedMediaUrls } from '@/lib/flashcard-media-urls'
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -44,10 +45,13 @@ export async function POST(req: Request, ctx: RouteContext) {
     const card = await prisma.flashcard.findUnique({
       where: { id },
       select: {
-        id:       true,
-        question: true,
-        answer:   true,
-        tags:     { select: { id: true, name: true, slug: true } },
+        id:               true,
+        question:         true,
+        answer:           true,
+        questionImageId:  true,
+        answerImageId:    true,
+        tags:             { select: { id: true, name: true, slug: true } },
+        deck:             { select: { id: true, name: true, slug: true } },
       },
     })
 
@@ -117,24 +121,26 @@ export async function POST(req: Request, ctx: RouteContext) {
       },
     })
 
-    // Return combined flashcard content + updated per-user SRS state
-    return NextResponse.json({
-      flashcard: {
-        id:              card.id,
-        question:        card.question,
-        answer:          card.answer,
-        tags:            card.tags,
-        // SRS state (per-user)
-        state:           updatedProgress.state,
-        interval:        updatedProgress.interval,
-        easeFactor:      updatedProgress.easeFactor,
-        repetition:      updatedProgress.repetition,
-        stepIndex:       updatedProgress.stepIndex,
-        nextReviewAt:    updatedProgress.nextReviewAt,
-        lastReviewedAt:  updatedProgress.lastReviewedAt,
-        lastResult:      updatedProgress.lastResult,
-      },
-    })
+    const flashcardBase = {
+      id:              card.id,
+      question:        card.question,
+      answer:          card.answer,
+      questionImageId: card.questionImageId,
+      answerImageId:   card.answerImageId,
+      tags:            card.tags,
+      deck:            card.deck,
+      state:           updatedProgress.state,
+      interval:        updatedProgress.interval,
+      easeFactor:      updatedProgress.easeFactor,
+      repetition:      updatedProgress.repetition,
+      stepIndex:       updatedProgress.stepIndex,
+      nextReviewAt:    updatedProgress.nextReviewAt,
+      lastReviewedAt:  updatedProgress.lastReviewedAt,
+      lastResult:      updatedProgress.lastResult,
+    }
+    const [flashcard] = await attachResolvedMediaUrls([flashcardBase])
+
+    return NextResponse.json({ flashcard })
   } catch (error) {
     if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden')) {
       return NextResponse.json({ error: error.message }, { status: error.message === 'Unauthorized' ? 401 : 403 })

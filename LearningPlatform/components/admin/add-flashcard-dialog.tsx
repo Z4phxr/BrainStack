@@ -472,8 +472,8 @@ export function FlashcardDialog({
               Question <span className="text-red-500">*</span>
             </Label>
             <p className="mb-2 text-xs text-gray-500">
-              Supports LaTeX — wrap inline math in <code>$…$</code> and display math in{' '}
-              <code>$$…$$</code>.
+              Markdown (e.g. <code>**bold**</code>, lists, triple-backtick code fences) and LaTeX (
+              <code>$…$</code>, <code>$$…$$</code>) render on the study page like lesson theory blocks.
             </p>
             <Textarea
               id="question"
@@ -504,7 +504,7 @@ export function FlashcardDialog({
               Answer <span className="text-red-500">*</span>
             </Label>
             <p className="mb-2 text-xs text-gray-500">
-              Supports LaTeX — use the same <code>$…$</code> / <code>$$…$$</code> syntax.
+              Same Markdown and LaTeX rules as the question (GFM tables and task lists are supported).
             </p>
             <Textarea
               id="answer"

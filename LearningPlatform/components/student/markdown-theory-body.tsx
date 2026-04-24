@@ -15,7 +15,8 @@ export interface TheoryMarkdownProps {
   className?: string
 }
 
-function markdownComponents(tier: LessonTheoryTextSize): Components {
+/** Shared GFM typography map for theory + flashcards (tables, lists, fenced code, etc.). */
+export function theoryMarkdownComponents(tier: LessonTheoryTextSize): Components {
   const sc = lessonTheorySizeClasses(tier)
 
   return {
@@ -129,7 +130,7 @@ export function TheoryMarkdown({ markdown, tier, className }: TheoryMarkdownProp
         className,
       )}
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents(tier)}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={theoryMarkdownComponents(tier)}>
         {markdown}
       </ReactMarkdown>
     </div>

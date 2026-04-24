@@ -52,7 +52,7 @@ Tasks are the atomic unit of knowledge assessment. Each task can be assigned one
 
 ### 2.2 Flashcards
 
-Flashcards are a parallel study mechanism: they are **not** lesson blocks. Each card lives in the `public` schema on a **`FlashcardDeck`** (`Flashcard.deckId`). Like tasks, each flashcard can carry multiple **`Tag`** records.
+Flashcards are a parallel study mechanism: they are **not** lesson blocks. Each card lives in the `public` schema on a **`FlashcardDeck`** (`Flashcard.deckId`). Like tasks, each flashcard can carry multiple **`Tag`** records. **Question and answer** fields are **GFM Markdown** with optional **KaTeX** (`$` / `$$`) on the study UI; optional **question/answer images** reference Payload media (see `PLATFORM_FEATURES.md` § *Flashcards and deck hierarchy → Card content*).
 
 **Deck shapes:**
 

@@ -13,7 +13,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { DashboardHorizontalScroll } from '@/components/dashboard/dashboard-horizontal-scroll'
 import { Brain, Loader2, BookOpen } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { studentGlassCard } from '@/lib/student-glass-styles'
+import { studentGlassCard, studentGlassFooterNavButton } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
 import type { FlashcardDashboardSummary } from '@/lib/flashcards-dashboard-summary'
 
@@ -206,9 +206,23 @@ export function FlashcardDashboardSection({ children }: { children?: React.React
 
       {!loading && !error && summary && summary.decks.length > 0 && <FlashcardSummaryCarousel summary={summary} />}
 
+      {/* Footer nav: glass-tuned (`studentGlassFooterNavButton`); `hero` stays for primary CTAs (Open Deck Tree). */}
       {!loading && !error && summary && (
-        <div className="flex justify-center pt-1">
-          <Button size="sm" variant="outline" asChild className="min-w-[10rem]">
+        <div className="flex flex-wrap items-center justify-center gap-2 pt-1 sm:gap-3">
+          <Button
+            size="sm"
+            variant="outline"
+            asChild
+            className={cn('min-w-[10rem]', studentGlassFooterNavButton)}
+          >
+            <Link href="/dashboard/flashcards">Deck tree</Link>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            asChild
+            className={cn('min-w-[10rem]', studentGlassFooterNavButton)}
+          >
             <Link href="/dashboard/flashcards/browse">Browse all decks</Link>
           </Button>
         </div>

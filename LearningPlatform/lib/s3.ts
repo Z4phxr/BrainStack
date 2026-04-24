@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 // Railway S3-compatible storage configuration
@@ -75,4 +75,79 @@ export async function getSignedMediaUrl(
   })
 
   return await getSignedUrl(client, cmd, { expiresIn })
+}
+
+function isS3NotFoundError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const o = err as {
+    name?: string
+    Code?: string
+    $metadata?: { httpStatusCode?: number }
+  }
+  return (
+    o.name === 'NotFound' ||
+    o.name === 'NoSuchKey' ||
+    o.Code === 'NotFound' ||
+    o.Code === 'NoSuchKey' ||
+    o.$metadata?.httpStatusCode === 404
+  )
+}
+
+/** True if an object exists in the configured private bucket (for HEAD checks). */
+export async function mediaExistsInS3(key: string): Promise<boolean> {
+  if (!client || !BUCKET) return false
+  try {
+    await client.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }))
+    return true
+  } catch (err) {
+    if (isS3NotFoundError(err)) return false
+    console.warn('[mediaExistsInS3]', key, err)
+    throw err
+  }
+}
+
+export type PrivateMediaStreamResult = {
+  body: ReadableStream<Uint8Array> | Uint8Array
+  contentType: string
+}
+
+/**
+ * Read an object from the private bucket for same-origin streaming.
+ * Avoids redirecting browsers to signed URLs (which often violate CSP `img-src`).
+ */
+export async function getPrivateMediaBody(key: string): Promise<PrivateMediaStreamResult | null> {
+  if (!client || !BUCKET) return null
+
+  try {
+    const result = await client.send(
+      new GetObjectCommand({
+        Bucket: BUCKET,
+        Key: key,
+      }),
+    )
+
+    const contentType = result.ContentType || 'application/octet-stream'
+    type SdkBody = {
+      transformToWebStream?: () => ReadableStream<Uint8Array>
+      transformToByteArray?: () => Promise<Uint8Array>
+    }
+    const rawBody = result.Body as SdkBody | undefined
+    if (!rawBody) return null
+
+    if (typeof rawBody.transformToWebStream === 'function') {
+      return { body: rawBody.transformToWebStream(), contentType }
+    }
+
+    const bytes =
+      typeof rawBody.transformToByteArray === 'function' ? await rawBody.transformToByteArray() : undefined
+
+    if (bytes && bytes.byteLength > 0) {
+      return { body: bytes, contentType }
+    }
+
+    return null
+  } catch (err) {
+    console.warn('[getPrivateMediaBody]', key, err)
+    return null
+  }
 }

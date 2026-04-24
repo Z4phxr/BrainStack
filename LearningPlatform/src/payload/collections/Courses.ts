@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 import { toSlug } from '../../../lib/utils'
 import { prisma } from '../../../lib/prisma'
 import { deleteModulesAttachingToCourse } from '../lib/content-cascade-delete'
+import { sanitizeCoursesMediaRefs } from '@/lib/sanitize-payload-media-refs'
 
 export const Courses: CollectionConfig = {
   slug: 'courses',
@@ -10,6 +11,12 @@ export const Courses: CollectionConfig = {
     defaultColumns: ['title', 'subject', 'level', 'isPublished'],
   },
   hooks: {
+    beforeRead: [
+      ({ doc }) => {
+        sanitizeCoursesMediaRefs(doc)
+        return doc
+      },
+    ],
     beforeDelete: [
       async ({ id, req }) => {
         await deleteModulesAttachingToCourse(req.payload, String(id), req)
