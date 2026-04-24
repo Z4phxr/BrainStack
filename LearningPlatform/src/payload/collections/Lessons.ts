@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 import { TextBlock, ImageBlock, MathBlock, CalloutBlock, VideoBlock, TableBlock } from '../blocks'
 import { prisma } from '@/lib/prisma'
 import { deleteTasksAttachingToLesson } from '../lib/content-cascade-delete'
+import { sanitizeLessonsMediaRefs } from '@/lib/sanitize-payload-media-refs'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -10,6 +11,12 @@ export const Lessons: CollectionConfig = {
     defaultColumns: ['title', 'course', 'module', 'order', 'isPublished'],
   },
   hooks: {
+    beforeRead: [
+      ({ doc }) => {
+        sanitizeLessonsMediaRefs(doc)
+        return doc
+      },
+    ],
     beforeDelete: [
       async ({ id, req }) => {
         await deleteTasksAttachingToLesson(req.payload, String(id), req)

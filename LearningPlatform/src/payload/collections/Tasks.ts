@@ -1,18 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { prisma } from '@/lib/prisma'
-import { isResolvablePayloadMediaId } from '@/lib/valid-payload-media-id'
-
-/** Strip bad upload ids before Payload runs `depth` population (avoids uuid cast errors on import tokens). */
-function sanitizeTaskMediaUploadRefs(doc: unknown) {
-  if (!doc || typeof doc !== 'object') return
-  const d = doc as Record<string, unknown>
-  for (const key of ['questionMedia', 'solutionMedia'] as const) {
-    const v = d[key]
-    if (typeof v === 'string' && !isResolvablePayloadMediaId(v)) {
-      d[key] = null
-    }
-  }
-}
+import { sanitizeTasksMediaRefs } from '@/lib/sanitize-payload-media-refs'
 
 /** Extract plain-text from a Lexical richText JSON object. */
 function lexicalToPlainText(lexical: unknown): string {
@@ -37,7 +25,7 @@ export const Tasks: CollectionConfig = {
   hooks: {
     beforeRead: [
       ({ doc }) => {
-        sanitizeTaskMediaUploadRefs(doc)
+        sanitizeTasksMediaRefs(doc)
         return doc
       },
     ],
