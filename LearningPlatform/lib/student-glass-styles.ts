@@ -28,6 +28,18 @@ export const adminGlassCard = studentGlassCard
 export const adminGlassOutlineButton =
   'border-white/25 bg-white/10 backdrop-blur-sm hover:bg-white/15 dark:border-white/20 dark:bg-white/5 dark:hover:bg-white/10'
 
+/**
+ * Student dashboard (e.g. Your Flashcards strip): secondary nav on glass.
+ * Light: bright frost + slate rim + lift shadow. Dark: same *shape* inverted — neutral frost
+ * (`white/8` on shell), soft rim, depth shadow — no extra hue bands (matches glass cards).
+ */
+export const studentGlassFooterNavButton =
+  'border-slate-400/55 bg-white/[0.72] text-slate-900 shadow-[0_12px_34px_-10px_rgba(15,23,42,0.22),0_1px_0_rgba(255,255,255,0.75)_inset] backdrop-blur-md ' +
+  'hover:bg-white/[0.92] hover:border-slate-400/70 hover:shadow-[0_16px_40px_-10px_rgba(15,23,42,0.26)] ' +
+  'dark:border-white/18 dark:bg-white/[0.08] dark:text-gray-100 dark:backdrop-blur-md ' +
+  'dark:shadow-[0_12px_36px_-12px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.055)] ' +
+  'dark:hover:border-white/24 dark:hover:bg-white/[0.11] dark:hover:shadow-[0_14px_40px_-12px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.07)]'
+
 /** Compact icon / sort control on glass surfaces. */
 export const adminGlassIconToggleInactive =
   'border-slate-300/50 bg-white/20 text-muted-foreground hover:bg-white/35 hover:text-foreground dark:border-white/15 dark:bg-white/[0.08] dark:hover:bg-white/[0.12]'

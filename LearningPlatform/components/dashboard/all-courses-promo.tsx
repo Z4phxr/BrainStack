@@ -16,6 +16,10 @@ const LiquidEtherAny = LiquidEther as any
 const STUDENT_SHELL_LIGHT_BG =
   'linear-gradient(168deg, #eef1f8 0%, #e7edf6 35%, #e2e9f3 60%, #ebeff8 100%)'
 
+/** LiquidEther sim: purple + lilac; light mode swaps pink for a cooler accent to sit with the shell. */
+const LIQUID_ETHER_COLORS_DARK = ['#5227FF', '#FF9FFC', '#B19EEF'] as const
+const LIQUID_ETHER_COLORS_LIGHT = ['#5227FF', '#7DD3FC', '#B19EEF'] as const
+
 /**
  * WebGL liquid is opt-in after mount so SSR matches first paint, and stays off when reduced motion is requested.
  */
@@ -38,6 +42,7 @@ function useCatalogPromoLiquidEnabled() {
 export function AllCoursesPromo() {
   const isDark = useIsDark()
   const useLiquid = useCatalogPromoLiquidEnabled()
+  const liquidRgb = isDark ? LIQUID_ETHER_COLORS_DARK : LIQUID_ETHER_COLORS_LIGHT
 
   return (
     <Link
@@ -79,7 +84,7 @@ export function AllCoursesPromo() {
             />
             <div className="absolute inset-0 h-full min-h-full w-full">
               <LiquidEtherAny
-                colors={['#5227FF', '#FF9FFC', '#B19EEF']}
+                colors={[...liquidRgb]}
                 mouseForce={20}
                 cursorSize={100}
                 isViscous={false}
@@ -94,9 +99,9 @@ export function AllCoursesPromo() {
                 takeoverDuration={0.25}
                 autoResumeDelay={800}
                 autoRampDuration={0.6}
-                color0="#5227FF"
-                color1="#FF9FFC"
-                color2="#B19EEF"
+                color0={liquidRgb[0]}
+                color1={liquidRgb[1]}
+                color2={liquidRgb[2]}
               />
             </div>
           </div>
@@ -143,7 +148,7 @@ export function AllCoursesPromo() {
             isDark
               ? 'bg-fuchsia-400/20'
               : useLiquid
-                ? 'bg-violet-400/11'
+                ? 'bg-sky-300/14'
                 : 'bg-fuchsia-500/22',
           )}
           aria-hidden

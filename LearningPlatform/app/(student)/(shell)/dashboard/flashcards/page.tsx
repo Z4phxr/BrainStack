@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, Brain, BookOpen, Loader2, Zap } from 'lucide-react'
+import { ArrowLeft, Brain, BookOpen, ChevronDown, ChevronRight, Loader2, Zap } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,16 @@ type Stats = { total: number; newCards: number; due: number }
 
 function titlesMatch(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase()
+}
+
+/** Course subdecks are often named after the module (`Modules` sync); avoid `Title: Title`. */
+function courseSubdeckLabel(moduleTitle: string | null, deckName: string): string {
+  const mt = (moduleTitle ?? '').trim()
+  const dn = deckName.trim()
+  if (!mt) return dn || 'Module'
+  if (!dn) return mt
+  if (titlesMatch(mt, dn)) return dn
+  return `${mt}: ${dn}`
 }
 
 /** Same as course page `moduleFlashcardBoxClass` minus `mt-4` (list spacing handled by parent). */
@@ -72,6 +82,8 @@ export default function StudentFlashcardDeckTreePage() {
   const [summary, setSummary] = useState<FlashcardDashboardSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  /** Subdeck lists start collapsed; keyed by main deck id. */
+  const [subdeckListOpen, setSubdeckListOpen] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     async function load() {
@@ -105,11 +117,24 @@ export default function StudentFlashcardDeckTreePage() {
     return summary.decks
   }, [summary, courseSlug, standaloneDeckSlug])
 
+  const filteredByCourse = Boolean(courseSlug)
+  const filteredByStandalone = Boolean(standaloneDeckSlug)
+  const pageTitle = filteredByCourse
+    ? 'Course flashcards'
+    : filteredByStandalone
+      ? 'Your deck'
+      : 'Your flashcard decks'
+  const pageDescription = filteredByCourse
+    ? 'Sections below follow this course’s modules. Study the whole course with the top buttons, or focus one module at a time.'
+    : filteredByStandalone
+      ? 'Use the whole-deck buttons for everything in this collection, or study each section on its own.'
+      : 'These are the main decks tied to your courses and to standalone sets you added from Discover decks. Open one to see sections, counts, and study options.'
+
   return (
-    <div className="container mx-auto px-6 py-8 md:px-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div className="flex w-full flex-col gap-0">
-          <div className="flex w-full justify-start">
+    <div className="mx-auto w-full max-w-4xl px-6 py-8 md:px-8">
+      <div className="space-y-8">
+        <header className="space-y-4 border-b border-border/60 pb-8">
+          <div className="flex justify-start">
             <Button variant="outline" size="sm" asChild className="shrink-0">
               <Link href="/dashboard" className="inline-flex items-center gap-2">
                 <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -117,7 +142,22 @@ export default function StudentFlashcardDeckTreePage() {
               </Link>
             </Button>
           </div>
-        </div>
+          <div className="space-y-3 text-center">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{pageTitle}</h1>
+            <p className="mx-auto max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+              {pageDescription}
+            </p>
+            {!filteredByCourse && !filteredByStandalone && (
+              <p className="mx-auto max-w-2xl text-xs leading-relaxed text-muted-foreground/90 md:text-sm">
+                Tip: open{' '}
+                <Link href="/dashboard/flashcards/browse" className="font-medium text-primary underline-offset-4 hover:underline">
+                  Discover decks
+                </Link>{' '}
+                to add more standalone sets to this page.
+              </p>
+            )}
+          </div>
+        </header>
 
       {loading && (
         <div className="flex items-center justify-center gap-2 text-gray-500">
@@ -151,8 +191,12 @@ export default function StudentFlashcardDeckTreePage() {
           const courseTitle = row.course ? String(row.course.title ?? '') : ''
           const deckName = String(row.deck.name ?? '')
           const deckTitleSameAsCourse = row.source === 'course' && titlesMatch(deckName, courseTitle)
+          const subdecksExpanded = subdeckListOpen[row.deck.id] ?? false
           return (
-            <Card key={row.deck.id} className={cn('border-0 shadow-none', studentGlassCard)}>
+            <Card
+              key={row.deck.id}
+              className={cn('mx-auto w-full max-w-xl border-0 shadow-none', studentGlassCard)}
+            >
               <CardHeader className="space-y-3 text-center">
                 <div className="flex flex-col items-center gap-2">
                   {row.source === 'standalone' ? (
@@ -228,33 +272,80 @@ export default function StudentFlashcardDeckTreePage() {
                       : 'No subdecks linked yet.'}
                   </p>
                 ) : (
-                  row.subdecks.map((subdeck) => {
-                    const subdeckSlugQ = encodeURIComponent(subdeck.deck.slug)
-                    const subStats: Stats = subdeck.stats
-                    const sectionLabel =
-                      row.source === 'standalone'
-                        ? subdeck.deck.name
-                        : `${subdeck.deck.moduleTitle ?? 'Module'}: ${subdeck.deck.name}`
-                    return (
-                      <div key={subdeck.deck.id} className={moduleFlashcardStripClass}>
-                        <p className="text-center text-sm font-medium leading-snug text-gray-900 dark:text-gray-100">
-                          {sectionLabel}
+                  <>
+                    <button
+                      type="button"
+                      id={`subdeck-toggle-${row.deck.id}`}
+                      className={cn(
+                        'flex w-full items-center justify-center gap-2 rounded-lg border border-border/60 bg-muted/25 px-3 py-2.5 text-sm font-medium text-foreground',
+                        'transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                      )}
+                      aria-expanded={subdecksExpanded}
+                      aria-controls={`subdeck-list-${row.deck.id}`}
+                      onClick={() =>
+                        setSubdeckListOpen((m) => ({
+                          ...m,
+                          [row.deck.id]: !(m[row.deck.id] ?? false),
+                        }))
+                      }
+                    >
+                      {subdecksExpanded ? (
+                        <ChevronDown className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                      )}
+                      <span>
+                        {row.subdecks.length}{' '}
+                        {row.subdecks.length === 1 ? 'section' : 'sections'}
+                        <span className="font-normal text-muted-foreground">
+                          {' '}
+                          ({subdecksExpanded ? 'hide' : 'show'})
+                        </span>
+                      </span>
+                    </button>
+
+                    {subdecksExpanded && (
+                      <div
+                        id={`subdeck-list-${row.deck.id}`}
+                        role="region"
+                        aria-labelledby={`subdeck-toggle-${row.deck.id}`}
+                        className="space-y-2.5 pt-1"
+                      >
+                        <p className="mx-auto max-w-md pb-1 text-center text-xs leading-relaxed text-muted-foreground md:text-sm">
+                          {row.source === 'course'
+                            ? 'Each box is a module section you can study it separately or use the whole-course buttons above.'
+                            : 'Each box is a section of this deck—study it on its own or use the full-deck buttons above.'}
                         </p>
-                        <div className="mx-auto mt-2 flex w-full max-w-md items-stretch justify-center gap-2 sm:gap-3">
-                          <StatPill label="due" count={subStats.due} />
-                          <StatPill label="new" count={subStats.newCards} />
-                          <StatPill label="total" count={subStats.total} />
-                        </div>
-                        <div className="mx-auto mt-2 w-full max-w-sm">
-                          <StudyButtons
-                            srsHref={`/dashboard/flashcards/study?mode=srs&subdeckSlug=${subdeckSlugQ}`}
-                            freeHref={`/dashboard/flashcards/study?mode=free&subdeckSlug=${subdeckSlugQ}`}
-                            disabled={subStats.total === 0}
-                          />
-                        </div>
+                        {row.subdecks.map((subdeck) => {
+                          const subdeckSlugQ = encodeURIComponent(subdeck.deck.slug)
+                          const subStats: Stats = subdeck.stats
+                          const sectionLabel =
+                            row.source === 'standalone'
+                              ? subdeck.deck.name
+                              : courseSubdeckLabel(subdeck.deck.moduleTitle, subdeck.deck.name)
+                          return (
+                            <div key={subdeck.deck.id} className={moduleFlashcardStripClass}>
+                              <p className="text-center text-sm font-medium leading-snug text-gray-900 dark:text-gray-100">
+                                {sectionLabel}
+                              </p>
+                              <div className="mx-auto mt-2 flex w-full max-w-md items-stretch justify-center gap-2 sm:gap-3">
+                                <StatPill label="due" count={subStats.due} />
+                                <StatPill label="new" count={subStats.newCards} />
+                                <StatPill label="total" count={subStats.total} />
+                              </div>
+                              <div className="mx-auto mt-2 w-full max-w-sm">
+                                <StudyButtons
+                                  srsHref={`/dashboard/flashcards/study?mode=srs&subdeckSlug=${subdeckSlugQ}`}
+                                  freeHref={`/dashboard/flashcards/study?mode=free&subdeckSlug=${subdeckSlugQ}`}
+                                  disabled={subStats.total === 0}
+                                />
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
-                    )
-                  })
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
