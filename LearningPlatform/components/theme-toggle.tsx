@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { writeThemeCookie } from '@/lib/theme-cookie'
 
 export default function ThemeToggle() {
   // null = not yet hydrated; avoids SSR/client mismatch
@@ -25,9 +26,11 @@ export default function ThemeToggle() {
       if (isDark) {
         document.documentElement.classList.add('dark')
         localStorage.setItem('theme', 'dark')
+        writeThemeCookie('dark')
       } else {
         document.documentElement.classList.remove('dark')
         localStorage.setItem('theme', 'light')
+        writeThemeCookie('light')
       }
     } catch {
       // noop
@@ -40,9 +43,11 @@ export default function ThemeToggle() {
       if (next) {
         document.documentElement.classList.add('dark')
         localStorage.setItem('theme', 'dark')
+        writeThemeCookie('dark')
       } else {
         document.documentElement.classList.remove('dark')
         localStorage.setItem('theme', 'light')
+        writeThemeCookie('light')
       }
     } catch {
       // noop

@@ -7,6 +7,7 @@ import { Eye, LogOut, Moon, Settings, Sun } from 'lucide-react'
 import Link from 'next/link'
 import { adminGlassOutlineButton, adminGlassTopbar } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
+import { writeThemeCookie } from '@/lib/theme-cookie'
 
 const THEME_KEY = 'theme'
 
@@ -32,14 +33,18 @@ export function AdminTopbar({ user }: AdminTopbarProps) {
   useEffect(() => {
     const root = document.documentElement
     root.classList.toggle('dark', isDark)
-    localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light')
+    const v = isDark ? 'dark' : 'light'
+    localStorage.setItem(THEME_KEY, v)
+    writeThemeCookie(v)
   }, [isDark])
 
   const toggleTheme = () => {
     setIsDark((prev) => {
       const next = !prev
       document.documentElement.classList.toggle('dark', next)
-      localStorage.setItem(THEME_KEY, next ? 'dark' : 'light')
+      const v = next ? 'dark' : 'light'
+      localStorage.setItem(THEME_KEY, v)
+      writeThemeCookie(v)
       return next
     })
   }

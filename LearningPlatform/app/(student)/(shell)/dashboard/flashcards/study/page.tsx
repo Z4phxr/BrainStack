@@ -11,7 +11,7 @@
  *
  * The study loop:
  *  1. Fetch due cards from /api/flashcards/study
- *  2. Show ONE card at a time (question side up)
+ *  2. Show ONE card at a time (question side up); question/answer use GFM Markdown + KaTeX ($ / $$)
  *  3. Click / tap â†’ flip to reveal answer
  *  4. Tap Again / Hard / Good / Easy â†’ POST to /api/flashcards/[id]/review
  *  5. SRS algorithm runs server-side and returns updated card state
@@ -35,6 +35,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { FlashcardRichText } from '@/components/student/flashcard-markdown'
 
 // â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -45,20 +46,23 @@ interface Tag {
 }
 
 interface StudyCard {
-  id:              string
-  question:        string
-  answer:          string
-  questionImageId: string | null
-  answerImageId:   string | null
-  state:           string
-  interval:        number
-  easeFactor:      number
-  repetition:      number
-  stepIndex:       number
-  nextReviewAt:    string | null
-  lastReviewedAt:  string | null
-  tags:            Tag[]
-  deck?:           { id: string; name: string; slug: string } | null
+  id:                string
+  question:          string
+  answer:            string
+  questionImageId:   string | null
+  answerImageId:     string | null
+  /** Resolved on the server so students do not need admin-only `/api/media/list`. */
+  questionImageUrl?: string | null
+  answerImageUrl?:   string | null
+  state:             string
+  interval:          number
+  easeFactor:        number
+  repetition:        number
+  stepIndex:         number
+  nextReviewAt:      string | null
+  lastReviewedAt:    string | null
+  tags:              Tag[]
+  deck?:             { id: string; name: string; slug: string } | null
 }
 
 type AnswerButton = 'AGAIN' | 'HARD' | 'GOOD' | 'EASY'
@@ -103,26 +107,6 @@ function stateLabel(state: string): { label: string; color: string } {
     case 'RELEARNING': return { label: 'Relearning', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' }
     case 'MASTERED':   return { label: 'Mastered',   color: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' }
     default:           return { label: state,        color: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' }
-  }
-}
-
-/** Render LaTeX if katex is loaded, otherwise return the raw string. */
-async function renderLatex(raw: string): Promise<string> {
-  try {
-    const katex = (await import('katex')).default
-    // Block LaTeX: $$...$$
-    let html = raw.replace(/\$\$([\s\S]*?)\$\$/g, (_m, tex) => {
-      try { return katex.renderToString(tex, { displayMode: true, throwOnError: false }) }
-      catch { return _m }
-    })
-    // Inline LaTeX: $...$
-    html = html.replace(/\$([\s\S]*?)\$/g, (_m, tex) => {
-      try { return katex.renderToString(tex, { displayMode: false, throwOnError: false }) }
-      catch { return _m }
-    })
-    return html
-  } catch {
-    return raw
   }
 }
 
@@ -196,11 +180,7 @@ function StudyPage() {
   const [reviewedCount,setReviewedCount]= useState(0)
   const totalRef = useRef(0)
 
-  // LaTeX-rendered HTML for the current card
-  const [questionHtml, setQuestionHtml] = useState('')
-  const [answerHtml,   setAnswerHtml]   = useState('')
-
-  // Image URLs resolved from Payload CMS media IDs
+  // Image URLs from GET /api/flashcards/study (and PATCH via review); set in effect when the card changes
   const [questionImgUrl, setQuestionImgUrl] = useState<string | null>(null)
   const [answerImgUrl,   setAnswerImgUrl]   = useState<string | null>(null)
 
@@ -233,39 +213,19 @@ function StudyPage() {
     return () => window.clearTimeout(t)
   }, [loadSession])
 
-  // â”€â”€ Render LaTeX whenever current card changes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â”€â”€ Image URLs when the current card changes (markdown renders in JSX) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   useEffect(() => {
     const card = queue[currentIdx]
     if (!card) return
 
     queueMicrotask(() => {
-      setQuestionHtml('')
-      setAnswerHtml('')
       setQuestionImgUrl(null)
       setAnswerImgUrl(null)
     })
 
-    renderLatex(card.question).then(setQuestionHtml)
-    renderLatex(card.answer).then(setAnswerHtml)
-
-    // Resolve image IDs â†’ URLs
-    if (card.questionImageId || card.answerImageId) {
-      fetch('/api/media/list')
-        .then((r) => r.json())
-        .then((d) => {
-          const docs: { id: string | number; url: string }[] = d?.media ?? []
-          if (card.questionImageId) {
-            const m = docs.find((x) => String(x.id) === card.questionImageId)
-            if (m) setQuestionImgUrl(m.url)
-          }
-          if (card.answerImageId) {
-            const m = docs.find((x) => String(x.id) === card.answerImageId)
-            if (m) setAnswerImgUrl(m.url)
-          }
-        })
-        .catch(() => { /* ignore â€” images optional */ })
-    }
+    setQuestionImgUrl(card.questionImageUrl ?? null)
+    setAnswerImgUrl(card.answerImageUrl ?? null)
   }, [queue, currentIdx])
 
   // â”€â”€ Keyboard shortcuts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -539,16 +499,9 @@ function StudyPage() {
                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600">
                   Question
                 </p>
-                {questionHtml ? (
-                  <div
-                    className="prose prose-sm max-w-full min-w-0 font-mono text-lg leading-relaxed text-gray-800 dark:prose-invert dark:text-gray-100 [&_.katex-display]:max-w-full"
-                    dangerouslySetInnerHTML={{ __html: questionHtml }}
-                  />
-                ) : (
-                  <p className="min-w-0 max-w-full break-words font-mono text-lg text-gray-800 dark:text-gray-100">
-                    {card.question}
-                  </p>
-                )}
+                <div className="min-w-0 max-w-full text-gray-800 dark:text-gray-100">
+                  <FlashcardRichText markdown={card.question} variant="question" />
+                </div>
                 {questionImgUrl && (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
@@ -565,16 +518,9 @@ function StudyPage() {
                   <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600">
                     Answer
                   </p>
-                  {answerHtml ? (
-                    <div
-                      className="prose prose-sm max-w-full min-w-0 font-mono text-base leading-relaxed text-gray-700 dark:prose-invert dark:text-gray-200 [&_.katex-display]:max-w-full"
-                      dangerouslySetInnerHTML={{ __html: answerHtml }}
-                    />
-                  ) : (
-                    <p className="min-w-0 max-w-full break-words font-mono text-base text-gray-700 dark:text-gray-200">
-                      {card.answer}
-                    </p>
-                  )}
+                  <div className="min-w-0 max-w-full text-gray-700 dark:text-gray-200">
+                    <FlashcardRichText markdown={card.answer} variant="answer" />
+                  </div>
                   {answerImgUrl && (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img

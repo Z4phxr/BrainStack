@@ -6,6 +6,7 @@ import { isCardDue, parseSettings, getCardUrgency } from '@/lib/srs'
 import { getUserWeakTags } from '@/lib/analytics'
 import { getSortedFreeStudyCardsForUser } from '@/lib/flashcards-study-free'
 import { assertUserCanStudyDeckScope } from '@/lib/flashcards-study-access'
+import { attachResolvedMediaUrls } from '@/lib/flashcard-media-urls'
 
 /**
  * GET /api/flashcards/study
@@ -61,7 +62,8 @@ export async function GET(req: Request) {
 
     if (mode === 'free' && !tagSlug && !subject && !deckFilterSlug && !mainDeckSlugQ) {
       const sorted = await getSortedFreeStudyCardsForUser(user.id)
-      return NextResponse.json({ cards: sorted, mode, total: sorted.length })
+      const cards = await attachResolvedMediaUrls(sorted)
+      return NextResponse.json({ cards, mode, total: cards.length })
     }
 
     // Kick off weak-tag fetch in parallel with settings  failure is graceful.
@@ -212,7 +214,8 @@ export async function GET(req: Request) {
     if (mode === 'free') {
       // Filtered free learn (tag / subject / deck): same ordering as unfiltered free mode.
       const sorted = sortWithWeakBonus(mergedCards)
-      return NextResponse.json({ cards: sorted, mode, total: sorted.length })
+      const cards = await attachResolvedMediaUrls(sorted)
+      return NextResponse.json({ cards, mode, total: cards.length })
     }
 
     // -- SRS mode filtering ----------------------------------------------------
@@ -253,10 +256,14 @@ export async function GET(req: Request) {
 
     // Sort the final eligible set by urgency + weak-tag bonus
     const combined = sortWithWeakBonus([...cappedActive, ...cappedNew])
+    const cards = await attachResolvedMediaUrls(combined)
 
     return NextResponse.json({
-      cards: combined, mode, total: combined.length,
-      newCount: cappedNew.length, reviewCount: cappedActive.length,
+      cards,
+      mode,
+      total: cards.length,
+      newCount: cappedNew.length,
+      reviewCount: cappedActive.length,
     })
   } catch (error) {
     if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden')) {
