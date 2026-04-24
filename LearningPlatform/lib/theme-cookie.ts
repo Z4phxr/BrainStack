@@ -8,7 +8,9 @@ const MAX_AGE_SEC = 60 * 60 * 24 * 365
 /** Client: persist theme for the next full page load / SSR. */
 export function writeThemeCookie(value: ThemePreference) {
   if (typeof document === 'undefined') return
-  document.cookie = `${THEME_COOKIE_NAME}=${value}; path=/; max-age=${MAX_AGE_SEC}; SameSite=Lax`
+  const secure =
+    typeof location !== 'undefined' && location.protocol === 'https:' ? '; Secure' : ''
+  document.cookie = `${THEME_COOKIE_NAME}=${value}; path=/; max-age=${MAX_AGE_SEC}; SameSite=Lax${secure}`
 }
 
 /** Server: read theme from request cookies. Default matches previous inline script (`dark`). */

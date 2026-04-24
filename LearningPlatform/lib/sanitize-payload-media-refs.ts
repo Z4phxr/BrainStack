@@ -9,7 +9,7 @@ function stripInvalidMediaRelation(value: unknown): unknown {
   if (typeof value === 'string') {
     const t = value.trim()
     if (!t) return null
-    return isResolvablePayloadMediaId(t) ? value : null
+    return isResolvablePayloadMediaId(t) ? t : null
   }
   if (typeof value === 'object' && 'value' in (value as object)) {
     const inner = (value as { value: unknown }).value
@@ -23,7 +23,11 @@ function stripInvalidMediaRelation(value: unknown): unknown {
 function applyStripped(target: Record<string, unknown>, key: string) {
   const cur = target[key]
   const next = stripInvalidMediaRelation(cur)
-  if (next === null) target[key] = null
+  if (next === null) {
+    target[key] = null
+  } else if (next !== cur) {
+    target[key] = next
+  }
 }
 
 /** Tasks: `questionMedia` / `solutionMedia` (+ snake_case if present). */

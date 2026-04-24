@@ -30,12 +30,34 @@ export function ThemePreferenceProvider({
   const [preference, setPreference] = useState<ThemePreference>(initialPreference)
   const isDark = preference === 'dark'
 
+  /** Apply cookie + class immediately; defer setState so we do not sync-setState inside an effect (react-hooks/set-state-in-effect). */
+  useLayoutEffect(() => {
+    try {
+      const ls = localStorage.getItem('theme')
+      const resolved = resolveThemePreference(ls, document.cookie)
+      applyDomTheme(resolved)
+      if (resolved !== initialPreference) {
+        queueMicrotask(() => setPreference(resolved))
+      }
+    } catch {
+      try {
+        document.documentElement.classList.add('dark')
+        writeThemeCookie('dark')
+        if (initialPreference !== 'dark') {
+          queueMicrotask(() => setPreference('dark'))
+        }
+      } catch {
+        /* noop */
+      }
+    }
+  }, [initialPreference])
+
   const syncFromBrowser = useCallback(() => {
     try {
       const ls = localStorage.getItem('theme')
       const resolved = resolveThemePreference(ls, document.cookie)
-      setPreference(resolved)
       applyDomTheme(resolved)
+      setPreference(resolved)
     } catch {
       try {
         document.documentElement.classList.add('dark')
@@ -46,10 +68,6 @@ export function ThemePreferenceProvider({
       }
     }
   }, [])
-
-  useLayoutEffect(() => {
-    syncFromBrowser()
-  }, [syncFromBrowser])
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {

@@ -1,24 +1,24 @@
 ﻿'use client'
 
 /**
- * â”€â”€â”€ Flashcard Study Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ * Flashcard Study Page
  *
  * Supports two modes (selected via ?mode= query param):
- *   srs  â€” Only shows cards that are due today (respects daily limits).
- *   free â€” Shows ALL cards in the set regardless of due date.
+ *   srs  - Only shows cards that are due today (respects daily limits).
+ *   free - Shows ALL cards in the set regardless of due date.
  *
  * Optional query params: ?tagSlug=, ?subject=, ?deckSlug=, ?subdeckSlug=, ?mainDeckSlug= limit which cards load.
  *
  * The study loop:
  *  1. Fetch due cards from /api/flashcards/study
  *  2. Show ONE card at a time (question side up); question/answer use GFM Markdown + KaTeX ($ / $$)
- *  3. Click / tap â†’ 3D flip to reveal answer; tap again to flip between sides
- *  4. Tap Again / Hard / Good / Easy â†’ POST to /api/flashcards/[id]/review
+ *  3. Click / tap -> 3D flip to reveal answer; tap again to flip between sides
+ *  4. Tap Again / Hard / Good / Easy -> POST to /api/flashcards/[id]/review
  *  5. SRS algorithm runs server-side and returns updated card state
  *  6. If the card is still in a short-step phase (LEARNING/RELEARNING with
  *     nextReviewAt within REQUEUE_WINDOW_MS), push it back to the END of the
  *     in-memory queue so it reappears in this session.
- *  7. When queue is empty â†’ show completion screen
+ *  7. When queue is empty -> show completion screen
  */
 
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, Suspense } from 'react'
@@ -37,7 +37,7 @@ import {
 import { cn } from '@/lib/utils'
 import { FlashcardRichText } from '@/components/student/flashcard-markdown'
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Types ---
 
 interface Tag {
   id:   string
@@ -97,7 +97,7 @@ function studyQuery(
   return p.toString()
 }
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Helpers ---
 
 function stateLabel(state: string): { label: string; color: string } {
   switch (state) {
@@ -110,7 +110,7 @@ function stateLabel(state: string): { label: string; color: string } {
   }
 }
 
-// â”€â”€â”€ Answer button configs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Answer button configs ---
 
 const ANSWER_BUTTONS: {
   label:   string
@@ -144,7 +144,7 @@ const ANSWER_BUTTONS: {
   },
 ]
 
-// â”€â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Page ---
 
 /**
  * Wrapper required by Next.js App Router so that useSearchParams() is
@@ -171,7 +171,7 @@ function StudyPage() {
   const deckSlug = searchParams.get('deckSlug') ?? ''
   const subdeckSlug = searchParams.get('subdeckSlug') ?? ''
   const mainDeckSlug = searchParams.get('mainDeckSlug') ?? ''
-  // â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- State ---
 
   const [queue,        setQueue]        = useState<StudyCard[]>([])
   const [currentIdx,   setCurrentIdx]   = useState(0)
@@ -232,7 +232,7 @@ function StudyPage() {
     return () => ro.disconnect()
   }, [measureFaces, card?.id])
 
-  // â”€â”€ Fetch study session â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Fetch study session ---
 
   const loadSession = useCallback(async () => {
     setPhase('loading')
@@ -261,7 +261,7 @@ function StudyPage() {
     return () => window.clearTimeout(t)
   }, [loadSession])
 
-  // â”€â”€ Image URLs when the current card changes (markdown renders in JSX) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Image URLs when the current card changes (markdown renders in JSX) ---
 
   useEffect(() => {
     const card = queue[currentIdx]
@@ -276,7 +276,7 @@ function StudyPage() {
     })
   }, [queue, currentIdx])
 
-  // â”€â”€ Keyboard shortcuts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Keyboard shortcuts ---
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -304,7 +304,7 @@ function StudyPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, currentIdx, queue, flippedToBack])
 
-  // â”€â”€ Answer handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Answer handler ---
 
   async function handleAnswer(answer: AnswerButton) {
     const card = queue[currentIdx]
@@ -348,7 +348,7 @@ function StudyPage() {
         ]
         nextIdx = currentIdx >= nextQueue.length - 1 ? 0 : currentIdx
         // If after requeue the remaining non-requeued items are exhausted,
-        // we're done with the "fresh" cards â€” treat as done when queue is 1 item long
+        // we're done with the "fresh" cards - treat as done when queue is 1 item long
         if (nextQueue.length === 1) {
           // Only the re-queued card remains; reset index to 0 and continue
           nextIdx = 0
@@ -373,14 +373,12 @@ function StudyPage() {
     }
   }
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
   const progressTotal = totalRef.current
   const progressDone  = reviewedCount
   const pct           = progressTotal > 0 ? Math.round((progressDone / progressTotal) * 100) : 0
   const backHref      = '/dashboard/flashcards'
 
-  // â”€â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Render ---
 
   return (
     <div className="flex min-h-0 w-full min-w-0 max-w-full flex-col overflow-x-hidden">
@@ -423,7 +421,7 @@ function StudyPage() {
         </div>
       </header>
 
-      {/* â”€â”€ Progress bar â”€â”€ */}
+      {/* Progress bar */}
       {progressTotal > 0 && (
         <div className="h-1 w-full bg-gray-200 dark:bg-gray-800">
           <div
@@ -433,7 +431,7 @@ function StudyPage() {
         </div>
       )}
 
-      {/* â”€â”€ Main content â”€â”€ */}
+      {/* Main content */}
       <main className="flex min-h-0 w-full min-w-0 max-w-full flex-1 flex-col items-center justify-center overflow-x-hidden bg-gray-50 px-4 py-8 dark:bg-gray-950 sm:px-6 min-h-[calc(100dvh-5rem)]">
 
         {/* Loading */}
@@ -570,7 +568,7 @@ function StudyPage() {
                     transition: 'transform 0.5s ease, min-height 0.35s ease, height 0.35s ease',
                   }}
                 >
-                  {/* Front (question) face — absolute so its height does not force the back face’s box */}
+                  {/* Front (question) face - absolute so its height does not force the back face box */}
                   <div
                     ref={frontFaceRef}
                     className={cn(

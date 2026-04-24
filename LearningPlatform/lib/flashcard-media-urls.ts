@@ -60,22 +60,38 @@ export async function resolvePayloadMediaUrlMap(ids: (string | null | undefined)
 
   const payload = await getPayloadClient()
 
-  // Per-id lookup only: avoids `WHERE id IN ($1)` with a bad cast if validation ever regresses,
-  // and errors stay local to one id.
-  await Promise.all(
-    unique.map(async (id) => {
-      try {
-        const raw = await payload.findByID({ collection: 'media', id, depth: 0 })
-        const doc = raw as MediaDoc
-        const url = docToPublicUrl(doc)
-        if (url && doc.id !== undefined && doc.id !== null) {
-          map.set(String(doc.id), url)
-        }
-      } catch {
-        /* missing row or DB error — skip */
+  try {
+    const { docs } = await payload.find({
+      collection: 'media',
+      where: { id: { in: unique } },
+      depth: 0,
+      limit: unique.length,
+      pagination: false,
+    })
+    for (const raw of docs) {
+      const doc = raw as MediaDoc
+      const url = docToPublicUrl(doc)
+      if (url && doc.id !== undefined && doc.id !== null) {
+        map.set(String(doc.id), url)
       }
-    }),
-  )
+    }
+  } catch {
+    /* batch query failed — fall back to per-id so one bad id does not drop every URL */
+    await Promise.all(
+      unique.map(async (id) => {
+        try {
+          const raw = await payload.findByID({ collection: 'media', id, depth: 0 })
+          const doc = raw as MediaDoc
+          const url = docToPublicUrl(doc)
+          if (url && doc.id !== undefined && doc.id !== null) {
+            map.set(String(doc.id), url)
+          }
+        } catch {
+          /* missing row or DB error — skip */
+        }
+      }),
+    )
+  }
 
   return map
 }

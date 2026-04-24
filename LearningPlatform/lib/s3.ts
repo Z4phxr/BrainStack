@@ -77,14 +77,32 @@ export async function getSignedMediaUrl(
   return await getSignedUrl(client, cmd, { expiresIn })
 }
 
+function isS3NotFoundError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const o = err as {
+    name?: string
+    Code?: string
+    $metadata?: { httpStatusCode?: number }
+  }
+  return (
+    o.name === 'NotFound' ||
+    o.name === 'NoSuchKey' ||
+    o.Code === 'NotFound' ||
+    o.Code === 'NoSuchKey' ||
+    o.$metadata?.httpStatusCode === 404
+  )
+}
+
 /** True if an object exists in the configured private bucket (for HEAD checks). */
 export async function mediaExistsInS3(key: string): Promise<boolean> {
   if (!client || !BUCKET) return false
   try {
     await client.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }))
     return true
-  } catch {
-    return false
+  } catch (err) {
+    if (isS3NotFoundError(err)) return false
+    console.warn('[mediaExistsInS3]', key, err)
+    throw err
   }
 }
 

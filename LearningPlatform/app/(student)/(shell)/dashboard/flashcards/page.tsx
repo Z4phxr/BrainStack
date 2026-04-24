@@ -385,8 +385,8 @@ export default function StudentFlashcardDeckTreePage() {
                       >
                         <p className="mx-auto max-w-md pb-1 text-center text-xs leading-relaxed text-muted-foreground md:text-sm">
                           {row.source === 'course'
-                            ? 'Each box is a module section you can study it separately or use the whole-course buttons above.'
-                            : 'Each box is a section of this deck—study it on its own or use the full-deck buttons above.'}
+                            ? 'Each box is a module section. You can study it separately or use the whole-course buttons above.'
+                            : 'Each box is a section of this deck. You can study it on its own or use the full-deck buttons above.'}
                         </p>
                         {row.subdecks.map((subdeck) => {
                           const subdeckSlugQ = encodeURIComponent(subdeck.deck.slug)
