@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
-import { isS3Configured, getSignedMediaUrl } from '@/lib/s3'
+import { getPrivateMediaBody, isS3Configured, mediaExistsInS3 } from '@/lib/s3'
 
 const PUBLIC_MEDIA_DIR = path.join(process.cwd(), 'public', 'media')
 
@@ -46,20 +46,23 @@ export async function GET(request: Request, props: any) {
       })
     }
 
-    // --- S3 path: file not on disk, try signed URL redirect ---
+    // --- S3 path: stream through this origin so `<img src="/api/media/serve/...">` works
+    // under a strict CSP (browser img-src does not include every S3-compatible hostname).
     if (isS3Configured()) {
-      const signedUrl = await getSignedMediaUrl(name)
-      if (signedUrl) {
-        // 307 Temporary Redirect - client follows to signed URL
-        // Short cache so the redirect itself isn't cached longer than the signed URL TTL
-        return NextResponse.redirect(signedUrl, {
-          status: 307,
-          headers: {
-            'Cache-Control': 'private, max-age=300', // 5 min - matches typical presigned URL usage
-          },
-        })
+      const streamed = await getPrivateMediaBody(name)
+      if (streamed) {
+        const headers: Record<string, string> = {
+          'Content-Type': streamed.contentType,
+          'Cache-Control': 'private, max-age=300',
+        }
+        if (streamed.body instanceof Uint8Array) {
+          const buf = Buffer.from(streamed.body)
+          headers['Content-Length'] = String(buf.length)
+          return new NextResponse(buf, { status: 200, headers })
+        }
+        return new NextResponse(streamed.body, { status: 200, headers })
       }
-      console.warn(`[serve] S3 configured but failed to get signed URL for: ${name}`)
+      console.warn(`[serve] S3 configured but object not readable: ${name}`)
     }
 
     // File not on disk and not in S3 (or S3 not configured)
@@ -79,15 +82,11 @@ export async function HEAD(request: Request, props: any) {
 
     const name = decodeURIComponent(path.basename(raw))
 
-    // For S3: just confirm the object exists by attempting to generate a signed URL
-    if (isS3Configured()) {
-      const signedUrl = await getSignedMediaUrl(name, 60)
-      if (signedUrl) {
-        return new NextResponse(null, {
-          status: 200,
-          headers: { 'Cache-Control': 'private, max-age=60' },
-        })
-      }
+    if (isS3Configured() && (await mediaExistsInS3(name))) {
+      return new NextResponse(null, {
+        status: 200,
+        headers: { 'Cache-Control': 'private, max-age=60' },
+      })
     }
 
     const target = path.join(PUBLIC_MEDIA_DIR, name)

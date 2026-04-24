@@ -1,3 +1,4 @@
+import path from 'path'
 import type { Payload } from 'payload'
 import { isResolvablePayloadMediaId } from '@/lib/valid-payload-media-id'
 
@@ -10,10 +11,35 @@ type MediaDoc = {
 }
 
 function docToPublicUrl(doc: MediaDoc): string | null {
-  if (typeof doc.url === 'string' && doc.url.length > 0) return doc.url
-  if (typeof doc.filename === 'string' && doc.filename.length > 0) {
-    return `/api/media/serve/${encodeURIComponent(doc.filename)}`
+  // Prefer our serve URL built from filename so we never return stale hosts, broken
+  // Payload `url` values, or signed URLs that fail under the app CSP for `<img>`.
+  if (typeof doc.filename === 'string' && doc.filename.trim().length > 0) {
+    const base = path.posix.basename(doc.filename.replace(/\\/g, '/'))
+    if (base && base !== '.' && base !== '..') {
+      return `/api/media/serve/${encodeURIComponent(base)}`
+    }
   }
+
+  if (typeof doc.url === 'string' && doc.url.trim().length > 0) {
+    const u = doc.url.trim()
+    if (u.startsWith('/api/media/serve/')) return u
+    if (u.startsWith('/media/')) {
+      const base = path.posix.basename(u.replace(/^\/media\//, ''))
+      if (base) return `/api/media/serve/${encodeURIComponent(base)}`
+    }
+    if (u.startsWith('/')) return u
+    try {
+      const parsed = new URL(u, 'http://local.invalid')
+      if (parsed.pathname.startsWith('/media/')) {
+        const base = path.posix.basename(parsed.pathname)
+        if (base) return `/api/media/serve/${encodeURIComponent(base)}`
+      }
+    } catch {
+      /* ignore */
+    }
+    return u
+  }
+
   return null
 }
 

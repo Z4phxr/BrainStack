@@ -12,7 +12,7 @@
  * The study loop:
  *  1. Fetch due cards from /api/flashcards/study
  *  2. Show ONE card at a time (question side up); question/answer use GFM Markdown + KaTeX ($ / $$)
- *  3. Click / tap â†’ flip to reveal answer
+ *  3. Click / tap â†’ 3D flip to reveal answer; tap again to flip between sides
  *  4. Tap Again / Hard / Good / Easy â†’ POST to /api/flashcards/[id]/review
  *  5. SRS algorithm runs server-side and returns updated card state
  *  6. If the card is still in a short-step phase (LEARNING/RELEARNING with
@@ -21,7 +21,7 @@
  *  7. When queue is empty â†’ show completion screen
  */
 
-import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
+import { useEffect, useLayoutEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -184,6 +184,54 @@ function StudyPage() {
   const [questionImgUrl, setQuestionImgUrl] = useState<string | null>(null)
   const [answerImgUrl,   setAnswerImgUrl]   = useState<string | null>(null)
 
+  /** After reveal, which physical face is toward the user (answer = back of the 3D card). While phase is question, rotation ignores this. */
+  const [flippedToBack, setFlippedToBack] = useState(false)
+
+  const card = queue[currentIdx]
+
+  const frontFaceRef = useRef<HTMLDivElement>(null)
+  const backFaceRef = useRef<HTMLDivElement>(null)
+  /** Natural heights of each face (absolute siblings so they do not stretch to max of the other). */
+  const [faceHeights, setFaceHeights] = useState({ front: 280, back: 280 })
+
+  const visibleIsAnswerFace =
+    phase === 'submitting' || (phase === 'answer' && flippedToBack)
+
+  const activeFlipHeight = Math.max(280, visibleIsAnswerFace ? faceHeights.back : faceHeights.front)
+
+  const measureFaces = useCallback(() => {
+    const fr = frontFaceRef.current?.getBoundingClientRect().height ?? 0
+    const br = backFaceRef.current?.getBoundingClientRect().height ?? 0
+    setFaceHeights({
+      front: Math.max(280, Math.ceil(fr)),
+      back: Math.max(280, Math.ceil(br)),
+    })
+  }, [])
+
+  useLayoutEffect(() => {
+    queueMicrotask(() => {
+      setFaceHeights({ front: 280, back: 280 })
+    })
+  }, [currentIdx, card?.id, card?.question, card?.answer, questionImgUrl, answerImgUrl])
+
+  useLayoutEffect(() => {
+    queueMicrotask(() => {
+      measureFaces()
+    })
+  }, [measureFaces, visibleIsAnswerFace, phase])
+
+  useEffect(() => {
+    const f = frontFaceRef.current
+    const b = backFaceRef.current
+    if (!f && !b) return
+    const ro = new ResizeObserver(() => {
+      measureFaces()
+    })
+    if (f) ro.observe(f)
+    if (b) ro.observe(b)
+    return () => ro.disconnect()
+  }, [measureFaces, card?.id])
+
   // â”€â”€ Fetch study session â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const loadSession = useCallback(async () => {
@@ -217,26 +265,34 @@ function StudyPage() {
 
   useEffect(() => {
     const card = queue[currentIdx]
-    if (!card) return
-
     queueMicrotask(() => {
-      setQuestionImgUrl(null)
-      setAnswerImgUrl(null)
+      if (!card) {
+        setQuestionImgUrl(null)
+        setAnswerImgUrl(null)
+        return
+      }
+      setQuestionImgUrl(card.questionImageUrl ?? null)
+      setAnswerImgUrl(card.answerImageUrl ?? null)
     })
-
-    setQuestionImgUrl(card.questionImageUrl ?? null)
-    setAnswerImgUrl(card.answerImageUrl ?? null)
   }, [queue, currentIdx])
 
   // â”€â”€ Keyboard shortcuts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (phase === 'question' && (e.key === ' ' || e.key === 'Enter')) {
-        e.preventDefault()
-        setPhase('answer')
+      if (e.key === ' ' || e.key === 'Enter') {
+        if (phase === 'question') {
+          e.preventDefault()
+          setPhase('answer')
+          setFlippedToBack(true)
+          return
+        }
+        if (phase === 'answer') {
+          e.preventDefault()
+          setFlippedToBack((v) => !v)
+        }
       }
-      if (phase === 'answer') {
+      if (phase === 'answer' && flippedToBack) {
         if (e.key === '1') handleAnswer('AGAIN')
         if (e.key === '2') handleAnswer('HARD')
         if (e.key === '3') handleAnswer('GOOD')
@@ -246,7 +302,7 @@ function StudyPage() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, currentIdx, queue])
+  }, [phase, currentIdx, queue, flippedToBack])
 
   // â”€â”€ Answer handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -319,7 +375,6 @@ function StudyPage() {
 
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  const card          = queue[currentIdx]
   const progressTotal = totalRef.current
   const progressDone  = reviewedCount
   const pct           = progressTotal > 0 ? Math.round((progressDone / progressTotal) * 100) : 0
@@ -454,7 +509,7 @@ function StudyPage() {
 
         {/* Study card (question or answer phase) */}
         {card && (phase === 'question' || phase === 'answer' || phase === 'submitting') && (
-          <div className="flex w-full max-w-2xl min-w-0 flex-col gap-6">
+          <div className="flex w-full max-w-[50rem] min-w-0 flex-col gap-6">
 
             {/* Progress counter */}
             <div className="flex min-h-6 flex-wrap items-center justify-between gap-2 text-sm tabular-nums leading-normal text-gray-500 dark:text-gray-400">
@@ -478,70 +533,185 @@ function StudyPage() {
               </div>
             </div>
 
-            {/* Flip card */}
+            {/* 3D flip card (same front/back indicator pattern as Creative Space whiteboard flashcards) */}
             <button
               type="button"
               disabled={phase === 'submitting'}
-              onClick={() => phase === 'question' && setPhase('answer')}
+              onClick={() => {
+                if (phase === 'submitting') return
+                if (phase === 'question') {
+                  setPhase('answer')
+                  setFlippedToBack(true)
+                  return
+                }
+                setFlippedToBack((v) => !v)
+              }}
               className={cn(
-                'group relative min-h-[280px] w-full min-w-0 max-w-full cursor-pointer overflow-x-auto overflow-y-visible rounded-2xl border',
-                'bg-white text-left shadow-md transition-all duration-200',
-                'dark:bg-gray-900 dark:border-gray-700',
-                phase === 'question'
-                  ? 'hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-700'
-                  : 'cursor-default',
-                phase === 'submitting' && 'opacity-70',
+                'group w-full min-w-0 max-w-full cursor-pointer rounded-2xl text-left shadow-md outline-none transition-shadow duration-200',
+                'focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-950',
+                phase === 'question' && 'hover:shadow-lg',
+                phase === 'submitting' && 'cursor-default opacity-70',
               )}
-              aria-label={phase === 'question' ? 'Click to reveal answer' : 'Answer revealed'}
+              aria-label={
+                phase === 'question'
+                  ? 'Question side. Click or press Space to show answer.'
+                  : flippedToBack
+                    ? 'Answer side. Click or press Space to show question.'
+                    : 'Question side. Click or press Space to show answer.'
+              }
             >
-              {/* Question side (always visible) */}
-              <div className="flex min-w-0 flex-col gap-4 p-5 sm:p-8">
-                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600">
-                  Question
-                </p>
-                <div className="min-w-0 max-w-full text-gray-800 dark:text-gray-100">
-                  <FlashcardRichText markdown={card.question} variant="question" />
+              <div className="w-full min-w-0 [perspective:1200px]">
+                <div
+                  className="relative w-full min-w-0 [transform-style:preserve-3d]"
+                  style={{
+                    minHeight: activeFlipHeight,
+                    height: activeFlipHeight,
+                    transform: `rotateY(${visibleIsAnswerFace ? 180 : 0}deg)`,
+                    transition: 'transform 0.5s ease, min-height 0.35s ease, height 0.35s ease',
+                  }}
+                >
+                  {/* Front (question) face — absolute so its height does not force the back face’s box */}
+                  <div
+                    ref={frontFaceRef}
+                    className={cn(
+                      'absolute left-0 top-0 flex w-full min-h-[280px] min-w-0 flex-col gap-4 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-5 sm:p-8',
+                      'text-left shadow-sm [backface-visibility:hidden] [transform:rotateY(0deg)] dark:border-gray-700 dark:bg-gray-900',
+                      phase === 'question' &&
+                        'hover:border-blue-300 dark:hover:border-blue-700',
+                    )}
+                  >
+                    {/* Which side: left = question, right = answer (matches creative-space flashcard blocks). */}
+                    <div className="mb-1 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-muted p-px">
+                      <span
+                        className={cn(
+                          'h-full min-w-0 flex-1 rounded-l-full transition-all duration-200',
+                          !flippedToBack || phase === 'question'
+                            ? 'bg-primary shadow-[0_0_0_1px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]'
+                            : 'bg-transparent',
+                        )}
+                        aria-hidden
+                      />
+                      <span
+                        className={cn(
+                          'h-full min-w-0 flex-1 rounded-r-full transition-all duration-200',
+                          flippedToBack && phase !== 'question'
+                            ? 'bg-primary shadow-[0_0_0_1px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]'
+                            : 'bg-transparent',
+                        )}
+                        aria-hidden
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600">
+                        Question
+                      </p>
+                      <div className="pointer-events-none flex items-center gap-1.5" aria-hidden>
+                        <span
+                          className={cn(
+                            'h-1.5 w-1.5 rounded-full border border-primary/40 transition-colors',
+                            !flippedToBack || phase === 'question' ? 'bg-primary' : 'bg-transparent',
+                          )}
+                        />
+                        <span
+                          className={cn(
+                            'h-1.5 w-1.5 rounded-full border border-primary/40 transition-colors',
+                            flippedToBack && phase !== 'question' ? 'bg-primary' : 'bg-transparent',
+                          )}
+                        />
+                      </div>
+                    </div>
+                    <div className="min-w-0 max-w-full text-gray-800 dark:text-gray-100">
+                      <FlashcardRichText markdown={card.question} variant="question" />
+                    </div>
+                    {questionImgUrl && (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={questionImgUrl}
+                        alt="Question image"
+                        className="mt-2 max-h-60 rounded-lg object-contain"
+                        onLoad={measureFaces}
+                      />
+                    )}
+                  </div>
+
+                  {/* Back (answer) face */}
+                  <div
+                    ref={backFaceRef}
+                    className={cn(
+                      'absolute left-0 top-0 flex w-full min-h-[280px] min-w-0 flex-col gap-4 overflow-x-auto rounded-2xl border border-gray-200 bg-gray-50 p-5 sm:p-8',
+                      'text-left shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)] dark:border-gray-700 dark:bg-gray-800/40',
+                    )}
+                  >
+                    <div className="mb-1 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-muted p-px">
+                      <span
+                        className={cn(
+                          'h-full min-w-0 flex-1 rounded-l-full transition-all duration-200',
+                          !flippedToBack || phase === 'question'
+                            ? 'bg-primary shadow-[0_0_0_1px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]'
+                            : 'bg-transparent',
+                        )}
+                        aria-hidden
+                      />
+                      <span
+                        className={cn(
+                          'h-full min-w-0 flex-1 rounded-r-full transition-all duration-200',
+                          flippedToBack && phase !== 'question'
+                            ? 'bg-primary shadow-[0_0_0_1px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]'
+                            : 'bg-transparent',
+                        )}
+                        aria-hidden
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600">
+                        Answer
+                      </p>
+                      <div className="pointer-events-none flex items-center gap-1.5" aria-hidden>
+                        <span
+                          className={cn(
+                            'h-1.5 w-1.5 rounded-full border border-primary/40 transition-colors',
+                            !flippedToBack || phase === 'question' ? 'bg-primary' : 'bg-transparent',
+                          )}
+                        />
+                        <span
+                          className={cn(
+                            'h-1.5 w-1.5 rounded-full border border-primary/40 transition-colors',
+                            flippedToBack && phase !== 'question' ? 'bg-primary' : 'bg-transparent',
+                          )}
+                        />
+                      </div>
+                    </div>
+                    <div className="min-w-0 max-w-full text-gray-700 dark:text-gray-200">
+                      <FlashcardRichText markdown={card.answer} variant="answer" />
+                    </div>
+                    {answerImgUrl && (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={answerImgUrl}
+                        alt="Answer image"
+                        className="mt-2 max-h-60 rounded-lg object-contain"
+                        onLoad={measureFaces}
+                      />
+                    )}
+                  </div>
                 </div>
-                {questionImgUrl && (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={questionImgUrl}
-                    alt="Question image"
-                    className="mt-2 max-h-60 rounded-lg object-contain"
-                  />
-                )}
               </div>
 
-              {/* Answer side (revealed after flip) */}
-              {phase !== 'question' && (
-                <div className="min-w-0 border-t border-gray-100 bg-gray-50/50 p-5 sm:p-8 dark:border-gray-800 dark:bg-gray-800/30">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600">
-                    Answer
-                  </p>
-                  <div className="min-w-0 max-w-full text-gray-700 dark:text-gray-200">
-                    <FlashcardRichText markdown={card.answer} variant="answer" />
-                  </div>
-                  {answerImgUrl && (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={answerImgUrl}
-                      alt="Answer image"
-                      className="mt-2 max-h-60 rounded-lg object-contain"
-                    />
-                  )}
+              {/* Flip hint */}
+              {phase === 'question' && (
+                <div className="pointer-events-none mt-2 text-center text-xs text-gray-400 dark:text-gray-600">
+                  Click or Space to flip to answer
                 </div>
               )}
-
-              {/* "Click to reveal" hint */}
-              {phase === 'question' && (
-                <div className="absolute bottom-3 right-4 text-xs text-gray-300 group-hover:text-gray-400 dark:text-gray-700 dark:group-hover:text-gray-600">
-                  Space / click to reveal &#x2193;
+              {phase === 'answer' && !flippedToBack && (
+                <div className="pointer-events-none mt-2 text-center text-xs text-gray-400 dark:text-gray-600">
+                  Click or Space to see answer again
                 </div>
               )}
             </button>
 
-            {/* Answer buttons */}
-            {(phase === 'answer' || phase === 'submitting') && (
+            {/* Answer buttons: only while the answer face is toward the user (hidden again if you flip to question) */}
+            {((phase === 'answer' && flippedToBack) || phase === 'submitting') && (
               <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                 {ANSWER_BUTTONS.map((btn) => (
                   <button
