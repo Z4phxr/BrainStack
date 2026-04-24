@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import "./globals.css";
 import { NavigationMetrics } from '@/components/perf/navigation-metrics'
 import { PrefetchRoutes } from '@/components/perf/prefetch-routes'
-import { ThemeSync } from '@/components/theme-sync'
+import { ThemePreferenceProvider } from '@/components/theme-preference-provider'
 import { THEME_COOKIE_NAME, readThemeFromCookie } from '@/lib/theme-cookie'
 
 const geistSans = Geist({
@@ -49,10 +49,11 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} antialiased`}
       >
-        <ThemeSync />
-        <NavigationMetrics />
-        <PrefetchRoutes />
-        {children}
+        <ThemePreferenceProvider initialPreference={themePref}>
+          <NavigationMetrics />
+          <PrefetchRoutes />
+          {children}
+        </ThemePreferenceProvider>
       </body>
     </html>
   );
