@@ -15,7 +15,7 @@ import {
   serializeCatalogQuery,
 } from '@/lib/courses-catalog'
 import { CourseCatalogCard } from '@/components/courses/course-catalog-card'
-import { studentGlassCard } from '@/lib/student-glass-styles'
+import { studentGlassCard, studentGlassFooterNavButton } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -65,7 +65,12 @@ export default async function CoursesPage({ searchParams }: PageProps) {
       <div className="mx-auto max-w-6xl space-y-10">
         <div className="flex w-full flex-col gap-0">
           <div className="flex w-full justify-start">
-            <Button variant="outline" size="sm" asChild className="shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className={cn('min-w-[10rem] shrink-0', studentGlassFooterNavButton)}
+            >
               <Link href="/dashboard" className="inline-flex items-center gap-2">
                 <ArrowLeft className="h-4 w-4" aria-hidden />
                 Back to dashboard

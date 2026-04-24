@@ -1,13 +1,22 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, Brain, BookOpen, ChevronDown, ChevronRight, Loader2, Zap } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import {
+  ArrowLeft,
+  Brain,
+  BookOpen,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Zap,
+} from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { studentGlassCard, studentGlassPill } from '@/lib/student-glass-styles'
+import { studentGlassCard, studentGlassFooterNavButton, studentGlassPill } from '@/lib/student-glass-styles'
 import type { FlashcardDashboardSummary } from '@/lib/flashcards-dashboard-summary'
 
 type Stats = { total: number; newCards: number; due: number }
@@ -30,6 +39,18 @@ function courseSubdeckLabel(moduleTitle: string | null, deckName: string): strin
 const moduleFlashcardStripClass = cn(
   'rounded-xl border border-dashed border-primary/35 bg-primary/[0.06] p-4 dark:border-primary/40 dark:bg-primary/[0.12]',
 )
+
+/** Matches `COURSES_CATALOG_PAGE_SIZE` on `/courses`. */
+const FLASHCARD_DECK_TREE_PAGE_SIZE = 15
+
+function buildDeckTreeListHref(courseSlug: string, standaloneDeckSlug: string, page: number): string {
+  const qs = new URLSearchParams()
+  if (courseSlug) qs.set('courseSlug', courseSlug)
+  if (standaloneDeckSlug) qs.set('standaloneDeckSlug', standaloneDeckSlug)
+  if (page > 1) qs.set('page', String(page))
+  const s = qs.toString()
+  return s ? `/dashboard/flashcards?${s}` : '/dashboard/flashcards'
+}
 
 /** Same layout as `StatPill` in `components/dashboard/flashcard-section.tsx`. */
 function StatPill({ label, count }: { label: string; count: number }) {
@@ -76,6 +97,7 @@ function StudyButtons({
 }
 
 export default function StudentFlashcardDeckTreePage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const courseSlug = (searchParams.get('courseSlug') ?? '').trim()
   const standaloneDeckSlug = (searchParams.get('standaloneDeckSlug') ?? '').trim()
@@ -84,6 +106,8 @@ export default function StudentFlashcardDeckTreePage() {
   const [error, setError] = useState('')
   /** Subdeck lists start collapsed; keyed by main deck id. */
   const [subdeckListOpen, setSubdeckListOpen] = useState<Record<string, boolean>>({})
+  const deckFilterKey = `${courseSlug}\0${standaloneDeckSlug}`
+  const prevDeckFilterKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -117,6 +141,43 @@ export default function StudentFlashcardDeckTreePage() {
     return summary.decks
   }, [summary, courseSlug, standaloneDeckSlug])
 
+  /** Dropping `page` when course / standalone filter changes (same idea as catalog reset). */
+  useEffect(() => {
+    if (prevDeckFilterKeyRef.current !== null && prevDeckFilterKeyRef.current !== deckFilterKey) {
+      if (searchParams.get('page')) {
+        const qs = new URLSearchParams(searchParams.toString())
+        qs.delete('page')
+        const q = qs.toString()
+        router.replace(q ? `/dashboard/flashcards?${q}` : '/dashboard/flashcards')
+      }
+    }
+    prevDeckFilterKeyRef.current = deckFilterKey
+  }, [deckFilterKey, router, searchParams])
+
+  const { lastPage, currentPage, displayedRows } = useMemo(() => {
+    const lp = Math.max(1, Math.ceil(rows.length / FLASHCARD_DECK_TREE_PAGE_SIZE))
+    const raw = parseInt(searchParams.get('page') ?? '1', 10)
+    const cp = Number.isFinite(raw) && raw >= 1 ? Math.min(raw, lp) : 1
+    const start = (cp - 1) * FLASHCARD_DECK_TREE_PAGE_SIZE
+    return {
+      lastPage: lp,
+      currentPage: cp,
+      displayedRows: rows.slice(start, start + FLASHCARD_DECK_TREE_PAGE_SIZE),
+    }
+  }, [rows, searchParams])
+
+  useEffect(() => {
+    if (rows.length === 0) return
+    const raw = parseInt(searchParams.get('page') ?? '1', 10)
+    if (!Number.isFinite(raw) || raw < 1) return
+    if (raw <= lastPage) return
+    const qs = new URLSearchParams(searchParams.toString())
+    if (lastPage <= 1) qs.delete('page')
+    else qs.set('page', String(lastPage))
+    const q = qs.toString()
+    router.replace(q ? `/dashboard/flashcards?${q}` : '/dashboard/flashcards')
+  }, [rows.length, lastPage, router, searchParams])
+
   const filteredByCourse = Boolean(courseSlug)
   const filteredByStandalone = Boolean(standaloneDeckSlug)
   const pageTitle = filteredByCourse
@@ -124,40 +185,51 @@ export default function StudentFlashcardDeckTreePage() {
     : filteredByStandalone
       ? 'Your deck'
       : 'Your flashcard decks'
-  const pageDescription = filteredByCourse
+  const pageDescription: string | null = filteredByCourse
     ? 'Sections below follow this course’s modules. Study the whole course with the top buttons, or focus one module at a time.'
     : filteredByStandalone
       ? 'Use the whole-deck buttons for everything in this collection, or study each section on its own.'
-      : 'These are the main decks tied to your courses and to standalone sets you added from Discover decks. Open one to see sections, counts, and study options.'
+      : null
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-6 py-8 md:px-8">
-      <div className="space-y-8">
-        <header className="space-y-4 border-b border-border/60 pb-8">
-          <div className="flex justify-start">
-            <Button variant="outline" size="sm" asChild className="shrink-0">
+    <div className="container mx-auto px-6 py-8 md:px-8">
+      <div className="mx-auto max-w-6xl space-y-10">
+        <div className="flex w-full flex-col gap-0">
+          <div className="flex w-full justify-start">
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className={cn('min-w-[10rem] shrink-0', studentGlassFooterNavButton)}
+            >
               <Link href="/dashboard" className="inline-flex items-center gap-2">
                 <ArrowLeft className="h-4 w-4" aria-hidden />
                 Back to dashboard
               </Link>
             </Button>
           </div>
-          <div className="space-y-3 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">{pageTitle}</h1>
-            <p className="mx-auto max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
-              {pageDescription}
-            </p>
-            {!filteredByCourse && !filteredByStandalone && (
-              <p className="mx-auto max-w-2xl text-xs leading-relaxed text-muted-foreground/90 md:text-sm">
-                Tip: open{' '}
-                <Link href="/dashboard/flashcards/browse" className="font-medium text-primary underline-offset-4 hover:underline">
-                  Discover decks
-                </Link>{' '}
-                to add more standalone sets to this page.
+          <div className="mx-auto w-full max-w-3xl p-0 text-center">
+            <h1 className="mb-3 mt-0 text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 md:text-4xl">
+              {pageTitle}
+            </h1>
+            {pageDescription != null ? (
+              <p className="text-lg leading-relaxed text-gray-600 dark:text-gray-400 md:text-xl">{pageDescription}</p>
+            ) : (
+              <p className="text-lg leading-relaxed text-gray-600 dark:text-gray-400 md:text-xl">
+                These are the flashcard decks you have added to your library.
+                <br />
+                You can{' '}
+                <Link
+                  href="/dashboard/flashcards/browse"
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  discover more here
+                </Link>
+                .
               </p>
             )}
           </div>
-        </header>
+        </div>
 
       {loading && (
         <div className="flex items-center justify-center gap-2 text-gray-500">
@@ -186,7 +258,7 @@ export default function StudentFlashcardDeckTreePage() {
 
       {!loading &&
         !error &&
-        rows.map((row) => {
+        displayedRows.map((row) => {
           const mainDeckSlugQ = encodeURIComponent(row.deck.slug)
           const courseTitle = row.course ? String(row.course.title ?? '') : ''
           const deckName = String(row.deck.name ?? '')
@@ -351,6 +423,60 @@ export default function StudentFlashcardDeckTreePage() {
             </Card>
           )
         })}
+
+      {!loading && !error && rows.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-xl border border-slate-200/60 bg-white/40 px-4 py-3 dark:border-white/10 dark:bg-white/[0.04] sm:flex-row sm:items-center sm:justify-between md:px-6 md:py-4">
+          <p className="text-center text-sm text-muted-foreground md:text-left">
+            Showing{' '}
+            <span className="font-medium tabular-nums text-foreground">
+              {(currentPage - 1) * FLASHCARD_DECK_TREE_PAGE_SIZE + 1}
+            </span>
+            {'–'}
+            <span className="font-medium tabular-nums text-foreground">
+              {Math.min(currentPage * FLASHCARD_DECK_TREE_PAGE_SIZE, rows.length)}
+            </span>{' '}
+            of <span className="font-medium tabular-nums text-foreground">{rows.length}</span> deck
+            {rows.length === 1 ? '' : 's'}
+          </p>
+          <div className="flex items-center justify-center gap-2 sm:justify-end">
+            {currentPage > 1 ? (
+              <Button variant="outline" size="sm" className="h-8 px-2" asChild>
+                <Link
+                  href={buildDeckTreeListHref(courseSlug, standaloneDeckSlug, currentPage - 1)}
+                  prefetch={false}
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden />
+                  <span className="sr-only">Previous page</span>
+                </Link>
+              </Button>
+            ) : (
+              <Button type="button" variant="outline" size="sm" className="h-8 px-2" disabled>
+                <ChevronLeft className="h-4 w-4" aria-hidden />
+                <span className="sr-only">Previous page</span>
+              </Button>
+            )}
+            <span className="min-w-[4.5rem] text-center text-xs tabular-nums text-muted-foreground">
+              {currentPage} / {lastPage}
+            </span>
+            {currentPage < lastPage ? (
+              <Button variant="outline" size="sm" className="h-8 px-2" asChild>
+                <Link
+                  href={buildDeckTreeListHref(courseSlug, standaloneDeckSlug, currentPage + 1)}
+                  prefetch={false}
+                >
+                  <ChevronRight className="h-4 w-4" aria-hidden />
+                  <span className="sr-only">Next page</span>
+                </Link>
+              </Button>
+            ) : (
+              <Button type="button" variant="outline" size="sm" className="h-8 px-2" disabled>
+                <ChevronRight className="h-4 w-4" aria-hidden />
+                <span className="sr-only">Next page</span>
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
       </div>
     </div>
   )
