@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 
@@ -19,99 +19,135 @@ async function postJson(url: string, body: unknown) {
 export function ArchiveCourseButton({ courseSlug }: { courseSlug: string }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      disabled={pending}
-      onClick={() => {
-        const archiveLinkedDeck = window.confirm(
-          'Do you also want to archive this course flashcard deck?',
-        )
-        startTransition(async () => {
-          await postJson('/api/profile/archive', {
-            type: 'course',
-            courseSlug,
-            archiveLinkedDeck,
+    <div className="space-y-1.5">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={pending}
+        onClick={() => {
+          setError(null)
+          const archiveLinkedDeck = window.confirm(
+            'Do you also want to archive this course flashcard deck?',
+          )
+          startTransition(async () => {
+            try {
+              await postJson('/api/profile/archive', {
+                type: 'course',
+                courseSlug,
+                archiveLinkedDeck,
+              })
+              router.refresh()
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Failed to archive course')
+            }
           })
-          router.refresh()
-        })
-      }}
-    >
-      {pending ? 'Archiving...' : 'Archive course'}
-    </Button>
+        }}
+      >
+        {pending ? 'Archiving...' : 'Archive course'}
+      </Button>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </div>
   )
 }
 
 export function ArchiveDeckButton({ deckId }: { deckId: string }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      disabled={pending}
-      onClick={() => {
-        const archiveLinkedCourse = window.confirm(
-          'This deck may be linked to a course. Do you also want to archive the course?',
-        )
-        startTransition(async () => {
-          await postJson('/api/profile/archive', {
-            type: 'deck',
-            deckId,
-            archiveLinkedCourse,
+    <div className="space-y-1.5">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={pending}
+        onClick={() => {
+          setError(null)
+          const archiveLinkedCourse = window.confirm(
+            'This deck may be linked to a course. Do you also want to archive the course?',
+          )
+          startTransition(async () => {
+            try {
+              await postJson('/api/profile/archive', {
+                type: 'deck',
+                deckId,
+                archiveLinkedCourse,
+              })
+              router.refresh()
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Failed to archive deck')
+            }
           })
-          router.refresh()
-        })
-      }}
-    >
-      {pending ? 'Archiving...' : 'Archive deck'}
-    </Button>
+        }}
+      >
+        {pending ? 'Archiving...' : 'Archive deck'}
+      </Button>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </div>
   )
 }
 
 export function UnarchiveCourseButton({ courseId }: { courseId: string }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
   return (
-    <Button
-      type="button"
-      variant="hero"
-      size="sm"
-      disabled={pending}
-      onClick={() =>
-        startTransition(async () => {
-          await postJson('/api/profile/unarchive', { type: 'course', courseId })
-          router.refresh()
-        })
-      }
-    >
-      {pending ? 'Unarchiving...' : 'Unarchive'}
-    </Button>
+    <div className="space-y-1.5">
+      <Button
+        type="button"
+        variant="hero"
+        size="sm"
+        disabled={pending}
+        onClick={() =>
+          startTransition(async () => {
+            setError(null)
+            try {
+              await postJson('/api/profile/unarchive', { type: 'course', courseId })
+              router.refresh()
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Failed to unarchive course')
+            }
+          })
+        }
+      >
+        {pending ? 'Unarchiving...' : 'Unarchive'}
+      </Button>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </div>
   )
 }
 
 export function UnarchiveDeckButton({ deckId }: { deckId: string }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
   return (
-    <Button
-      type="button"
-      variant="hero"
-      size="sm"
-      disabled={pending}
-      onClick={() =>
-        startTransition(async () => {
-          await postJson('/api/profile/unarchive', { type: 'deck', deckId })
-          router.refresh()
-        })
-      }
-    >
-      {pending ? 'Unarchiving...' : 'Unarchive'}
-    </Button>
+    <div className="space-y-1.5">
+      <Button
+        type="button"
+        variant="hero"
+        size="sm"
+        disabled={pending}
+        onClick={() =>
+          startTransition(async () => {
+            setError(null)
+            try {
+              await postJson('/api/profile/unarchive', { type: 'deck', deckId })
+              router.refresh()
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Failed to unarchive deck')
+            }
+          })
+        }
+      >
+        {pending ? 'Unarchiving...' : 'Unarchive'}
+      </Button>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </div>
   )
 }

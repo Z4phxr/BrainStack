@@ -116,6 +116,15 @@ export default async function LessonPage({
       prisma.lessonProgress.findUnique({
         where: { userId_lessonId: { userId: session.user.id, lessonId } },
       }),
+      // If the user starts learning this course again, restore it to active.
+      prisma.courseProgress.updateMany({
+        where: {
+          userId: session.user.id,
+          courseId: String(courseId),
+          archivedAt: { not: null },
+        },
+        data: { archivedAt: null },
+      }),
     ])
     taskProgressRecords.forEach((tp) => taskProgressMap.set(tp.taskId, tp))
     lessonProgress = lessonProgressRecord

@@ -1,5 +1,6 @@
 const path = require('path')
 const { pathToFileURL } = require('url')
+const { createRequire } = require('module')
 
 async function unwrapConfig(candidate) {
   let value = candidate
@@ -24,17 +25,32 @@ async function unwrapConfig(candidate) {
 }
 
 async function loadPayloadConfig() {
-  const configJsPath = path.join(__dirname, '../../../src/payload/payload.config.js')
+  const base = path.join(__dirname, '../../../src/payload/payload.config')
+  const candidates = [`${base}.ts`, `${base}.js`]
+  const errors = []
+
+  for (const candidatePath of candidates) {
+    try {
+      const mod = await import(pathToFileURL(candidatePath).href)
+      return await unwrapConfig(mod)
+    } catch (err) {
+      errors.push(`${candidatePath}: ${err?.message || String(err)}`)
+    }
+  }
+
+  // Fallback used by Next path alias in this repo.
   try {
-    const mod = await import(pathToFileURL(configJsPath).href)
+    const req = createRequire(__filename)
+    const mod = req('@payload-config')
     return await unwrapConfig(mod)
   } catch (err) {
-    const errDetails = err?.stack || err?.message || String(err)
-    throw new Error(
-      'Could not load Payload config via src/payload/payload.config.js import path. ' +
-        `Last error: ${errDetails}`,
-    )
+    errors.push(`@payload-config: ${err?.message || String(err)}`)
   }
+
+  throw new Error(
+    'Could not load Payload config. Install devDependency `tsx` and use tsconfig.scripts.json (see documentation/CONTENT_IMPORTS.md). ' +
+      `Tried: ${errors.join(' | ')}`,
+  )
 }
 
 async function initPayloadClient(payloadSecret) {
