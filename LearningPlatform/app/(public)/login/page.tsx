@@ -15,6 +15,33 @@ import { Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { heroMarketingAuthInputClass, heroMarketingGlassText } from '@/lib/hero-marketing-classes';
 
+const INFRA_STATUS_CACHE_TTL_MS = 30_000;
+let lastInfraStatusCheckAt = 0;
+let lastInfraStatusMessage: string | null = null;
+
+async function getInfraStatusMessage(): Promise<string | null> {
+  const now = Date.now();
+  if (now - lastInfraStatusCheckAt < INFRA_STATUS_CACHE_TTL_MS) {
+    return lastInfraStatusMessage;
+  }
+
+  try {
+    const res = await fetch('/api/healthz', { cache: 'no-store' });
+    const message =
+      res.ok || res.status < 500
+        ? null
+        : 'Cannot connect to the server/database right now. Please try again in a moment.';
+    lastInfraStatusCheckAt = now;
+    lastInfraStatusMessage = message;
+    return message;
+  } catch {
+    const message = 'Cannot reach the backend right now. Check your connection and try again.';
+    lastInfraStatusCheckAt = now;
+    lastInfraStatusMessage = message;
+    return message;
+  }
+}
+
 function LoginForm() {
   const isDark = useIsDark();
   const router = useRouter();
@@ -40,6 +67,14 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
+      // Fast-fail before credential check so infra outages are not mislabeled
+      // as "invalid email/password".
+      const precheckInfraMessage = await getInfraStatusMessage();
+      if (precheckInfraMessage) {
+        setError(precheckInfraMessage);
+        return;
+      }
+
       const result = await signIn('credentials', {
         email,
         password,
@@ -47,7 +82,14 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        setError('Invalid email or password');
+        const infraMessage = await getInfraStatusMessage();
+        if (infraMessage) {
+          setError(infraMessage);
+        } else if (result.error.toLowerCase().includes('too many')) {
+          setError('Too many login attempts. Please try again later.');
+        } else {
+          setError('Invalid email or password');
+        }
       } else {
         router.push(safeCallbackUrl);
         router.refresh();

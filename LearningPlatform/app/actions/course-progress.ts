@@ -28,10 +28,20 @@ export async function getAllCourseProgress() {
     throw new Error('Unauthorized')
   }
 
-  return prisma.courseProgress.findMany({
-    where: { userId: session.user.id, archivedAt: null },
-    orderBy: { lastActivityAt: 'desc' },
-  })
+  // Backward-compatible: some local DB/schema snapshots do not include archivedAt yet.
+  const whereWithArchiveFilter: Record<string, unknown> = { userId: session.user.id }
+  whereWithArchiveFilter.archivedAt = null
+  try {
+    return await prisma.courseProgress.findMany({
+      where: whereWithArchiveFilter as never,
+      orderBy: { lastActivityAt: 'desc' },
+    })
+  } catch {
+    return prisma.courseProgress.findMany({
+      where: { userId: session.user.id },
+      orderBy: { lastActivityAt: 'desc' },
+    })
+  }
 }
 
 /**

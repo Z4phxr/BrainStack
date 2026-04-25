@@ -36,6 +36,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FlashcardRichText } from '@/components/student/flashcard-markdown'
+import { FlashcardAssistantFab } from '@/components/student/flashcard-assistant-fab'
 
 // --- Types ---
 
@@ -77,6 +78,14 @@ function humanizeSlug(slug: string): string {
     .filter(Boolean)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ')
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+  if (target.isContentEditable) return true
+  return Boolean(target.closest('[contenteditable="true"], [role="textbox"]'))
 }
 
 function studyQuery(
@@ -280,6 +289,8 @@ function StudyPage() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (isTypingTarget(e.target)) return
+
       if (e.key === ' ' || e.key === 'Enter') {
         if (phase === 'question') {
           e.preventDefault()
@@ -746,6 +757,13 @@ function StudyPage() {
           </div>
         )}
       </main>
+
+      <FlashcardAssistantFab
+        key={card?.id ?? 'no-card'}
+        enabled={Boolean(card)}
+        cardFront={card?.question ?? ''}
+        cardBack={card?.answer ?? ''}
+      />
 
       <style>{`
         .katex { font-size: 1.1em; }
