@@ -36,6 +36,15 @@ const MAX_LIMIT          = 50
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const normalise = (s: string) => s.toLowerCase().trim()
+const courseIdFromTask = (task: any): string | null => {
+  const lesson = task?.lesson
+  if (!lesson || typeof lesson !== 'object') return null
+  const course = (lesson as { course?: unknown }).course
+  if (!course) return null
+  if (typeof course === 'string' || typeof course === 'number') return String(course)
+  if (typeof course === 'object' && 'id' in course) return String((course as { id: string | number }).id)
+  return null
+}
 
 function payloadTaskTags(task: any): string[] {
   const tagObjects: Array<Record<string, unknown>> = task.tags ?? []
@@ -118,6 +127,15 @@ export async function GET(req: Request) {
       limit:      CANDIDATE_LIMIT,
       depth:      1,
     })
+    const archivedCourseRows = await prisma.courseProgress.findMany({
+      where: { userId: user.id, archivedAt: { not: null } },
+      select: { courseId: true },
+    })
+    const archivedCourseIds = new Set(archivedCourseRows.map((r) => r.courseId))
+    const candidateTasks = (allTasks as any[]).filter((task) => {
+      const taskCourseId = courseIdFromTask(task)
+      return !taskCourseId || !archivedCourseIds.has(taskCourseId)
+    })
 
     // Normalised task shape
     interface NTask { id: string; question: string; tags: string[] }
@@ -134,9 +152,9 @@ export async function GET(req: Request) {
       return unsolved.length > 0 ? unsolved : pool
     }
 
-    const weakPool   = preferUnsolved(shuffle((allTasks as any[]).map(toNTask).filter((t) => t.tags.some((tag) => weakTagSet.has(tag)))))
-    const mediumPool = preferUnsolved(shuffle((allTasks as any[]).map(toNTask).filter((t) => t.tags.some((tag) => mediumTagSet.has(tag)))))
-    const randomPool = preferUnsolved(shuffle((allTasks as any[]).map(toNTask)))
+    const weakPool = preferUnsolved(shuffle(candidateTasks.map(toNTask).filter((t) => t.tags.some((tag) => weakTagSet.has(tag)))))
+    const mediumPool = preferUnsolved(shuffle(candidateTasks.map(toNTask).filter((t) => t.tags.some((tag) => mediumTagSet.has(tag)))))
+    const randomPool = preferUnsolved(shuffle(candidateTasks.map(toNTask)))
 
     // ── Step 4: compose session ───────────────────────────────────────────────
     // Target distribution: 40% weak, 30% medium, 30% random

@@ -207,11 +207,13 @@ model CourseProgress {
   earnedPoints       Int      @default(0)
   enrolledAt         DateTime @default(now())
   lastActivityAt     DateTime @default(now())
+  archivedAt         DateTime?
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, courseId])
   @@index([userId])
   @@index([courseId])
+  @@index([userId, archivedAt])
   @@map("course_progress")
 }
 
@@ -263,12 +265,14 @@ model UserStandaloneFlashcardDeck {
   userId    String
   deckId    String
   createdAt DateTime @default(now())
+  archivedAt DateTime?
 
   user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   deck FlashcardDeck   @relation(fields: [deckId], references: [id], onDelete: Cascade)
 
   @@id([userId, deckId])
   @@index([userId])
+  @@index([userId, archivedAt])
   @@map("user_standalone_flashcard_decks")
 }
 

@@ -22,7 +22,7 @@ export async function Navbar() {
           {session ? (
             <>
               {/* Order: user → theme → settings → (admin) → sign out */}
-              <div className="flex min-w-0 items-center gap-2.5">
+              <Link href="/profile" className="flex min-w-0 items-center gap-2.5 rounded-md px-1 py-0.5 hover:bg-black/5 dark:hover:bg-white/10">
                 <div
                   className={cn(
                     'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-base font-semibold backdrop-blur-sm',
@@ -37,7 +37,7 @@ export async function Navbar() {
                 <span className="max-w-[10rem] truncate text-base text-slate-800 dark:text-gray-100 sm:max-w-[14rem] md:max-w-none">
                   {displayName ?? 'Account'}
                 </span>
-              </div>
+              </Link>
               <ThemeToggle />
               <Button asChild variant="ghost" size="icon-xl" aria-label="Settings">
                 <Link href="/dashboard/flashcards/settings">

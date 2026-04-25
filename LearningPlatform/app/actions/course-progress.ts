@@ -29,7 +29,7 @@ export async function getAllCourseProgress() {
   }
 
   return prisma.courseProgress.findMany({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, archivedAt: null },
     orderBy: { lastActivityAt: 'desc' },
   })
 }

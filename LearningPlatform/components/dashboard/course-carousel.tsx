@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { DashboardHorizontalScroll } from '@/components/dashboard/dashboard-horizontal-scroll'
 import { studentGlassCard, studentGlassPill } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
+import type { ReactNode } from 'react'
 
 export type CourseCarouselItem = {
   id: string | number
@@ -35,9 +36,13 @@ const defaultProgress: CourseProgressSnapshot = {
 function CourseCarouselCard({
   course,
   progress,
+  compact = false,
+  footerAction,
 }: {
   course: CourseCarouselItem
   progress: CourseProgressSnapshot
+  compact?: boolean
+  footerAction?: ReactNode
 }) {
   const { progressPercentage, completedLessons, totalLessons, hasStarted } = progress
 
@@ -50,6 +55,7 @@ function CourseCarouselCard({
     <Card
       className={cn(
         'flex h-full flex-col overflow-hidden border-0 shadow-none transition-shadow hover:brightness-[1.02] dark:hover:brightness-[1.03]',
+        compact && 'scale-[0.95]',
         studentGlassCard,
       )}
     >
@@ -116,6 +122,7 @@ function CourseCarouselCard({
             {hasStarted ? 'Continue learning' : 'Start course'}
           </Button>
         </Link>
+        {footerAction ? <div className="pt-1">{footerAction}</div> : null}
       </CardContent>
     </Card>
   )
@@ -125,11 +132,15 @@ export function CourseCarousel({
   courses,
   progressByCourseId,
   scrollAriaLabel = 'Your courses',
+  compact = false,
+  footerActionByCourseId,
 }: {
   courses: CourseCarouselItem[]
   progressByCourseId: Record<string, CourseProgressSnapshot>
   /** Passed to the horizontal scroller for accessibility. */
   scrollAriaLabel?: string
+  compact?: boolean
+  footerActionByCourseId?: Record<string, ReactNode>
 }) {
   if (courses.length === 0) return null
 
@@ -142,7 +153,12 @@ export function CourseCarousel({
     return (
       <div className="flex w-full justify-center px-1">
         <div className="w-full max-w-md">
-          <CourseCarouselCard course={course} progress={progressFor(course)} />
+          <CourseCarouselCard
+            course={course}
+            progress={progressFor(course)}
+            compact={compact}
+            footerAction={footerActionByCourseId?.[String(course.id)]}
+          />
         </div>
       </div>
     )
@@ -159,6 +175,8 @@ export function CourseCarousel({
           key={course.id}
           course={course}
           progress={progressFor(course)}
+          compact={compact}
+          footerAction={footerActionByCourseId?.[String(course.id)]}
         />
       ))}
     </DashboardHorizontalScroll>

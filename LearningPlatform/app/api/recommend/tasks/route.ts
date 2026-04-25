@@ -46,6 +46,15 @@ const BONUS_STALE     = 0.2
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const normalise = (s: string) => s.toLowerCase().trim()
+const courseIdFromTask = (task: any): string | null => {
+  const lesson = task?.lesson
+  if (!lesson || typeof lesson !== 'object') return null
+  const course = (lesson as { course?: unknown }).course
+  if (!course) return null
+  if (typeof course === 'string' || typeof course === 'number') return String(course)
+  if (typeof course === 'object' && 'id' in course) return String((course as { id: string | number }).id)
+  return null
+}
 
 function payloadTaskTags(task: any): string[] {
   const tagObjects: Array<Record<string, unknown>> = task.tags ?? []
@@ -260,15 +269,24 @@ export async function GET(req: Request) {
       limit:      CANDIDATE_LIMIT,
       depth:      1,
     })
+    const archivedCourseRows = await prisma.courseProgress.findMany({
+      where: { userId: user.id, archivedAt: { not: null } },
+      select: { courseId: true },
+    })
+    const archivedCourseIds = new Set(archivedCourseRows.map((r) => r.courseId))
+    const candidateTasks = (allTasks as any[]).filter((task) => {
+      const taskCourseId = courseIdFromTask(task)
+      return !taskCourseId || !archivedCourseIds.has(taskCourseId)
+    })
 
     let result: { tasks: ScoredTask[]; explanation: string }
 
     if (mode === 'review') {
-      result = await reviewMode(user.id, allTasks as any[], limit)
+      result = await reviewMode(user.id, candidateTasks, limit)
     } else if (mode === 'mixed') {
-      result = await mixedMode(user.id, allTasks as any[], limit)
+      result = await mixedMode(user.id, candidateTasks, limit)
     } else {
-      result = await weakMode(user.id, allTasks as any[], limit)
+      result = await weakMode(user.id, candidateTasks, limit)
     }
 
     return NextResponse.json({ ...result, mode })
