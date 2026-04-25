@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useId, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { MessageSquareText, X, Highlighter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -69,6 +69,58 @@ export function LessonAssistantShell({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [modelPreset, setModelPreset] = useState<LessonAssistantModelPreset>('haiku')
+  const [composerCollapsed, setComposerCollapsed] = useState(false)
+
+  const leftColumnRef = useRef<HTMLDivElement>(null)
+  const rightColumnRef = useRef<HTMLDivElement>(null)
+  const lastLeftScrollRef = useRef(0)
+  const lastRightScrollRef = useRef(0)
+  const pendingWindowScrollRef = useRef<number | null>(null)
+
+  /** Styled scrollbars for column panes (WebKit + Firefox). */
+  const columnScrollbarClass = cn(
+    '[scrollbar-width:thin]',
+    '[scrollbar-color:hsl(var(--muted-foreground)/0.35)_transparent]',
+    '[&::-webkit-scrollbar]:w-2',
+    '[&::-webkit-scrollbar]:h-2',
+    '[&::-webkit-scrollbar-thumb]:rounded-full',
+    '[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30',
+    '[&::-webkit-scrollbar-thumb]:hover:bg-muted-foreground/45',
+    '[&::-webkit-scrollbar-track]:bg-transparent',
+  )
+
+  const captureColumnScrollPositions = useCallback(() => {
+    lastLeftScrollRef.current = leftColumnRef.current?.scrollTop ?? 0
+    lastRightScrollRef.current = rightColumnRef.current?.scrollTop ?? 0
+  }, [])
+
+  const setOpenPreserveScroll = useCallback(
+    (next: boolean) => {
+      if (typeof window !== 'undefined') {
+        pendingWindowScrollRef.current = window.scrollY
+        if (!next) {
+          captureColumnScrollPositions()
+        }
+      }
+      setOpen(next)
+    },
+    [captureColumnScrollPositions],
+  )
+
+  useLayoutEffect(() => {
+    const winY = pendingWindowScrollRef.current
+    pendingWindowScrollRef.current = null
+    if (typeof window === 'undefined' || winY == null) return
+
+    window.scrollTo({ top: winY })
+
+    if (open) {
+      requestAnimationFrame(() => {
+        leftColumnRef.current?.scrollTo({ top: lastLeftScrollRef.current })
+        rightColumnRef.current?.scrollTo({ top: lastRightScrollRef.current })
+      })
+    }
+  }, [open])
 
   const refreshSelection = useCallback(() => {
     const root = document.getElementById(THEORY_ROOT_ID)
@@ -87,11 +139,11 @@ export function LessonAssistantShell({
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') setOpenPreserveScroll(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open])
+  }, [open, setOpenPreserveScroll])
 
   async function submit() {
     const q = question.trim()
@@ -122,6 +174,7 @@ export function LessonAssistantShell({
         return
       }
       setAnswer((data.answer ?? '').trim())
+      setComposerCollapsed(true)
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -147,19 +200,32 @@ export function LessonAssistantShell({
   const wideOpen = open
 
   return (
-    <div className={cn(shellBase, wideOpen ? 'max-w-[90rem]' : 'max-w-4xl')}>
-      <div className="mb-8 min-w-0">{lessonHeader}</div>
-
+    <div
+      className={cn(
+        shellBase,
+        wideOpen
+          ? 'max-w-[90rem] md:h-[calc(100dvh-6.5rem)] md:overflow-hidden md:py-4'
+          : 'max-w-4xl',
+      )}
+    >
       {open ? (
-        <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-2 md:gap-8 lg:gap-10">
-          <div className="min-w-0">{lessonBody}</div>
+        <div className="grid grid-cols-1 items-stretch gap-8 md:grid-cols-2 md:gap-8 lg:gap-10 md:h-full md:min-h-0">
+          <div
+            ref={leftColumnRef}
+            className={cn('min-w-0 md:min-h-0 md:overflow-y-auto md:pr-1', columnScrollbarClass)}
+          >
+            <div className="mb-8 min-w-0">{lessonHeader}</div>
+            {lessonBody}
+          </div>
 
+          <div
+            ref={rightColumnRef}
+            className={cn('min-w-0 md:min-h-0 md:overflow-y-auto', columnScrollbarClass)}
+          >
           <aside
             className={cn(
               'flex w-full min-w-0 flex-col gap-3 rounded-xl border-0 p-4 shadow-none',
               studentGlassCard,
-              'min-h-0 max-h-[min(90dvh,40rem)] md:max-h-[calc(100dvh-5.5rem)]',
-              'md:sticky md:top-6',
             )}
             aria-labelledby={panelTitleId}
           >
@@ -168,7 +234,7 @@ export function LessonAssistantShell({
                 <h2 id={panelTitleId} className="text-base font-semibold leading-snug text-foreground">
                   Ask about this lesson
                 </h2>
-                <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => setOpen(false)}>
+                <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => setOpenPreserveScroll(false)}>
                   <X className="h-5 w-5" aria-hidden />
                   <span className="sr-only">Close assistant</span>
                 </Button>
@@ -177,77 +243,95 @@ export function LessonAssistantShell({
               <p className="text-sm text-muted-foreground">
                 Select text in the theory, then capture it. Your question is sent with full lesson context.
               </p>
+              {!composerCollapsed ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="lesson-assistant-model" className="text-sm font-medium text-foreground">
+                      Model
+                    </Label>
+                    <Select
+                      value={modelPreset}
+                      onValueChange={(v) => setModelPreset(v as LessonAssistantModelPreset)}
+                      disabled={loading}
+                    >
+                      <SelectTrigger id="lesson-assistant-model" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        <SelectItem value="haiku">Haiku 4.5 — faster, lower cost</SelectItem>
+                        <SelectItem value="sonnet">Sonnet 4.5 — richer answers</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="lesson-assistant-model" className="text-sm font-medium text-foreground">
-                  Model
-                </Label>
-                <Select
-                  value={modelPreset}
-                  onValueChange={(v) => setModelPreset(v as LessonAssistantModelPreset)}
-                  disabled={loading}
-                >
-                  <SelectTrigger id="lesson-assistant-model" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    <SelectItem value="haiku">Haiku 4.5 — faster, lower cost</SelectItem>
-                    <SelectItem value="sonnet">Sonnet 4.5 — richer answers</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  <Button type="button" variant="outline" size="sm" onClick={refreshSelection} className="w-fit gap-1.5">
+                    <Highlighter className="h-4 w-4" aria-hidden />
+                    Use page selection
+                  </Button>
 
-              <Button type="button" variant="outline" size="sm" onClick={refreshSelection} className="w-fit gap-1.5">
-                <Highlighter className="h-4 w-4" aria-hidden />
-                Use page selection
-              </Button>
+                  {selectedText ? (
+                    <div className="max-h-24 overflow-y-auto rounded-md border border-dashed bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                      {selectedText}
+                    </div>
+                  ) : null}
 
-              {selectedText ? (
-                <div className="max-h-24 overflow-y-auto rounded-md border border-dashed bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                  {selectedText}
+                  <div className="space-y-1.5">
+                    <Label htmlFor={questionInputId} className="sr-only">
+                      Your question
+                    </Label>
+                    <Textarea
+                      id={questionInputId}
+                      placeholder="Your question…"
+                      value={question}
+                      onChange={(e) => setQuestion(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          void submit()
+                        }
+                      }}
+                      aria-describedby={`${questionInputId}-hint`}
+                      className="min-h-[88px] resize-y text-base"
+                      disabled={loading}
+                    />
+                    <p id={`${questionInputId}-hint`} className="text-xs text-muted-foreground">
+                      <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[0.7rem]">Enter</kbd> to send ·{' '}
+                      <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[0.7rem]">Shift</kbd> +{' '}
+                      <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[0.7rem]">Enter</kbd> for new line
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="hero"
+                    className="auth-hero-cta w-full"
+                    onClick={() => void submit()}
+                    disabled={loading || !question.trim()}
+                  >
+                    {loading ? 'Thinking…' : 'Ask'}
+                  </Button>
+                </>
+              ) : (
+                <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2">
+                  <p className="line-clamp-2 text-sm text-muted-foreground">
+                    {question.trim() ? `Question: ${question.trim()}` : 'Previous question'}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setComposerCollapsed(false)}
+                    className="shrink-0"
+                  >
+                    Ask another
+                  </Button>
                 </div>
-              ) : null}
-
-              <div className="space-y-1.5">
-                <Label htmlFor={questionInputId} className="sr-only">
-                  Your question
-                </Label>
-                <Textarea
-                  id={questionInputId}
-                  placeholder="Your question…"
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      void submit()
-                    }
-                  }}
-                  aria-describedby={`${questionInputId}-hint`}
-                  className="min-h-[88px] resize-y text-base"
-                  disabled={loading}
-                />
-                <p id={`${questionInputId}-hint`} className="text-xs text-muted-foreground">
-                  <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[0.7rem]">Enter</kbd> to send ·{' '}
-                  <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[0.7rem]">Shift</kbd> +{' '}
-                  <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[0.7rem]">Enter</kbd> for new line
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                variant="hero"
-                className="auth-hero-cta w-full"
-                onClick={() => void submit()}
-                disabled={loading || !question.trim()}
-              >
-                {loading ? 'Thinking…' : 'Ask'}
-              </Button>
+              )}
 
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto rounded-md border bg-muted/20 px-3 py-2">
+            <div className="min-h-[14rem] rounded-md border bg-muted/20 px-3 py-2">
               {answer ? (
                 <TheoryMarkdown markdown={answer} tier={tier} className="min-w-0" />
               ) : (
@@ -255,15 +339,19 @@ export function LessonAssistantShell({
               )}
             </div>
           </aside>
+          </div>
         </div>
       ) : (
-        <div className="min-w-0">{lessonBody}</div>
+        <>
+          <div className="mb-8 min-w-0">{lessonHeader}</div>
+          <div className="min-w-0">{lessonBody}</div>
+        </>
       )}
 
       {!open ? (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => setOpenPreserveScroll(true)}
           className={cn(
             'fixed z-30 flex h-14 w-14 items-center justify-center rounded-full border bg-primary text-primary-foreground shadow-lg transition hover:opacity-95',
             'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',

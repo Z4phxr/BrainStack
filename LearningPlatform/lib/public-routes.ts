@@ -12,6 +12,7 @@ export const PUBLIC_PATHS = [
   '/register',
   '/admin/login',
   '/api/ping',
+  '/api/health',
 ] as const
 
 /** Path prefixes accessible without authentication. */
