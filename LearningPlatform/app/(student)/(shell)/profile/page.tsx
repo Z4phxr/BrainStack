@@ -114,7 +114,7 @@ export default async function ProfilePage() {
     for (const d of deckRows) {
       let cursor: string | null = d.id
       while (cursor) {
-        const parent = parentById.get(cursor) ?? null
+        const parent: string | null = parentById.get(cursor) ?? null
         if (!parent) {
           rootByDeckId.set(d.id, cursor)
           break

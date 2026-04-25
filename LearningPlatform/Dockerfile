@@ -26,7 +26,27 @@ COPY prisma.config.ts ./
 # This avoids running `prisma generate` before the full source (including schema)
 # is copied into the image. We'll run `prisma generate` explicitly later when
 # the schema file is present.
-RUN npm ci --no-audit --no-fund --ignore-scripts
+RUN set -eux; \
+  RETRIES=5; \
+  COUNT=0; \
+  until [ "$COUNT" -ge "$RETRIES" ]; do \
+    npm ci \
+      --no-audit \
+      --no-fund \
+      --ignore-scripts \
+      --fetch-retries=5 \
+      --fetch-retry-factor=2 \
+      --fetch-retry-mintimeout=10000 \
+      --fetch-retry-maxtimeout=120000 && break || true; \
+    COUNT=$((COUNT+1)); \
+    echo "npm ci failed, retrying ($COUNT/$RETRIES)"; \
+    npm cache verify || true; \
+    sleep 5; \
+  done; \
+  if [ "$COUNT" -ge "$RETRIES" ]; then \
+    echo "npm ci failed after $RETRIES attempts"; \
+    exit 1; \
+  fi
 
 # Copy rest of source and run build
 COPY . .
