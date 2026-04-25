@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { studentGlassCard, studentGlassFooterNavButton, studentGlassPill } from '@/lib/student-glass-styles'
 import type { FlashcardDashboardSummary } from '@/lib/flashcards-dashboard-summary'
+import { ArchiveDeckButton } from '@/components/profile/archive-actions'
 
 type Stats = { total: number; newCards: number; due: number }
 
@@ -419,6 +420,9 @@ export default function StudentFlashcardDeckTreePage() {
                     )}
                   </>
                 )}
+                <div className="flex justify-center pt-1">
+                  <ArchiveDeckButton deckId={row.deck.id} />
+                </div>
               </CardContent>
             </Card>
           )

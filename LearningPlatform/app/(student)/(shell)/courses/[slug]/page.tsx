@@ -13,6 +13,7 @@ import { prisma } from '@/lib/prisma'
 import { CourseHeroTitle } from '@/components/courses/course-hero-title'
 import { studentGlassCard, studentGlassPill } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
+import { ArchiveCourseButton } from '@/components/profile/archive-actions'
 
 /** Same visual as dashboard `StatPill` in `flashcard-section.tsx` (server-safe duplicate). */
 function CourseFlashcardStatPill({ label, count }: { label: string; count: number }) {
@@ -147,10 +148,19 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
 
   const courseId = String(course.id)
   const moduleIds = modulesWithLessons.map((m) => String(m.id))
-  const mainDeck = await prisma.flashcardDeck.findFirst({
+  let mainDeck = await prisma.flashcardDeck.findFirst({
     where: { courseId, parentDeckId: null },
     select: { id: true, name: true, slug: true },
   })
+  if (mainDeck && session?.user?.id) {
+    const archivedDeck = await prisma.userStandaloneFlashcardDeck.findUnique({
+      where: { userId_deckId: { userId: session.user.id, deckId: mainDeck.id } },
+      select: { archivedAt: true },
+    })
+    if (archivedDeck?.archivedAt) {
+      mainDeck = null
+    }
+  }
 
   const subdecks = mainDeck
     ? await prisma.flashcardDeck.findMany({
@@ -468,6 +478,10 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
           </div>
         </section>
       )}
+
+      <section className="flex justify-center pt-2">
+        <ArchiveCourseButton courseSlug={slug} />
+      </section>
     </div>
   )
 }

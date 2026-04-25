@@ -85,15 +85,29 @@ export async function getFlashcardDashboardSummary(
   const all: FlashcardDashboardStats = { total: 0, newCards: 0, due: 0 }
   const byDeckId = new Map<string, FlashcardDashboardStats>()
 
-  const startedRows = await prisma.courseProgress.findMany({
-    where: { userId },
-    select: { courseId: true },
-  })
+  let startedRows: { courseId: string }[] = []
+  try {
+    startedRows = await prisma.courseProgress.findMany({
+      where: { userId, archivedAt: null },
+      select: { courseId: true },
+    })
+  } catch (err) {
+    console.warn('[getFlashcardDashboardSummary] archived course filter unavailable, using fallback query', err)
+    startedRows = await prisma.courseProgress.findMany({
+      where: { userId },
+      select: { courseId: true },
+    })
+  }
   /** Table may be missing until migrations are applied — keep course summaries working. */
   let enrollRows: { deckId: string }[] = []
+  let deckArchiveRows: Array<{ deckId: string; archivedAt: Date | null }> = []
   try {
-    enrollRows = await prisma.userStandaloneFlashcardDeck.findMany({
+    deckArchiveRows = await prisma.userStandaloneFlashcardDeck.findMany({
       where: { userId },
+      select: { deckId: true, archivedAt: true },
+    })
+    enrollRows = await prisma.userStandaloneFlashcardDeck.findMany({
+      where: { userId, archivedAt: null },
       select: { deckId: true },
     })
   } catch (err) {
@@ -102,6 +116,7 @@ export async function getFlashcardDashboardSummary(
 
   const startedCourseIds = [...new Set(startedRows.map((x) => x.courseId))]
   const enrolledMainDeckIds = [...new Set(enrollRows.map((e) => e.deckId))]
+  const archivedDeckIdSet = new Set(deckArchiveRows.filter((r) => r.archivedAt != null).map((r) => r.deckId))
 
   const courseRows =
     startedCourseIds.length > 0
@@ -255,7 +270,7 @@ export async function getFlashcardDashboardSummary(
       childByParentId.set(deck.parentDeckId, list)
     }
 
-    const mainCourseDecks = allCourseDecks.filter((deck) => !deck.parentDeckId)
+    const mainCourseDecks = allCourseDecks.filter((deck) => !deck.parentDeckId && !archivedDeckIdSet.has(deck.id))
     for (const mainDeck of mainCourseDecks) {
       const courseId = mainDeck.courseId ?? ''
       const course = publishedById.get(courseId)

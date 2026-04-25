@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/auth-helpers'
 import { getUserWeakTags } from '@/lib/analytics'
 import { prisma } from '@/lib/prisma'
 import { extractText } from '@/lib/lexical'
+import { courseIdFromPayloadTask } from '@/lib/payload-task-helpers'
 
 /**
  * GET /api/recommend/tasks?limit=5&mode=weak|review|mixed
@@ -260,15 +261,24 @@ export async function GET(req: Request) {
       limit:      CANDIDATE_LIMIT,
       depth:      1,
     })
+    const archivedCourseRows = await prisma.courseProgress.findMany({
+      where: { userId: user.id, archivedAt: { not: null } },
+      select: { courseId: true },
+    })
+    const archivedCourseIds = new Set(archivedCourseRows.map((r) => r.courseId))
+    const candidateTasks = (allTasks as any[]).filter((task) => {
+      const taskCourseId = courseIdFromPayloadTask(task)
+      return !taskCourseId || !archivedCourseIds.has(taskCourseId)
+    })
 
     let result: { tasks: ScoredTask[]; explanation: string }
 
     if (mode === 'review') {
-      result = await reviewMode(user.id, allTasks as any[], limit)
+      result = await reviewMode(user.id, candidateTasks, limit)
     } else if (mode === 'mixed') {
-      result = await mixedMode(user.id, allTasks as any[], limit)
+      result = await mixedMode(user.id, candidateTasks, limit)
     } else {
-      result = await weakMode(user.id, allTasks as any[], limit)
+      result = await weakMode(user.id, candidateTasks, limit)
     }
 
     return NextResponse.json({ ...result, mode })

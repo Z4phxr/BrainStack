@@ -129,6 +129,7 @@ export async function GET(req: Request) {
       whereFilter = whereFilter ? { AND: [whereFilter, mainDeckPart] } : mainDeckPart
     }
 
+    let validatedMainDeckId: string | null = null
     if (mainDeckSlugQ && !deckFilterSlug) {
       // Ensure main deck exists and is not itself a subdeck, otherwise we might silently return unrelated data.
       const mainDeck = await prisma.flashcardDeck.findUnique({
@@ -141,6 +142,7 @@ export async function GET(req: Request) {
           { status: 400 },
         )
       }
+      validatedMainDeckId = mainDeck.id
     }
 
     if (deckFilterSlug || mainDeckSlugQ) {
@@ -153,6 +155,55 @@ export async function GET(req: Request) {
           { error: 'Forbidden', issues: { deck: [access.message] } },
           { status: 403 },
         )
+      }
+
+      // Auto-unarchive when the user starts studying this deck scope again.
+      let rootDeck: { id: string; courseId: string | null } | null = null
+      if (validatedMainDeckId) {
+        rootDeck = await prisma.flashcardDeck.findUnique({
+          where: { id: validatedMainDeckId },
+          select: { id: true, courseId: true },
+        })
+      } else if (deckFilterSlug) {
+        const deck = await prisma.flashcardDeck.findUnique({
+          where: { slug: deckFilterSlug },
+          select: { id: true, parentDeckId: true, courseId: true },
+        })
+        if (deck) {
+          if (deck.parentDeckId) {
+            rootDeck = await prisma.flashcardDeck.findUnique({
+              where: { id: deck.parentDeckId },
+              select: { id: true, courseId: true },
+            })
+          } else {
+            rootDeck = { id: deck.id, courseId: deck.courseId }
+          }
+        }
+      }
+
+      if (rootDeck) {
+        if (typeof prisma.userStandaloneFlashcardDeck?.updateMany === 'function') {
+          await prisma.userStandaloneFlashcardDeck.updateMany({
+            where: {
+              userId: user.id,
+              deckId: rootDeck.id,
+              archivedAt: { not: null },
+            },
+            data: { archivedAt: null },
+          })
+        }
+        if (rootDeck.courseId) {
+          if (typeof prisma.courseProgress?.updateMany === 'function') {
+            await prisma.courseProgress.updateMany({
+              where: {
+                userId: user.id,
+                courseId: rootDeck.courseId,
+                archivedAt: { not: null },
+              },
+              data: { archivedAt: null },
+            })
+          }
+        }
       }
     }
 

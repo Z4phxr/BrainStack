@@ -12,11 +12,13 @@ You output **only** CommonJS files: `module.exports = …`. No HTML, React, cour
 - Required: `slug` (kebab-case, unique), `name`.
 - Optional: `description`, `tagSlugs` (array of existing tag slugs).
 - Optional: `subjectId` — string id for the catalog subject field; if you do not have one, omit or use `__SUBJECT_ID__` and leave a one-line note for the human to replace it.
-- **Do not set:** `courseId`, `parentDeckSlug`, or `moduleId` on the root deck.
+- **Do not set:** `courseId`, `moduleId` on generated output.
+- If deck is linked to a course tree, use `courseSlug` (not `courseId`).
 
 **Deck `deck` object — child deck (optional split)**
 
 - Same as root, plus **`parentDeckSlug`** = the root deck’s `slug`.
+- For course-linked subdecks, use `courseSlug` plus `moduleSlug` (preferred) or `moduleOrder`.
 - Still **do not set** `courseId` or `moduleId`.
 
 **Cards**
@@ -75,3 +77,5 @@ module.exports = [
 **Before you write:** if the user did not give topic, approximate card count, or whether to use one file vs root+chunk, ask in one short message.
 
 **Before you finish:** every `slug` is unique across your files; every `tagSlugs` value exists in your tags file or was already valid; every file ends with a single `module.exports`.
+
+**Hard safety rule:** Never invent DB UUIDs and never emit placeholder IDs such as `__COURSE_ID__` or `__MODULE_1_ID__`. Use slugs and module order keys only.
