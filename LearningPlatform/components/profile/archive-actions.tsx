@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 
@@ -16,88 +16,118 @@ async function postJson(url: string, body: unknown) {
   }
 }
 
+function ActionToast({ message }: { message: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-md border border-black/10 bg-black/85 px-3 py-2 text-xs text-white shadow-lg"
+    >
+      {message}
+    </div>
+  )
+}
+
+function useActionToast() {
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const timeoutRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [])
+
+  const showToast = (message: string) => {
+    if (timeoutRef.current !== null) {
+      window.clearTimeout(timeoutRef.current)
+    }
+    setToastMessage(message)
+    timeoutRef.current = window.setTimeout(() => {
+      setToastMessage(null)
+      timeoutRef.current = null
+    }, 2200)
+  }
+
+  return { toastMessage, showToast }
+}
+
 export function ArchiveCourseButton({ courseSlug }: { courseSlug: string }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
+  const { toastMessage, showToast } = useActionToast()
 
   return (
-    <div className="space-y-1.5">
+    <>
       <Button
         type="button"
         variant="outline"
         size="sm"
         disabled={pending}
         onClick={() => {
-          setError(null)
           const archiveLinkedDeck = window.confirm(
             'Do you also want to archive this course flashcard deck?',
           )
           startTransition(async () => {
-            try {
-              await postJson('/api/profile/archive', {
-                type: 'course',
-                courseSlug,
-                archiveLinkedDeck,
-              })
-              router.refresh()
-            } catch (err) {
-              setError(err instanceof Error ? err.message : 'Failed to archive course')
-            }
+            await postJson('/api/profile/archive', {
+              type: 'course',
+              courseSlug,
+              archiveLinkedDeck,
+            })
+            showToast('Course archived')
+            router.refresh()
           })
         }}
       >
         {pending ? 'Archiving...' : 'Archive course'}
       </Button>
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
-    </div>
+      {toastMessage ? <ActionToast message={toastMessage} /> : null}
+    </>
   )
 }
 
 export function ArchiveDeckButton({ deckId }: { deckId: string }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
+  const { toastMessage, showToast } = useActionToast()
 
   return (
-    <div className="space-y-1.5">
+    <>
       <Button
         type="button"
         variant="outline"
         size="sm"
         disabled={pending}
         onClick={() => {
-          setError(null)
           const archiveLinkedCourse = window.confirm(
             'This deck may be linked to a course. Do you also want to archive the course?',
           )
           startTransition(async () => {
-            try {
-              await postJson('/api/profile/archive', {
-                type: 'deck',
-                deckId,
-                archiveLinkedCourse,
-              })
-              router.refresh()
-            } catch (err) {
-              setError(err instanceof Error ? err.message : 'Failed to archive deck')
-            }
+            await postJson('/api/profile/archive', {
+              type: 'deck',
+              deckId,
+              archiveLinkedCourse,
+            })
+            showToast('Deck archived')
+            router.refresh()
           })
         }}
       >
         {pending ? 'Archiving...' : 'Archive deck'}
       </Button>
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
-    </div>
+      {toastMessage ? <ActionToast message={toastMessage} /> : null}
+    </>
   )
 }
 
 export function UnarchiveCourseButton({ courseId }: { courseId: string }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
+  const { toastMessage, showToast } = useActionToast()
   return (
-    <div className="space-y-1.5">
+    <>
       <Button
         type="button"
         variant="hero"
@@ -105,29 +135,25 @@ export function UnarchiveCourseButton({ courseId }: { courseId: string }) {
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            setError(null)
-            try {
-              await postJson('/api/profile/unarchive', { type: 'course', courseId })
-              router.refresh()
-            } catch (err) {
-              setError(err instanceof Error ? err.message : 'Failed to unarchive course')
-            }
+            await postJson('/api/profile/unarchive', { type: 'course', courseId })
+            showToast('Course unarchived')
+            router.refresh()
           })
         }
       >
         {pending ? 'Unarchiving...' : 'Unarchive'}
       </Button>
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
-    </div>
+      {toastMessage ? <ActionToast message={toastMessage} /> : null}
+    </>
   )
 }
 
 export function UnarchiveDeckButton({ deckId }: { deckId: string }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
+  const { toastMessage, showToast } = useActionToast()
   return (
-    <div className="space-y-1.5">
+    <>
       <Button
         type="button"
         variant="hero"
@@ -135,19 +161,15 @@ export function UnarchiveDeckButton({ deckId }: { deckId: string }) {
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            setError(null)
-            try {
-              await postJson('/api/profile/unarchive', { type: 'deck', deckId })
-              router.refresh()
-            } catch (err) {
-              setError(err instanceof Error ? err.message : 'Failed to unarchive deck')
-            }
+            await postJson('/api/profile/unarchive', { type: 'deck', deckId })
+            showToast('Deck unarchived')
+            router.refresh()
           })
         }
       >
         {pending ? 'Unarchiving...' : 'Unarchive'}
       </Button>
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
-    </div>
+      {toastMessage ? <ActionToast message={toastMessage} /> : null}
+    </>
   )
 }

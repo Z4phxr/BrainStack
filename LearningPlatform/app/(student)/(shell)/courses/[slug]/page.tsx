@@ -13,7 +13,7 @@ import { prisma } from '@/lib/prisma'
 import { CourseHeroTitle } from '@/components/courses/course-hero-title'
 import { studentGlassCard, studentGlassPill } from '@/lib/student-glass-styles'
 import { cn } from '@/lib/utils'
-import { ArchiveCourseButton } from '@/components/profile/archive-actions'
+import { ArchiveCourseButton, UnarchiveCourseButton } from '@/components/profile/archive-actions'
 
 /** Same visual as dashboard `StatPill` in `flashcard-section.tsx` (server-safe duplicate). */
 function CourseFlashcardStatPill({ label, count }: { label: string; count: number }) {
@@ -147,6 +147,17 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   }
 
   const courseId = String(course.id)
+  let courseArchived = false
+  if (session?.user?.id) {
+    const archivedCourse = await prisma.courseProgress.findFirst({
+      where: {
+        userId: session.user.id,
+        courseId,
+      },
+      select: { archivedAt: true },
+    })
+    courseArchived = Boolean(archivedCourse?.archivedAt)
+  }
   const moduleIds = modulesWithLessons.map((m) => String(m.id))
   let mainDeck = await prisma.flashcardDeck.findFirst({
     where: { courseId, parentDeckId: null },
@@ -480,7 +491,11 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
       )}
 
       <section className="flex justify-center pt-2">
-        <ArchiveCourseButton courseSlug={slug} />
+        {courseArchived ? (
+          <UnarchiveCourseButton courseId={courseId} />
+        ) : (
+          <ArchiveCourseButton courseSlug={slug} />
+        )}
       </section>
     </div>
   )
