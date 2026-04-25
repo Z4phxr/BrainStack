@@ -759,6 +759,7 @@ function StudyPage() {
       </main>
 
       <FlashcardAssistantFab
+        key={card?.id ?? 'no-card'}
         enabled={Boolean(card)}
         cardFront={card?.question ?? ''}
         cardBack={card?.answer ?? ''}

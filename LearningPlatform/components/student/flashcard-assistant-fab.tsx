@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useState } from 'react'
+import { useId, useState } from 'react'
 import { MessageSquareText, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -36,13 +36,6 @@ export function FlashcardAssistantFab({
   const [error, setError] = useState<string | null>(null)
   const [modelPreset, setModelPreset] = useState<LessonAssistantModelPreset>('haiku')
   const [composerCollapsed, setComposerCollapsed] = useState(false)
-
-  useEffect(() => {
-    setQuestion('')
-    setAnswer('')
-    setError(null)
-    setComposerCollapsed(false)
-  }, [cardFront, cardBack])
 
   async function submit() {
     const q = question.trim()
