@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -60,17 +62,28 @@ function DeckCard({
           <StatPill label="total" count={row.stats.total} />
         </div>
         <div className="grid w-full min-w-0 grid-cols-1 gap-2">
-          <Link href={row.openHref} className="min-w-0">
+          {canOpen ? (
+            <Link href={row.openHref} className="min-w-0">
+              <Button
+                size="sm"
+                variant="hero"
+                className="auth-hero-cta h-auto w-full min-w-0 justify-center gap-1 whitespace-normal px-2 py-2 text-xs leading-tight sm:text-sm"
+              >
+                <Brain className="h-4 w-4 shrink-0" />
+                Open Deck Tree
+              </Button>
+            </Link>
+          ) : (
             <Button
               size="sm"
               variant="hero"
               className="auth-hero-cta h-auto w-full min-w-0 justify-center gap-1 whitespace-normal px-2 py-2 text-xs leading-tight sm:text-sm"
-              disabled={!canOpen}
+              disabled
             >
               <Brain className="h-4 w-4 shrink-0" />
               Open Deck Tree
             </Button>
-          </Link>
+          )}
           {action ? <div className="flex justify-center pt-1">{action}</div> : null}
         </div>
       </CardContent>

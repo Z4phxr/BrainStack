@@ -6,6 +6,7 @@ import { getUserTagStats, getUserWeakTags } from '@/lib/analytics'
 import { prisma } from '@/lib/prisma'
 import { randomUUID } from 'crypto'
 import { extractText } from '@/lib/lexical'
+import { courseIdFromPayloadTask } from '@/lib/payload-task-helpers'
 
 /**
  * GET /api/practice/session?limit=10
@@ -36,15 +37,6 @@ const MAX_LIMIT          = 50
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const normalise = (s: string) => s.toLowerCase().trim()
-const courseIdFromTask = (task: any): string | null => {
-  const lesson = task?.lesson
-  if (!lesson || typeof lesson !== 'object') return null
-  const course = (lesson as { course?: unknown }).course
-  if (!course) return null
-  if (typeof course === 'string' || typeof course === 'number') return String(course)
-  if (typeof course === 'object' && 'id' in course) return String((course as { id: string | number }).id)
-  return null
-}
 
 function payloadTaskTags(task: any): string[] {
   const tagObjects: Array<Record<string, unknown>> = task.tags ?? []
@@ -133,7 +125,7 @@ export async function GET(req: Request) {
     })
     const archivedCourseIds = new Set(archivedCourseRows.map((r) => r.courseId))
     const candidateTasks = (allTasks as any[]).filter((task) => {
-      const taskCourseId = courseIdFromTask(task)
+      const taskCourseId = courseIdFromPayloadTask(task)
       return !taskCourseId || !archivedCourseIds.has(taskCourseId)
     })
 

@@ -85,10 +85,19 @@ export async function getFlashcardDashboardSummary(
   const all: FlashcardDashboardStats = { total: 0, newCards: 0, due: 0 }
   const byDeckId = new Map<string, FlashcardDashboardStats>()
 
-  const startedRows = await prisma.courseProgress.findMany({
-    where: { userId, archivedAt: null },
-    select: { courseId: true },
-  })
+  let startedRows: { courseId: string }[] = []
+  try {
+    startedRows = await prisma.courseProgress.findMany({
+      where: { userId, archivedAt: null },
+      select: { courseId: true },
+    })
+  } catch (err) {
+    console.warn('[getFlashcardDashboardSummary] archived course filter unavailable, using fallback query', err)
+    startedRows = await prisma.courseProgress.findMany({
+      where: { userId },
+      select: { courseId: true },
+    })
+  }
   /** Table may be missing until migrations are applied — keep course summaries working. */
   let enrollRows: { deckId: string }[] = []
   let deckArchiveRows: Array<{ deckId: string; archivedAt: Date | null }> = []

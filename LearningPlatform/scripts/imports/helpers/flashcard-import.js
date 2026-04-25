@@ -73,10 +73,20 @@ async function upsertFlashcardDeck(prisma, spec, { dryRun }) {
     parentDeckId = parent.id
   }
 
-  const existing = await prisma.flashcardDeck.findUnique({
+  const existingBySlug = await prisma.flashcardDeck.findUnique({
     where: { slug },
     include: { tags: true },
   })
+  const existingByModule =
+    moduleId != null
+      ? await prisma.flashcardDeck.findUnique({
+          where: { moduleId },
+          include: { tags: true },
+        })
+      : null
+  const existing =
+    existingBySlug ??
+    (existingByModule && existingByModule.parentDeckId === parentDeckId ? existingByModule : null)
 
   if (dryRun) {
     // Per-slug placeholder so parallel dry-run decks do not share one id (dedupe keys stay distinct)
@@ -102,8 +112,9 @@ async function upsertFlashcardDeck(prisma, spec, { dryRun }) {
   }
 
   await prisma.flashcardDeck.update({
-    where: { slug },
+    where: { id: existing.id },
     data: {
+      slug,
       name,
       description,
       subjectId,

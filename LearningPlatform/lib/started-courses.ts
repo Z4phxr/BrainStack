@@ -17,10 +17,21 @@ function courseIdFromLessonField(lesson: { id: string | number; course: unknown 
  * with lesson progress IN_PROGRESS or COMPLETED. Ordered by most recent lesson activity.
  */
 export async function getOrderedStartedCourseIds(userId: string, payload: Payload): Promise<string[]> {
-  const archivedCourseRows = await prisma.courseProgress.findMany({
-    where: { userId, archivedAt: { not: null } },
-    select: { courseId: true },
-  })
+  const archivedCourseRows =
+    typeof prisma.courseProgress?.findMany === 'function'
+      ? await (async () => {
+          const whereWithArchiveFilter: Record<string, unknown> = { userId }
+          whereWithArchiveFilter.archivedAt = { not: null }
+          try {
+            return await prisma.courseProgress.findMany({
+              where: whereWithArchiveFilter as never,
+              select: { courseId: true },
+            })
+          } catch {
+            return []
+          }
+        })()
+      : []
   const archivedCourseIds = new Set(archivedCourseRows.map((r) => r.courseId))
 
   const progressRows = await prisma.lessonProgress.findMany({

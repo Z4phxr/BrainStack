@@ -360,11 +360,11 @@ Tasks go in the `tasks` array of each lesson.
 **Location:** `/data/flashcards/`  
 **When:** Only if the user answered **Yes** to flashcards in discovery; otherwise skip all flashcard files.
 
-**Platform rule:** For a **course** tree, the **main** deck row is structural only — use **`cards: []`**. Every study card lives on a **module subdeck** (`parentDeckSlug` + same `courseId` as main + **`moduleId`** for that module). The importer accepts **`module.exports = [{ deck, cards }, …]`** in one `.js` file (one object per module in that chunk).
+**Platform rule:** For a **course** tree, the **main** deck row is structural only - use **`cards: []`**. Every study card lives on a **module subdeck** (`parentDeckSlug` + same `courseSlug` as main + **`moduleSlug`** or `moduleOrder` for that module). The importer accepts **`module.exports = [{ deck, cards }, …]`** in one `.js` file (one object per module in that chunk).
 
 **Files to create (aligned with course chunks):**
-1. **`[topic]-main-deck.js`** — single object `{ deck, cards }`: main has `courseId: '__COURSE_ID__'`, same `slug` you use as every subdeck’s `parentDeckSlug`, **`cards: []`**.
-2. **`[topic]-subdecks-ptN.js`** — **array** of `{ deck, cards }`, one entry per **module** in that course chunk; each `deck` has `parentDeckSlug`, `courseId`, **`moduleId`** matching the module from the matching course file.
+1. **`[topic]-main-deck.js`** - single object `{ deck, cards }`: main has `courseSlug: '[course-slug]'`, same `slug` you use as every subdeck’s `parentDeckSlug`, **`cards: []`**.
+2. **`[topic]-subdecks-ptN.js`** - **array** of `{ deck, cards }`, one entry per **module** in that course chunk; each `deck` has `parentDeckSlug`, `courseSlug`, and **`moduleSlug`** (preferred) or `moduleOrder` matching the module from the matching course file.
 
 **Import order:** Tags → courses → modules → flashcards. Name the main deck file so it **sorts before** `subdecks-pt*.js` (e.g. `docker-main-deck.js` before `docker-subdecks-pt1.js`) so the parent exists when subdecks import in one run.
 
@@ -376,7 +376,7 @@ module.exports = {
     name: 'Docker — course deck',
     description: 'Parent for module subdecks.',
     tagSlugs: ['docker', 'beginner'],
-    courseId: '__COURSE_ID__',
+    courseSlug: 'docker-fundamentals',
   },
   cards: [],
 }
@@ -390,8 +390,8 @@ module.exports = [
       slug: 'docker-module-1-subdeck',
       name: 'Module 1 — Introduction',
       parentDeckSlug: 'docker-main-deck',
-      courseId: '__COURSE_ID__',
-      moduleId: '__MODULE_1_ID__',
+      courseSlug: 'docker-fundamentals',
+      moduleSlug: 'docker-module-1-introduction',
       tagSlugs: ['docker', 'beginner'],
     },
     cards: [
@@ -407,8 +407,8 @@ module.exports = [
       slug: 'docker-module-2-subdeck',
       name: 'Module 2 — Images and containers',
       parentDeckSlug: 'docker-main-deck',
-      courseId: '__COURSE_ID__',
-      moduleId: '__MODULE_2_ID__',
+      courseSlug: 'docker-fundamentals',
+      moduleSlug: 'docker-module-2-images-and-containers',
       tagSlugs: ['docker', 'images'],
     },
     cards: [
@@ -422,7 +422,9 @@ module.exports = [
 ]
 ```
 
-**`deck` fields (course-linked):** `slug`, `name`, optional `description`, optional `tagSlugs`, **`courseId`** (Payload course id). On subdecks only: **`parentDeckSlug`** (main slug), **`moduleId`** (Payload module id for that subdeck).
+**`deck` fields (course-linked):** `slug`, `name`, optional `description`, optional `tagSlugs`, **`courseSlug`**. On subdecks only: **`parentDeckSlug`** (main slug), plus **`moduleSlug`** (preferred) or `moduleOrder`.
+
+**Hard rule (critical):** Never generate or invent database UUIDs for `courseId` / `moduleId`, and do not use placeholders like `__COURSE_ID__` / `__MODULE_1_ID__`.
 
 **`cards` fields:** `question`, `answer`, `tagSlugs` (2–4 slugs; import tags first).
 
@@ -514,9 +516,9 @@ Based on discovery answers, create a **detailed outline** showing:
 ...
 
 ### Flashcards *(omit this whole subsection if user chose No flashcards)*:
-- **Main deck file:** `scripts/imports/data/flashcards/[topic]-main-deck.js` — `{ deck, cards }` with **`courseId`**, **`cards: []`**
+- **Main deck file:** `scripts/imports/data/flashcards/[topic]-main-deck.js` - `{ deck, cards }` with **`courseSlug`**, **`cards: []`**
 - **Chunk subdeck files:** `scripts/imports/data/flashcards/[topic]-subdecks-pt1.js`, `...-pt2.js`, etc. — **`module.exports = [{ deck, cards }, …]`** (one block per module)
-- **Rule:** one subdeck per module; every subdeck uses **`parentDeckSlug`** = main deck slug, plus **`courseId`** and **`moduleId`**
+- **Rule:** one subdeck per module; every subdeck uses **`parentDeckSlug`** = main deck slug, plus **`courseSlug`** and **`moduleSlug`** (or `moduleOrder`)
 ```
 
 **Get user approval** on this structure before generating files!
@@ -974,7 +976,7 @@ module.exports = {
     name: 'Docker - Main Course Deck',
     description: 'Parent deck for module subdecks.',
     tagSlugs: ['docker', 'containerization', 'beginner'],
-    courseId: '__COURSE_ID__',
+    courseSlug: 'docker-fundamentals',
   },
   cards: [],
 }
@@ -1052,7 +1054,7 @@ Before showing any file to the user, verify:
 - [ ] Exported as object with `module.exports`
 
 ## Flashcards Files *(skip whole checklist if user chose No flashcards)*
-- [ ] Main deck file exists with stable `deck.slug` and **`courseId`**; **`cards: []`**
+- [ ] Main deck file exists with stable `deck.slug` and **`courseSlug`**; **`cards: []`**
 - [ ] Subdeck chunk file exists for each generated module chunk
 - [ ] Exactly one subdeck per module in each chunk
 - [ ] Every subdeck has `parentDeckSlug` pointing to the same main deck
@@ -1121,8 +1123,13 @@ Before showing any file to the user, verify:
     - For each generated module chunk, ensure a matching subdeck chunk file exists
 
 13. **Don't put flashcard questions on the course main deck**
-    - Main file must use **`cards: []`** and set **`courseId`**
-    - All cards belong on **subdeck** entries (`moduleId` + `parentDeckSlug` + `courseId`)
+    - Main file must use **`cards: []`** and set **`courseSlug`**
+    - All cards belong on **subdeck** entries (`moduleSlug` or `moduleOrder` + `parentDeckSlug` + `courseSlug`)
+
+14. **Don't use DB UUID fields in generated flashcard files**
+    - Do not generate `courseId` / `moduleId` values
+    - Do not leave placeholders like `__COURSE_ID__` / `__MODULE_X_ID__`
+    - Always use `courseSlug` + `moduleSlug` (or `moduleOrder`)
 
 
 # PART 8: RESPONSE FORMAT

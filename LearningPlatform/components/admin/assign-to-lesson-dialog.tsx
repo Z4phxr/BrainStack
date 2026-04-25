@@ -70,7 +70,11 @@ export function AssignToLessonDialog({
     const now = Date.now()
     // During tests, skip the module cache so tests that stub `fetch` observe
     // the mocked responses instead of stale cached data from other tests.
-    const cacheValid = _cache && now - _cache.ts < CACHE_TTL_MS && process.env.NODE_ENV !== 'test'
+    const cacheValid =
+      _cache &&
+      now - _cache.ts < CACHE_TTL_MS &&
+      process.env.NODE_ENV !== 'test' &&
+      process.env.VITEST !== 'true'
 
     function applyExpansion(courseList: CourseItem[]) {
       if (currentLessonIds.length > 0) {

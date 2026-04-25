@@ -1,28 +1,6 @@
-const fs = require('fs')
 const path = require('path')
 const { pathToFileURL } = require('url')
-
-function ensureScriptsTsconfigEnv() {
-  const scriptsTsconfig = path.resolve(__dirname, '../../../tsconfig.scripts.json')
-  if (!process.env.TSX_TSCONFIG_PATH) {
-    process.env.TSX_TSCONFIG_PATH = scriptsTsconfig
-  }
-}
-
-/**
- * Plain `node` does not execute TypeScript on `import()`. Use tsx's scoped require so
- * `payload.config.ts` and `@payload-config` resolve like `tsx --tsconfig tsconfig.scripts.json`.
- */
-function tryLoadPayloadConfigWithTsxRequire() {
-  ensureScriptsTsconfigEnv()
-  const { require: tsxRequire } = require('tsx/cjs/api')
-  const base = path.join(__dirname, '../../../src/payload/payload.config')
-  const tsPath = `${base}.ts`
-  if (fs.existsSync(tsPath)) {
-    return tsxRequire(tsPath, __filename)
-  }
-  return tsxRequire('@payload-config', __filename)
-}
+const { createRequire } = require('module')
 
 async function unwrapConfig(candidate) {
   let value = candidate
@@ -48,26 +26,31 @@ async function unwrapConfig(candidate) {
 
 async function loadPayloadConfig() {
   const base = path.join(__dirname, '../../../src/payload/payload.config')
-  const candidates = [`${base}.ts`, `${base}.js`].map((p) => pathToFileURL(p).href)
+  const candidates = [`${base}.ts`, `${base}.js`]
+  const errors = []
 
-  for (const href of candidates) {
+  for (const candidatePath of candidates) {
     try {
-      const mod = await import(href)
+      const mod = await import(pathToFileURL(candidatePath).href)
       return await unwrapConfig(mod)
-    } catch {
-      // try next
+    } catch (err) {
+      errors.push(`${candidatePath}: ${err?.message || String(err)}`)
     }
   }
 
+  // Fallback used by Next path alias in this repo.
   try {
-    const mod = tryLoadPayloadConfigWithTsxRequire()
+    const req = createRequire(__filename)
+    const mod = req('@payload-config')
     return await unwrapConfig(mod)
   } catch (err) {
-    throw new Error(
-      'Could not load Payload config. Install devDependency `tsx` and use tsconfig.scripts.json (see documentation/CONTENT_IMPORTS.md). ' +
-        `Last error: ${err?.message || err}`,
-    )
+    errors.push(`@payload-config: ${err?.message || String(err)}`)
   }
+
+  throw new Error(
+    'Could not load Payload config. Install devDependency `tsx` and use tsconfig.scripts.json (see documentation/CONTENT_IMPORTS.md). ' +
+      `Tried: ${errors.join(' | ')}`,
+  )
 }
 
 async function initPayloadClient(payloadSecret) {
@@ -83,7 +66,21 @@ async function initPayloadClient(payloadSecret) {
     process.env.PAYLOAD_MIGRATING = 'true'
   }
 
-  const { getPayload } = await import('payload')
+  // Payload's CJS loadEnv helper expects `require('@next/env').default`.
+  // Newer @next/env exports only named symbols, so we add a compatible default alias.
+  try {
+    // eslint-disable-next-line global-require
+    const nextEnv = require('@next/env')
+    if (nextEnv && nextEnv.default == null) {
+      // eslint-disable-next-line no-param-reassign
+      nextEnv.default = nextEnv
+    }
+  } catch {
+    // no-op: importer will fail later with a clearer message if @next/env is missing
+  }
+
+  // eslint-disable-next-line global-require
+  const { getPayload } = require('payload')
   const config = await loadPayloadConfig()
   const effectiveConfig = config?.secret ? config : { ...config, secret: payloadSecret }
 
