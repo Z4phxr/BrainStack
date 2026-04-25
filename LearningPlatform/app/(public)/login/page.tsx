@@ -15,19 +15,30 @@ import { Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { heroMarketingAuthInputClass, heroMarketingGlassText } from '@/lib/hero-marketing-classes';
 
-async function getInfraStatusMessage(): Promise<string | null> {
-  try {
-    // Add a timestamp to bypass any browser/proxy caching of old health responses.
-    const res = await fetch(`/api/health?t=${Date.now()}`, { cache: 'no-store' });
-    if (res.ok) return null;
+const INFRA_STATUS_CACHE_TTL_MS = 30_000;
+let lastInfraStatusCheckAt = 0;
+let lastInfraStatusMessage: string | null = null;
 
-    // Health endpoint returns 503 for DB/Payload connectivity issues.
-    if (res.status >= 500) {
-      return 'Cannot connect to the server/database right now. Please try again in a moment.';
-    }
-    return null;
+async function getInfraStatusMessage(): Promise<string | null> {
+  const now = Date.now();
+  if (now - lastInfraStatusCheckAt < INFRA_STATUS_CACHE_TTL_MS) {
+    return lastInfraStatusMessage;
+  }
+
+  try {
+    const res = await fetch('/api/healthz', { cache: 'no-store' });
+    const message =
+      res.ok || res.status < 500
+        ? null
+        : 'Cannot connect to the server/database right now. Please try again in a moment.';
+    lastInfraStatusCheckAt = now;
+    lastInfraStatusMessage = message;
+    return message;
   } catch {
-    return 'Cannot reach the backend right now. Check your connection and try again.';
+    const message = 'Cannot reach the backend right now. Check your connection and try again.';
+    lastInfraStatusCheckAt = now;
+    lastInfraStatusMessage = message;
+    return message;
   }
 }
 

@@ -38,6 +38,7 @@ export function FlashcardAssistantFab({
   const [composerCollapsed, setComposerCollapsed] = useState(false)
 
   useEffect(() => {
+    setQuestion('')
     setAnswer('')
     setError(null)
     setComposerCollapsed(false)
