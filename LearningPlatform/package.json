@@ -44,7 +44,11 @@
     "content:import:all": "tsx --tsconfig tsconfig.scripts.json ./scripts/imports/runners/import-all.js",
     "payload:cleanup-orphans": "tsx --tsconfig tsconfig.scripts.json ./scripts/cleanup-payload-orphans.ts",
     "content:wipe": "tsx --tsconfig tsconfig.scripts.json ./scripts/wipe-content.ts",
-    "content:wipe:docker": "powershell -ExecutionPolicy Bypass -File ./scripts/wipe-content-docker.ps1"
+    "content:wipe:docker": "powershell -ExecutionPolicy Bypass -File ./scripts/wipe-content-docker.ps1",
+    "content:export:all": "tsx --tsconfig tsconfig.scripts.json ./scripts/imports/runners/export-all.js",
+    "content:export:tags": "tsx --tsconfig tsconfig.scripts.json ./scripts/imports/runners/export-tags.js",
+    "content:export:course": "tsx --tsconfig tsconfig.scripts.json ./scripts/imports/runners/export-courses.js",
+    "content:export:flashcards": "tsx --tsconfig tsconfig.scripts.json ./scripts/imports/runners/export-flashcards.js"
   },
   "prisma": {
     "seed": "tsx --tsconfig tsconfig.scripts.json ./prisma/seed.ts"

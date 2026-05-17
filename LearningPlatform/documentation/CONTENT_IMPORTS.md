@@ -220,6 +220,38 @@ module.exports = [
 
 Run order remains: **tags → courses → modules → flashcards** so `courseId` / `moduleId` / `tagSlugs` resolve correctly.
 
+## Export (backup / migrate)
+
+Export writes **the same shapes** as import (`.js` files with `module.exports = …`) under `scripts/imports/data-private/export-<timestamp>/` by default (gitignored).
+
+| Script | Scope |
+|--------|--------|
+| `npm run content:export:all` | **tags → courses → flashcards** (recommended) |
+| `npm run content:export:tags` | All Prisma tags (`{ name, slug, main? }`) |
+| `npm run content:export:course` | One `.js` per Payload course (`{ subject, course, modules }`) |
+| `npm run content:export:flashcards` | Deck files (`{ deck, cards }` or chunked subdecks) |
+
+Flags: `--out <dir>`, `--dry-run`, `--used-tags-only` (tags runner / export-all only).
+
+**Re-import after export**
+
+1. Copy `export-…/tags/*.js` → `scripts/imports/data-private/tags/` (or `data/tags/`)
+2. Copy `export-…/courses/*.js` → `data-private/courses/`
+3. Copy `export-…/flashcards/*.js` → `data-private/flashcards/`
+4. Run `npm run content:import:all` (same order as export: **tags first**, then courses, then flashcards)
+
+**Tags:** Yes — tasks and flashcards reference tags by **slug**. Export includes all tags by default; use `--used-tags-only` for a smaller tag file.
+
+**Media:** Theory images and course covers export as `__IMPORT_PLACEHOLDER_IMAGE__` or a basename under `scripts/imports/assets/` when possible. Put custom images in `assets/` before re-import, or replace in Admin → Media after import.
+
+**Docker** (from `LearningPlatform/`, stack running):
+
+```bash
+docker compose exec app npm run content:export:all
+```
+
+Copy files out of the container if needed (`docker cp …`).
+
 ## Commands
 
 | Script | Scope |
