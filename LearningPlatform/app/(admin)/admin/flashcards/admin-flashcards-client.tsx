@@ -832,6 +832,16 @@ export function AdminFlashcardsPage() {
         setError(typeof data?.error === 'string' ? data.error : 'Could not delete deck.')
         return
       }
+      const removedDeckIds = new Set<string>([deck.id])
+      if (opts.isMain) {
+        for (const row of deckRows) {
+          if (row.parentDeckId === deck.id) removedDeckIds.add(row.id)
+        }
+      }
+      setFlashcards((prev) => prev.filter((fc) => !removedDeckIds.has(fc.deck.id)))
+      setDeckRows((prev) =>
+        prev.filter((row) => row.id !== deck.id && row.parentDeckId !== deck.id),
+      )
       if (inlineSubdeckMainId === deck.id) setInlineSubdeckMainId(null)
       if (inlineStandaloneSubdeckMainId === deck.id) {
         setInlineStandaloneSubdeckMainId(null)

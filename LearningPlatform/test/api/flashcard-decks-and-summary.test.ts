@@ -5,11 +5,14 @@ const mockPrisma = createMockPrisma()
 
 vi.mock('@/lib/prisma', () => ({ prisma: mockPrisma }))
 vi.mock('@/auth', () => ({ auth: vi.fn() }))
+vi.mock('next/cache', () => ({ revalidateTag: vi.fn() }))
 
 const { GET: decksGet, POST: decksPost } = await import('@/app/api/flashcard-decks/route')
 const { getFlashcardDashboardSummary } = await import('@/lib/flashcards-dashboard-summary')
 const { auth } = await import('@/auth')
+const { revalidateTag } = await import('next/cache')
 const mockedAuth = vi.mocked(auth)
+const mockedRevalidateTag = vi.mocked(revalidateTag)
 
 function adminSession() {
   mockedAuth.mockResolvedValue({
@@ -272,6 +275,7 @@ describe('flashcard-decks route', () => {
     expect(mockPrisma.flashcardDeck.delete).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'sub-1' } }),
     )
+    expect(mockedRevalidateTag).toHaveBeenCalledWith('api-flashcards', 'max')
   })
 
   it('DELETE /api/flashcard-decks/[id] cascades main deck, subdecks, and flashcards', async () => {
@@ -296,6 +300,7 @@ describe('flashcard-decks route', () => {
     expect(mockPrisma.flashcardDeck.delete).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'main-1' } }),
     )
+    expect(mockedRevalidateTag).toHaveBeenCalledWith('api-flashcards', 'max')
   })
 })
 

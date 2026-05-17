@@ -42,7 +42,9 @@
     "content:import:modules": "tsx --tsconfig tsconfig.scripts.json ./scripts/imports/runners/import-modules.js",
     "content:import:flashcards": "tsx --tsconfig tsconfig.scripts.json ./scripts/imports/runners/import-flashcards.js",
     "content:import:all": "tsx --tsconfig tsconfig.scripts.json ./scripts/imports/runners/import-all.js",
-    "payload:cleanup-orphans": "tsx --tsconfig tsconfig.scripts.json ./scripts/cleanup-payload-orphans.ts"
+    "payload:cleanup-orphans": "tsx --tsconfig tsconfig.scripts.json ./scripts/cleanup-payload-orphans.ts",
+    "content:wipe": "tsx --tsconfig tsconfig.scripts.json ./scripts/wipe-content.ts",
+    "content:wipe:docker": "powershell -ExecutionPolicy Bypass -File ./scripts/wipe-content-docker.ps1"
   },
   "prisma": {
     "seed": "tsx --tsconfig tsconfig.scripts.json ./prisma/seed.ts"

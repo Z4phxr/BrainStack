@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth-helpers'
 
@@ -41,6 +42,12 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
         await tx.flashcard.deleteMany({ where: { deckId: id } })
         await tx.flashcardDeck.delete({ where: { id } })
       })
+    }
+
+    try {
+      revalidateTag('api-flashcards', 'max')
+    } catch {
+      /* best-effort */
     }
 
     return NextResponse.json({ ok: true })
